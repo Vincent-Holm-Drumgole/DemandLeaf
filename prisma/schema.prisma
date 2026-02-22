@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── NextAuth Required Tables ────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Application Tables ──────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  emailVerified DateTime? @map("email_verified")
+  passwordHash String?   @map("password_hash")
+  name         String?
+  image        String?
+  authProvider String    @default("email") @map("auth_provider")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  workspaces Workspace[]
+  accounts   Account[]
+  sessions   Session[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  name                String
+  url                 String?
+  industry            String?
+  audienceDescription String?  @map("audience_description")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voiceProfiles VoiceProfile[]
+  crawledPages  CrawledPage[]
+  blogs         Blog[]
+
+  @@map("workspaces")
+  @@index([userId])
+}
+
+model VoiceProfile {
+  id                    String   @id @default(uuid()) @db.Uuid
+  workspaceId           String   @map("workspace_id") @db.Uuid
+  voiceAttributes       Json     @map("voice_attributes")
+  voiceDescription      String   @map("voice_description") @db.Text
+  vocabularyPreferences Json?    @map("vocabulary_preferences")
+  writingExamples       String[] @map("writing_examples")
+  sourceQuality         String?  @map("source_quality")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("voice_profiles")
+  @@index([workspaceId])
+  @@index([sourceQuality])
+}
+
+model CrawledPage {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  url         String
+  pageType    String?  @map("page_type")
+  title       String?
+  content     String?  @db.Text
+  wordCount   Int?     @map("word_count")
+  crawledAt   DateTime @default(now()) @map("crawled_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("crawled_pages")
+  @@index([workspaceId])
+  @@index([workspaceId, crawledAt])
+}
+
+model Blog {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workspaceId         String   @map("workspace_id") @db.Uuid
+  title               String
+  slug                String?
+  content             String   @db.Text
+  contentHtml         String?  @map("content_html") @db.Text
+  metaTitle           String?  @map("meta_title")
+  metaDescription     String?  @map("meta_description")
+  focusKeyword        String?  @map("focus_keyword")
+  archetype           String
+  wordCount           Int?     @map("word_count")
+  status              String   @default("draft")
+
+  // Scores
+  seoScore            Int?     @map("seo_score")
+  qualityScore        Int?     @map("quality_score")
+  detectionRisk       String?  @map("detection_risk")
+  detectionRiskScore  Int?     @map("detection_risk_score")
+  burstinessScore     Float?   @map("burstiness_score")
+  readabilityScore    Float?   @map("readability_score")
+
+  // Generation metadata
+  modelUsed           String?  @map("model_used")
+  inputTokens         Int?     @map("input_tokens")
+  outputTokens        Int?     @map("output_tokens")
+  generationCostCents Int?     @map("generation_cost_cents")
+  generationTimeMs    Int?     @map("generation_time_ms")
+  promptVersion       String?  @map("prompt_version")
+
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  feedback  BlogFeedback[]
+
+  @@map("blogs")
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([focusKeyword])
+}
+
+model BlogFeedback {
+  id             String   @id @default(uuid()) @db.Uuid
+  blogId         String   @map("blog_id") @db.Uuid
+  paragraphIndex Int      @map("paragraph_index")
+  feedback       String
+  comment        String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@map("blog_feedback")
+  @@index([blogId])
+}
+
+model PromptVersion {
+  id                 String   @id @default(uuid()) @db.Uuid
+  promptName         String   @map("prompt_name")
+  version            String
+  systemPrompt       String   @map("system_prompt") @db.Text
+  userPromptTemplate String   @map("user_prompt_template") @db.Text
+  isActive           Boolean  @default(false) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@map("prompt_versions")
+  @@unique([promptName, version])
+  @@index([promptName, isActive])
+}
+
+model AnonymousSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  crawlData    Json?    @map("crawl_data")
+  voiceProfile Json?    @map("voice_profile")
+  blogData     Json?    @map("blog_data")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("anonymous_sessions")
+  @@index([expiresAt])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  eventName  String   @map("event_name")
+  userId     String?  @map("user_id") @db.Uuid
+  sessionId  String?  @map("session_id") @db.Uuid
+  properties Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("analytics_events")
+  @@index([eventName])
+  @@index([userId])
+  @@index([sessionId])
+}
