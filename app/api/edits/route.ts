@@ -4,6 +4,7 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
+import { ERR_BLOG_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many edit submissions" }, {
       status: 429,
-      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
     });
   }
 
@@ -46,7 +47,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   ) {
     return NextResponse.json({ error: "paragraphIndex must be a non-negative number" }, { status: 400 });
   }
-  const paragraphIndexValue = paragraphIndex;
   if (!originalText || typeof originalText !== "string") {
     return NextResponse.json({ error: "originalText is required" }, { status: 400 });
   }
@@ -70,16 +70,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const editId = await convex.mutation(api.blogEdits.recordEdit, {
       blogId: blogIdTyped,
       workspaceId: workspace._id,
-      paragraphIndex: paragraphIndexValue,
+      paragraphIndex: paragraphIndex,
       originalText,
       editedText,
     });
     return NextResponse.json({ id: editId, classificationStatus: "pending" }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Blog not found")) {
+    if (err instanceof Error && err.message.includes(ERR_BLOG_NOT_FOUND)) {
       return NextResponse.json({ error: "Blog not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
+    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[edits/POST] error:", err);

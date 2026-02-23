@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { termTypeValidator } from "./validators";
 import { requireWorkspaceAccess } from "./helpers";
+import { ERR_ENTRY_NOT_FOUND, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "./errors";
 
 export const listByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },
@@ -44,13 +45,13 @@ export const add = mutation({
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .take(101);
     if (existing.length >= 100) {
-      throw new Error("Never-say list limit reached (100 terms)");
+      throw new Error(`Never-say list ${ERR_NEVER_SAY_LIMIT} (100 terms)`);
     }
     // Check for duplicates (case-insensitive)
     const lower = args.term.toLowerCase();
     const duplicate = existing.find((e) => e.term.toLowerCase() === lower);
     if (duplicate) {
-      throw new Error(`Term already exists: ${args.term}`);
+      throw new Error(`Term ${ERR_NEVER_SAY_DUPLICATE}: ${args.term}`);
     }
     return ctx.db.insert("neverSayList", {
       workspaceId: args.workspaceId,
@@ -71,7 +72,7 @@ export const remove = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error("Entry not found");
+      throw new Error(ERR_ENTRY_NOT_FOUND);
     }
     await ctx.db.delete(args.entryId);
   },

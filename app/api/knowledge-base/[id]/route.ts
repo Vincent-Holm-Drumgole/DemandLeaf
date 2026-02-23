@@ -4,6 +4,7 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
+import { ERR_ENTRY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,7 +18,7 @@ export async function GET(_request: NextRequest, context: RouteParams): Promise<
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,
-      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
     });
   }
 
@@ -54,7 +55,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,
-      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
     });
   }
 
@@ -91,10 +92,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       tags: body.tags?.filter((tag): tag is string => typeof tag === "string"),
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Entry not found")) {
+    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
+    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/[id]/PUT] error:", err);
@@ -112,7 +113,7 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,
-      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
     });
   }
 
@@ -132,10 +133,10 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
       workspaceId: workspace._id,
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Entry not found")) {
+    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
+    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/[id]/DELETE] error:", err);

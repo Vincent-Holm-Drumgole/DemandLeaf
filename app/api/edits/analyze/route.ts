@@ -14,7 +14,7 @@ export async function POST(): Promise<NextResponse> {
       { error: "Too many requests" },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
       },
     );
   }

@@ -6,8 +6,9 @@
  * instances and cold starts.
  *
  * Falls back to an in-memory sliding-window implementation when those env
- * vars are absent (local development, CI without secrets). The in-memory
- * store is per-process and will not be shared across instances.
+ * vars are absent (local development, CI without secrets), or if Upstash
+ * throws a transient error (network blip, timeout, auth failure). The
+ * in-memory store is per-process and will not be shared across instances.
  *
  * All call sites must `await checkRateLimit(…)`.
  */
@@ -118,7 +119,12 @@ export async function checkRateLimit(
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
   if (upstashConfigured) {
-    return checkUpstash(key, options);
+    try {
+      return await checkUpstash(key, options);
+    } catch (err) {
+      console.error("[rate-limit] Upstash error, falling back to in-memory:", err);
+      return checkInMemory(key, options);
+    }
   }
   return checkInMemory(key, options);
 }

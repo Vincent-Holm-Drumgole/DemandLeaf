@@ -44,8 +44,8 @@ Focus only on patterns with 3+ occurrences. Be specific and actionable.`;
   const editSummary = Object.entries(byType)
     .map(([type, records]) => {
       const examples = records.slice(0, 3).map((r) => {
-        const origNorm = r.originalText.replace(/\n/g, " ");
-        const editedNorm = r.editedText.replace(/\n/g, " ");
+        const origNorm = r.originalText.replace(/\r\n|\r|\n/g, " ");
+        const editedNorm = r.editedText.replace(/\r\n|\r|\n/g, " ");
         const origTrunc = origNorm.slice(0, 100);
         const editedTrunc = editedNorm.slice(0, 100);
         const origSuffix = origNorm.length > 100 ? "..." : "";

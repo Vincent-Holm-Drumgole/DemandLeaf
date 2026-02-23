@@ -23,9 +23,14 @@ export function sanitizePromptInput(input: string): string {
  * Only use this variant when the text is placed directly inside an XML-like
  * delimiter in the prompt. For all other text (voice profiles, edit text,
  * topic strings, etc.) use sanitizePromptInput.
+ *
+ * & is escaped first (before < and >) to prevent double-encoding: a literal
+ * "&lt;" in user input must become "&amp;lt;", not "&lt;" (which the LLM
+ * would see as a "<" tag escape that partially reconstructs the delimiter).
  */
 export function sanitizeXmlContent(input: string): string {
   return sanitizePromptInput(input)
+    .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }

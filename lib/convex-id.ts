@@ -10,6 +10,8 @@
  *   - Rejects empty strings (URL params that were somehow empty)
  *   - Rejects strings that are implausibly long (>100 chars), guarding against
  *     oversized inputs being forwarded to Convex
+ *   - Rejects strings with leading/trailing whitespace (URL params that were
+ *     not properly decoded or trimmed by the caller)
  *
  * The `table` parameter lets TypeScript infer the correct `Id<T>` return type
  * at the call site:
@@ -17,8 +19,7 @@
  *   const blogId = parseConvexId(rawId, "blogs"); // Id<"blogs"> | null
  */
 
-import type { TableNames } from "@/convex/_generated/dataModel";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { TableNames, Id } from "@/convex/_generated/dataModel";
 
 export function parseConvexId<T extends TableNames>(
   value: string,

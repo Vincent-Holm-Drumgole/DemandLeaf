@@ -4,10 +4,22 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { FunctionReturnType } from "convex/server";
+import { ERR_UNAUTHORIZED, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "@/convex/errors";
 
 export async function GET(): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rateLimit = await checkRateLimit(`never-say-get:${userId}`, { limit: 60, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
+      },
+    );
+  }
 
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});
@@ -26,7 +38,7 @@ export async function GET(): Promise<NextResponse> {
     }));
     return NextResponse.json({ items });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
+    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[never-say/GET] error:", err);
@@ -44,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { error: "Too many requests" },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+        headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
       },
     );
   }
@@ -92,10 +104,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to add term";
-    if (message.includes("limit reached") || message.includes("already exists")) {
+    if (message.includes(ERR_NEVER_SAY_LIMIT) || message.includes(ERR_NEVER_SAY_DUPLICATE)) {
       return NextResponse.json({ error: message }, { status: 409 });
     }
-    if (message.includes("Unauthorized")) {
+    if (message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[never-say/POST] error:", err);

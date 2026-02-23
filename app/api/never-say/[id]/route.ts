@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
+import { ERR_ENTRY_NOT_FOUND } from "@/convex/errors";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,8 +19,6 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
     return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
   }
 
-  void _request;
-
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
@@ -31,7 +30,7 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
     });
     return NextResponse.json({ success: true });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Entry not found")) {
+    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
     console.error("[never-say/[id]/DELETE] error:", err);

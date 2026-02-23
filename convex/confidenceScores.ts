@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
+import { ERR_BLOG_NOT_FOUND } from "./errors";
 
 export const approveBlog = mutation({
   args: {
@@ -12,7 +13,7 @@ export const approveBlog = mutation({
 
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error("Blog not found");
+      throw new Error(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       userApproval: true,
@@ -35,7 +36,7 @@ export const setVoiceMatchScore = mutation({
     }
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error("Blog not found");
+      throw new Error(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       voiceMatchScore: args.voiceMatchScore,

@@ -40,38 +40,7 @@ export const updateFromWizard = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
     const now = Date.now();
-    const existing = await ctx.db
-      .query("voiceProfiles")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .unique();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        voiceAttributes: {
-          formality: args.patch.formality,
-          humor: args.patch.humor,
-          jargonLevel: args.patch.jargonLevel,
-          sentenceComplexity: args.patch.sentenceComplexity,
-          toneAttributes: args.patch.toneAttributes,
-        },
-        voiceDescription: args.patch.voiceDescription,
-        vocabularyPreferences: {
-          preferred: args.patch.preferredVocabulary,
-          avoid: args.patch.avoidedVocabulary,
-        },
-        writingExamples: args.patch.writingExamples,
-        sourceQuality: args.patch.sourceQuality,
-        thoughtLeadershipPositions: args.patch.thoughtLeadershipPositions,
-        brandPhilosophy: args.patch.brandPhilosophy,
-        wizardCompleted: true,
-        wizardCompletedAt: now,
-        updatedAt: now,
-      });
-      return existing._id;
-    }
-
-    return ctx.db.insert("voiceProfiles", {
-      workspaceId: args.workspaceId,
+    const profileData = {
       voiceAttributes: {
         formality: args.patch.formality,
         humor: args.patch.humor,
@@ -88,10 +57,25 @@ export const updateFromWizard = mutation({
       sourceQuality: args.patch.sourceQuality,
       thoughtLeadershipPositions: args.patch.thoughtLeadershipPositions,
       brandPhilosophy: args.patch.brandPhilosophy,
-      wizardCompleted: true,
+      wizardCompleted: true as const,
       wizardCompletedAt: now,
-      createdAt: now,
       updatedAt: now,
+    };
+
+    const existing = await ctx.db
+      .query("voiceProfiles")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, profileData);
+      return existing._id;
+    }
+
+    return ctx.db.insert("voiceProfiles", {
+      workspaceId: args.workspaceId,
+      ...profileData,
+      createdAt: now,
     });
   },
 });

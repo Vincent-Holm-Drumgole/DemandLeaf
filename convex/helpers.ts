@@ -1,5 +1,6 @@
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import { ERR_UNAUTHENTICATED, ERR_UNAUTHORIZED } from "./errors";
 
 /**
  * Asserts that the calling user is authenticated and owns the given workspace.
@@ -12,12 +13,12 @@ export async function requireWorkspaceAccess(
 ): Promise<Doc<"workspaces">> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
-    throw new Error("Unauthenticated");
+    throw new Error(ERR_UNAUTHENTICATED);
   }
 
   const workspace = await ctx.db.get(workspaceId);
   if (!workspace || workspace.clerkUserId !== identity.subject) {
-    throw new Error("Unauthorized");
+    throw new Error(ERR_UNAUTHORIZED);
   }
 
   return workspace;

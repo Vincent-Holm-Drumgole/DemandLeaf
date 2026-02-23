@@ -13,6 +13,7 @@ import type * as blogEdits from "../blogEdits.js";
 import type * as blogs from "../blogs.js";
 import type * as calibration from "../calibration.js";
 import type * as confidenceScores from "../confidenceScores.js";
+import type * as errors from "../errors.js";
 import type * as feedback from "../feedback.js";
 import type * as helpers from "../helpers.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   blogs: typeof blogs;
   calibration: typeof calibration;
   confidenceScores: typeof confidenceScores;
+  errors: typeof errors;
   feedback: typeof feedback;
   helpers: typeof helpers;
   knowledgeBase: typeof knowledgeBase;

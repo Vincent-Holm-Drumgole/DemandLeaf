@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         status: 429,
         headers: {
           "Content-Type": "application/json",
-          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+          "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))),
         },
       }
     );
