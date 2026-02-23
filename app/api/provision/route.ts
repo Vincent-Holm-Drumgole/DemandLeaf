@@ -17,12 +17,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // No body is fine — we'll still provision the workspace.
   }
 
-  const convex = await getAuthedConvexClient();
-  const { workspaceId } = await convex.mutation(api.workspaces.provision, {
-    clerkUserId: userId,
-    name: "My Workspace",
-    sessionToken: sessionId,
-  });
-
-  return NextResponse.json({ workspaceId }, { status: 200 });
+  try {
+    const convex = await getAuthedConvexClient();
+    const { workspaceId } = await convex.mutation(api.workspaces.provision, {
+      clerkUserId: userId,
+      name: "My Workspace",
+      sessionToken: sessionId,
+    });
+    return NextResponse.json({ workspaceId }, { status: 200 });
+  } catch (err) {
+    console.error("[provision] mutation error:", err);
+    return NextResponse.json(
+      { error: "Failed to provision workspace" },
+      { status: 500 }
+    );
+  }
 }

@@ -1,5 +1,12 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  voiceAttributesValidator,
+  vocabularyPreferencesValidator,
+  voiceProfileValidator,
+  crawlDataValidator,
+  blogDataValidator,
+} from "./validators";
 
 export default defineSchema({
   workspaces: defineTable({
@@ -16,9 +23,9 @@ export default defineSchema({
 
   voiceProfiles: defineTable({
     workspaceId: v.id("workspaces"),
-    voiceAttributes: v.any(),
+    voiceAttributes: voiceAttributesValidator,
     voiceDescription: v.string(),
-    vocabularyPreferences: v.optional(v.any()),
+    vocabularyPreferences: v.optional(vocabularyPreferencesValidator),
     writingExamples: v.array(v.string()),
     sourceQuality: v.optional(v.string()),
     createdAt: v.number(),
@@ -92,10 +99,12 @@ export default defineSchema({
     .index("by_name_version", ["promptName", "version"]),
 
   anonymousSessions: defineTable({
+    // UUID v4 — treated as unique. Uniqueness is enforced in the create
+    // mutation rather than via a schema constraint (Convex has no UNIQUE index).
     sessionToken: v.string(),
-    crawlData: v.optional(v.any()),
-    voiceProfile: v.optional(v.any()),
-    blogData: v.optional(v.any()),
+    crawlData: v.optional(crawlDataValidator),
+    voiceProfile: v.optional(voiceProfileValidator),
+    blogData: v.optional(blogDataValidator),
     expiresAt: v.number(),
     createdAt: v.number(),
   })

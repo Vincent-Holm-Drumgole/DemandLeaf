@@ -203,33 +203,6 @@ function checkContentLength(wordCount: number, maxPoints: number): SEOCheckResul
   };
 }
 
-function checkExternalLink(content: string, maxPoints: number): SEOCheckResult {
-  // Check for markdown links to external URLs
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-  const matches = [...content.matchAll(linkRegex)];
-  const passed = matches.length >= 1;
-  return {
-    name: "External link",
-    passed,
-    points: passed ? maxPoints : 0,
-    maxPoints,
-    suggestion: passed ? undefined : "Add at least 1 external link to a relevant resource",
-  };
-}
-
-function checkImageAlt(content: string, maxPoints: number): SEOCheckResult {
-  // Check for markdown images with alt text
-  const imageRegex = /!\[([^\]]+)\]\(/g;
-  const matches = [...content.matchAll(imageRegex)];
-  const passed = matches.length >= 1;
-  return {
-    name: "Image alt text",
-    passed,
-    points: passed ? maxPoints : 0,
-    maxPoints,
-    suggestion: passed ? undefined : "Add at least 1 image with descriptive alt text",
-  };
-}
 
 function checkParagraphLength(paragraphs: string[], maxPoints: number): SEOCheckResult {
   if (paragraphs.length === 0) return { name: "Short paragraphs", passed: false, points: 0, maxPoints };

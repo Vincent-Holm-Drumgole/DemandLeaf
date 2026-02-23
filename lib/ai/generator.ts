@@ -31,7 +31,7 @@ import { BANNED_META_OPENERS } from "@/lib/constants/banned-words";
 export type ProgressCallback = (step: PipelineStep) => void;
 
 /**
- * The core 8-step blog generation pipeline.
+ * The core blog generation pipeline.
  *
  * 1. Generate brief (Sonnet)
  * 2. Generate draft (Sonnet, 5-layer prompt)
@@ -39,6 +39,7 @@ export type ProgressCallback = (step: PipelineStep) => void;
  * 4. SEO check (code)
  * 5. Anti-detection check (code)
  * 6. Revision pass (Sonnet, only if flags)
+ * 6b. Post-process content (code) — markdown → HTML, HTML sanitization
  * 7. Meta generation (Haiku)
  * 8. Final scoring (code)
  */

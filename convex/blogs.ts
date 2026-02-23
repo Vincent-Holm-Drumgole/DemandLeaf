@@ -123,6 +123,14 @@ export const create = mutation({
     promptVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace || workspace.clerkUserId !== identity.subject) {
+      throw new Error("Workspace not found or access denied");
+    }
+
     const now = Date.now();
     return ctx.db.insert("blogs", { ...args, createdAt: now, updatedAt: now });
   },

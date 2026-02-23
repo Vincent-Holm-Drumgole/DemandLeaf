@@ -1,16 +1,24 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { crawlDataValidator, voiceProfileValidator, blogDataValidator } from "./validators";
 
 // All functions here are unauthenticated — anonymous sessions exist before any user logs in.
 
 export const create = mutation({
   args: {
     sessionToken: v.string(),
-    crawlData: v.optional(v.any()),
-    voiceProfile: v.optional(v.any()),
+    crawlData: v.optional(crawlDataValidator),
+    voiceProfile: v.optional(voiceProfileValidator),
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("anonymousSessions")
+      .withIndex("by_token", (q) => q.eq("sessionToken", args.sessionToken))
+      .unique();
+    if (existing) {
+      throw new Error(`Session token collision: ${args.sessionToken}`);
+    }
     return ctx.db.insert("anonymousSessions", {
       sessionToken: args.sessionToken,
       crawlData: args.crawlData,
@@ -34,14 +42,17 @@ export const get = query({
 export const updateBlogData = mutation({
   args: {
     sessionToken: v.string(),
-    blogData: v.any(),
+    blogData: blogDataValidator,
   },
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("anonymousSessions")
       .withIndex("by_token", (q) => q.eq("sessionToken", args.sessionToken))
       .unique();
-    if (!session) return;
+    if (!session) {
+      console.debug("[updateBlogData] Session not found:", args.sessionToken.slice(0, 8));
+      return;
+    }
     await ctx.db.patch(session._id, { blogData: args.blogData });
   },
 });

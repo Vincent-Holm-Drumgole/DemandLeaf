@@ -14,10 +14,8 @@ export function SeoGauge({ score, size = 100 }: SeoGaugeProps) {
       <div
         className="relative inline-flex items-center justify-center"
         style={{ width: size, height: size }}
-        role="meter"
+        role="img"
         aria-label="SEO score unavailable"
-        aria-valuemin={0}
-        aria-valuemax={100}
       >
         <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
           <circle

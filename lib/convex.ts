@@ -17,6 +17,9 @@ export async function getAuthedConvexClient(): Promise<ConvexHttpClient> {
   const client = getConvexClient();
   const { getToken } = await auth();
   const token = await getToken({ template: "convex" });
-  if (token) client.setAuth(token);
+  if (!token) {
+    throw new Error("Unable to obtain Clerk JWT for Convex authentication");
+  }
+  client.setAuth(token);
   return client;
 }

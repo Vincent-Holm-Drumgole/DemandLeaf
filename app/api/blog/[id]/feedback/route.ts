@@ -50,7 +50,7 @@ export async function POST(
   }
 
   const convex = getConvexClient();
-  const createdId = await convex.mutation(api.feedback.create, {
+  const { id: createdId, createdAt } = await convex.mutation(api.feedback.create, {
     blogId: blogId as Id<"blogs">,
     paragraphIndex,
     feedback,
@@ -64,7 +64,7 @@ export async function POST(
       paragraphIndex,
       feedback,
       comment: comment ?? null,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(createdAt).toISOString(),
     },
     { status: 201 }
   );

@@ -11,6 +11,7 @@
 import type * as anonymousSessions from "../anonymousSessions.js";
 import type * as blogs from "../blogs.js";
 import type * as feedback from "../feedback.js";
+import type * as validators from "../validators.js";
 import type * as workspaces from "../workspaces.js";
 
 import type {
@@ -23,6 +24,7 @@ declare const fullApi: ApiFromModules<{
   anonymousSessions: typeof anonymousSessions;
   blogs: typeof blogs;
   feedback: typeof feedback;
+  validators: typeof validators;
   workspaces: typeof workspaces;
 }>;
 

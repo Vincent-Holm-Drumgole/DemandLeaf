@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
@@ -7,6 +8,21 @@ import type { VoiceProfile, Archetype } from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`generate:${ip}`, { limit: 3, windowSec: 60 });
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many requests. Please wait before generating again." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      }
+    );
+  }
+
   const abortSignal = request.signal;
   let body: GenerateRequest;
   try {

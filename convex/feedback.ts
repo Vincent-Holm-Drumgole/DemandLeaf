@@ -10,12 +10,14 @@ export const create = mutation({
     comment: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return ctx.db.insert("blogFeedback", {
+    const createdAt = Date.now();
+    const id = await ctx.db.insert("blogFeedback", {
       blogId: args.blogId,
       paragraphIndex: args.paragraphIndex,
       feedback: args.feedback,
       comment: args.comment,
-      createdAt: Date.now(),
+      createdAt,
     });
+    return { id, createdAt };
   },
 });

@@ -7,7 +7,6 @@ const isPublicRoute = createRouteMatcher([
   "/api/crawl",
   "/api/generate",
   "/api/anonymous-session",
-  "/api/provision",
   "/onboarding(.*)",
 ]);
 

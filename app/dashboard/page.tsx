@@ -88,7 +88,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-xl font-semibold">{data.workspaceName}</h1>
             <p className="text-sm text-muted-foreground">
-              {data.blogs.length} blog{data.blogs.length !== 1 ? "s" : ""}
+              {data.blogs.length} of {data.total} blog{data.total !== 1 ? "s" : ""}
             </p>
           </div>
           <Button onClick={() => router.push("/")}>Write New Blog</Button>

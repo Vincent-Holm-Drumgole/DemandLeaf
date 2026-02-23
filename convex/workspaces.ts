@@ -39,22 +39,19 @@ export const provision = mutation({
     const now = Date.now();
 
     // Find or create workspace
-    let workspace = await ctx.db
+    const existing = await ctx.db
       .query("workspaces")
       .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", args.clerkUserId))
       .first();
 
-    if (!workspace) {
-      const id = await ctx.db.insert("workspaces", {
-        clerkUserId: args.clerkUserId,
-        name: args.name,
-        createdAt: now,
-        updatedAt: now,
-      });
-      workspace = (await ctx.db.get(id))!;
-    }
-
-    const workspaceId = workspace._id;
+    const workspaceId = existing
+      ? existing._id
+      : await ctx.db.insert("workspaces", {
+          clerkUserId: args.clerkUserId,
+          name: args.name,
+          createdAt: now,
+          updatedAt: now,
+        });
 
     // Migrate anonymous session if provided
     if (args.sessionToken) {

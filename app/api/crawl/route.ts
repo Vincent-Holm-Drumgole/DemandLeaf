@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { crawlWebsite } from "@/lib/crawler/crawler";
 import { extractVoiceProfile } from "@/lib/voice/extract";
 import { callHaiku, parseJsonResponse } from "@/lib/ai/client";
@@ -12,6 +13,18 @@ import { api } from "@/convex/_generated/api";
 import type { CrawlRequest, CrawlResponse } from "@/types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`crawl:${ip}`, { limit: 5, windowSec: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before crawling again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      }
+    );
+  }
+
   let body: CrawlRequest;
   try {
     body = (await request.json()) as CrawlRequest;
@@ -64,7 +77,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[crawl] AI analysis failed:", message);
     return NextResponse.json(
-      { error: "AI analysis failed. Check that ANTHROPIC_API_KEY is set." },
+      { error: "AI analysis temporarily unavailable. Please try again later." },
       { status: 500 }
     );
   }

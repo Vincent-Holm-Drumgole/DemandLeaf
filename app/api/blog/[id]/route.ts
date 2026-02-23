@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { FunctionReturnType } from "convex/server";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,9 +26,14 @@ export async function GET(
   }
 
   const convex = await getAuthedConvexClient();
-  const blog = await convex.query(api.blogs.getById, {
-    blogId: blogId as Id<"blogs">,
-  });
+  let blog: FunctionReturnType<typeof api.blogs.getById>;
+  try {
+    blog = await convex.query(api.blogs.getById, {
+      blogId: blogId as Id<"blogs">,
+    });
+  } catch {
+    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
+  }
 
   if (!blog) {
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });

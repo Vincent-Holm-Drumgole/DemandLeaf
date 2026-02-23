@@ -89,6 +89,10 @@ function replaceBannedWords(content: string): string {
     const regex = new RegExp(`\\b${escaped}\\b`, "gi");
 
     result = result.replace(regex, (match) => {
+      // Preserve ALL-CAPS emphasis (e.g. "DELVE" → "EXPLORE")
+      if (match === match.toUpperCase() && match !== match.toLowerCase()) {
+        return synonym.toUpperCase();
+      }
       const firstChar = match[0];
       if (firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase()) {
         return synonym.charAt(0).toUpperCase() + synonym.slice(1);
