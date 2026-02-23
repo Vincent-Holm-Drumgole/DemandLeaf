@@ -21,8 +21,11 @@ export interface SEOScorerInput {
 }
 
 /**
- * Score blog content against 18 SEO checks. Pure code, no AI calls.
+ * Score blog content against 16 SEO checks. Pure code, no AI calls.
  * Returns a score 0-100 and individual check results.
+ * Note: external-link and image-alt checks are excluded — they are
+ * structurally impossible for AI-generated markdown and would permanently
+ * cap the score below 93. They appear as suggestions in the UI instead.
  */
 export function scoreSEO(input: SEOScorerInput): SEOScore {
   const { content, focusKeyword, metaTitle, metaDescription, slug, title } = input;
@@ -44,8 +47,6 @@ export function scoreSEO(input: SEOScorerInput): SEOScore {
     checkMetaDescriptionLength(metaDescription, 5),
     checkH2Count(headings, 5),
     checkContentLength(wordCount, 5),
-    checkExternalLink(content, 4),
-    checkImageAlt(content, 4),
     checkParagraphLength(paragraphs, 4),
     checkFleschReadability(plainText, 4),
     checkHeadingHierarchy(headings, 4),

@@ -1,21 +1,21 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
-  const { data: session, status } = useSession();
+  const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
+    if (isLoaded && !isSignedIn) {
+      router.push("/sign-in");
     }
-  }, [status, router]);
+  }, [isLoaded, isSignedIn, router]);
 
-  if (status === "loading") {
+  if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -23,7 +23,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!isSignedIn) {
     return null;
   }
 
@@ -43,11 +43,11 @@ export default function SettingsPage() {
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Email</span>
-              <span>{session?.user?.email ?? "—"}</span>
+              <span>{user.primaryEmailAddress?.emailAddress ?? "—"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Name</span>
-              <span>{session?.user?.name ?? "—"}</span>
+              <span>{user.fullName ?? "—"}</span>
             </div>
           </CardContent>
         </Card>

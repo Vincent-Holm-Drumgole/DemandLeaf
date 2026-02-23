@@ -23,6 +23,7 @@ export function ExportBar({ blogId }: ExportBarProps) {
     const result = await exportBlog(blogId, format);
     if (format === "clipboard" && result === "copied") {
       setCopied(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }

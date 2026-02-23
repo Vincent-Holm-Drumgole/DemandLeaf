@@ -2,6 +2,7 @@ import type { GenerationInput, GenerationResult, PipelineStep } from "@/types";
 import { callSonnet, callHaiku, parseJsonResponse } from "./client";
 import { TokenTracker } from "./token-tracker";
 import { generateBrief } from "./brief";
+import { postProcessContent } from "./post-process";
 import {
   buildBlogDraftPrompt,
   buildSectionRevisionPrompt,
@@ -165,6 +166,9 @@ export async function generateBlog(
 
     onProgress?.({ name: "Polishing content", status: "complete" });
   }
+
+  // ── Post-processing: fix em dashes and banned words in code ────────
+  blogContent = postProcessContent(blogContent);
 
   // ── Step 7: Meta generation (Haiku) ────────────────────────────────
   onProgress?.({ name: "Generating metadata", status: "running" });

@@ -11,8 +11,15 @@ export function SeoGauge({ score, size = 100 }: SeoGaugeProps) {
 
   if (score === null) {
     return (
-      <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+      <div
+        className="relative inline-flex items-center justify-center"
+        style={{ width: size, height: size }}
+        role="meter"
+        aria-label="SEO score unavailable"
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -39,8 +46,16 @@ export function SeoGauge({ score, size = 100 }: SeoGaugeProps) {
         : "text-red-500";
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+      role="meter"
+      aria-label={`SEO score ${clampedScore} out of 100`}
+      aria-valuenow={clampedScore}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <circle
           cx={size / 2}
           cy={size / 2}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { BlogCard } from "@/components/dashboard/blog-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { DashboardResponse } from "@/types";
 
 export default function DashboardPage() {
-  const { status } = useSession();
+  const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,13 +17,13 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
+    if (isLoaded && !isSignedIn) {
+      router.push("/sign-in");
     }
-  }, [status, router]);
+  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (!isLoaded || !isSignedIn) return;
 
     async function loadDashboard() {
       try {
@@ -42,7 +42,7 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [status]);
+  }, [isLoaded, isSignedIn]);
 
   async function loadMore() {
     if (!data?.nextCursor) return;
@@ -63,7 +63,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (status === "loading" || isLoading) {
+  if (!isLoaded || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading dashboard...</p>

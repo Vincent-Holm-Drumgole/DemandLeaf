@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { getAuthedConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,8 +12,8 @@ export async function GET(
   _request: NextRequest,
   context: RouteParams
 ): Promise<NextResponse> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,13 +24,9 @@ export async function GET(
     return NextResponse.json({ error: "Blog ID is required" }, { status: 400 });
   }
 
-  const blog = await prisma.blog.findUnique({
-    where: { id: blogId },
-    include: {
-      feedback: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
+  const convex = await getAuthedConvexClient();
+  const blog = await convex.query(api.blogs.getById, {
+    blogId: blogId as Id<"blogs">,
   });
 
   if (!blog) {
@@ -37,39 +34,39 @@ export async function GET(
   }
 
   return NextResponse.json({
-    id: blog.id,
+    id: blog._id,
     title: blog.title,
-    slug: blog.slug,
+    slug: blog.slug ?? null,
     content: blog.content,
-    contentHtml: blog.contentHtml,
-    metaTitle: blog.metaTitle,
-    metaDescription: blog.metaDescription,
-    focusKeyword: blog.focusKeyword,
+    contentHtml: blog.contentHtml ?? null,
+    metaTitle: blog.metaTitle ?? null,
+    metaDescription: blog.metaDescription ?? null,
+    focusKeyword: blog.focusKeyword ?? null,
     archetype: blog.archetype,
-    wordCount: blog.wordCount,
+    wordCount: blog.wordCount ?? null,
     status: blog.status,
     scores: {
-      seoScore: blog.seoScore,
-      qualityScore: blog.qualityScore,
-      detectionRisk: blog.detectionRisk,
-      detectionRiskScore: blog.detectionRiskScore,
-      burstinessScore: blog.burstinessScore,
-      readabilityScore: blog.readabilityScore,
+      seoScore: blog.seoScore ?? null,
+      qualityScore: blog.qualityScore ?? null,
+      detectionRisk: blog.detectionRisk ?? null,
+      detectionRiskScore: blog.detectionRiskScore ?? null,
+      burstinessScore: blog.burstinessScore ?? null,
+      readabilityScore: blog.readabilityScore ?? null,
     },
-    modelUsed: blog.modelUsed,
-    inputTokens: blog.inputTokens,
-    outputTokens: blog.outputTokens,
-    generationCostCents: blog.generationCostCents,
-    generationTimeMs: blog.generationTimeMs,
-    promptVersion: blog.promptVersion,
-    createdAt: blog.createdAt.toISOString(),
-    updatedAt: blog.updatedAt.toISOString(),
+    modelUsed: blog.modelUsed ?? null,
+    inputTokens: blog.inputTokens ?? null,
+    outputTokens: blog.outputTokens ?? null,
+    generationCostCents: blog.generationCostCents ?? null,
+    generationTimeMs: blog.generationTimeMs ?? null,
+    promptVersion: blog.promptVersion ?? null,
+    createdAt: new Date(blog.createdAt).toISOString(),
+    updatedAt: new Date(blog.updatedAt).toISOString(),
     feedback: blog.feedback.map((f) => ({
-      id: f.id,
+      id: f._id,
       paragraphIndex: f.paragraphIndex,
       feedback: f.feedback,
-      comment: f.comment,
-      createdAt: f.createdAt.toISOString(),
+      comment: f.comment ?? null,
+      createdAt: new Date(f.createdAt).toISOString(),
     })),
   });
 }

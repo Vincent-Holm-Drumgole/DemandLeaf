@@ -1,36 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAnonymousSession } from "@/lib/session-store";
+import { randomUUID } from "node:crypto";
+import { getConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
 
 interface AnonymousSessionRequest {
   crawlData?: unknown;
   voiceProfile?: unknown;
-  blogData?: unknown;
   expiresInHours?: number;
 }
+
+const DEFAULT_TTL_HOURS = 24;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: AnonymousSessionRequest = {};
   try {
     body = (await request.json()) as AnonymousSessionRequest;
   } catch {
-    // Empty body is valid; we'll create a session shell.
+    // Empty body is valid.
   }
 
-  const { sessionToken, expiresAt } = await createAnonymousSession({
+  const sessionToken = randomUUID();
+  const expiresInHours =
+    typeof body.expiresInHours === "number" && body.expiresInHours > 0
+      ? body.expiresInHours
+      : DEFAULT_TTL_HOURS;
+  const expiresAt = Date.now() + expiresInHours * 60 * 60 * 1000;
+
+  const convex = getConvexClient();
+  await convex.mutation(api.anonymousSessions.create, {
+    sessionToken,
     crawlData: body.crawlData,
     voiceProfile: body.voiceProfile,
-    blogData: body.blogData,
-    expiresInHours:
-      typeof body.expiresInHours === "number" && body.expiresInHours > 0
-        ? body.expiresInHours
-        : undefined,
+    expiresAt,
   });
 
   return NextResponse.json(
-    {
-      sessionId: sessionToken,
-      expiresAt,
-    },
+    { sessionId: sessionToken, expiresAt: new Date(expiresAt).toISOString() },
     { status: 201 }
   );
 }

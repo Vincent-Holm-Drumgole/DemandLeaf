@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { crawlWebsite } from "@/lib/crawler/crawler";
 import { extractVoiceProfile } from "@/lib/voice/extract";
 import { callHaiku, parseJsonResponse } from "@/lib/ai/client";
@@ -6,7 +7,8 @@ import {
   buildIndustryClassificationPrompt,
   type IndustryClassificationResult,
 } from "@/lib/ai/prompts/industryClassification";
-import { createAnonymousSession } from "@/lib/session-store";
+import { getConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
 import type { CrawlRequest, CrawlResponse } from "@/types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -51,13 +53,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const aboutText =
     crawlResult.pages.find((p) => p.type === "about")?.content ?? "";
 
-  const [industryResult, voiceResult] = await Promise.all([
-    classifyIndustry(homepageText, aboutText, crawlResult.companyName),
-    extractVoiceProfile(crawlResult.pages, crawlResult.companyName),
-  ]);
+  let industryResult: IndustryClassificationResult;
+  let voiceResult: Awaited<ReturnType<typeof extractVoiceProfile>>;
+  try {
+    [industryResult, voiceResult] = await Promise.all([
+      classifyIndustry(homepageText, aboutText, crawlResult.companyName),
+      extractVoiceProfile(crawlResult.pages, crawlResult.companyName),
+    ]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[crawl] AI analysis failed:", message);
+    return NextResponse.json(
+      { error: "AI analysis failed. Check that ANTHROPIC_API_KEY is set." },
+      { status: 500 }
+    );
+  }
 
   // Step 3: Create anonymous session with all crawl data
-  const { sessionToken, expiresAt } = await createAnonymousSession({
+  const sessionToken = randomUUID();
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+  const convex = getConvexClient();
+  await convex.mutation(api.anonymousSessions.create, {
+    sessionToken,
     crawlData: {
       url,
       pages: crawlResult.pages.map((p) => ({
@@ -73,6 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       audienceExpertise: industryResult.audienceExpertise,
     },
     voiceProfile: voiceResult.profile,
+    expiresAt,
   });
 
   const response: CrawlResponse = {
@@ -89,10 +108,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     pagesFound: crawlResult.pages.length,
   };
 
+  const maxAge = Math.floor((expiresAt - Date.now()) / 1000);
   return NextResponse.json(response, {
     status: 200,
     headers: {
-      "Set-Cookie": `dl_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}; Max-Age=${Math.floor((expiresAt.getTime() - Date.now()) / 1000)}`,
+      "Set-Cookie": `dl_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}; Max-Age=${maxAge}`,
     },
   });
 }

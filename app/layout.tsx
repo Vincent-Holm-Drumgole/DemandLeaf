@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "@/components/providers/session-provider";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ConvexClientProvider } from "@/components/providers/convex-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import "./globals.css";
 
@@ -14,12 +15,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        <AuthProvider>
-          <PostHogProvider>{children}</PostHogProvider>
-        </AuthProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className="antialiased">
+          <ConvexClientProvider>
+            <PostHogProvider>{children}</PostHogProvider>
+          </ConvexClientProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

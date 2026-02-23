@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { getAuthedConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { ExportRequest } from "@/types";
 
 interface RouteParams {
@@ -12,8 +13,8 @@ export async function POST(
   request: NextRequest,
   context: RouteParams
 ): Promise<NextResponse> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,15 +43,9 @@ export async function POST(
     );
   }
 
-  const blog = await prisma.blog.findUnique({
-    where: { id: blogId },
-    select: {
-      title: true,
-      content: true,
-      contentHtml: true,
-      metaTitle: true,
-      metaDescription: true,
-    },
+  const convex = await getAuthedConvexClient();
+  const blog = await convex.query(api.blogs.getExportData, {
+    blogId: blogId as Id<"blogs">,
   });
 
   if (!blog) {
@@ -94,19 +89,13 @@ export async function POST(
 function buildHtmlExport(blog: {
   title: string;
   contentHtml: string | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
 }): string {
-  const title = escapeHtml(blog.metaTitle || blog.title);
-  const description = escapeHtml(blog.metaDescription || "");
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <meta name="description" content="${description}">
+  <title>${escapeHtml(blog.title)}</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1a1a1a; }
     h1 { font-size: 2rem; margin-bottom: 1.5rem; }
@@ -130,7 +119,8 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function slugify(title: string): string {

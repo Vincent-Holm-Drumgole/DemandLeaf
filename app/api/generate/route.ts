@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { getConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
 import type { GenerateRequest, GenerateSSEEvent } from "@/types";
 import type { VoiceProfile, Archetype } from "@/types";
@@ -43,9 +44,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // Load anonymous session
-  const session = await prisma.anonymousSession.findUnique({
-    where: { sessionToken: sessionId },
-  });
+  const convex = getConvexClient();
+  const session = await convex.query(api.anonymousSessions.get, { sessionToken: sessionId });
 
   if (!session) {
     return new Response(
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  if (session.expiresAt < new Date()) {
-    await prisma.anonymousSession.delete({ where: { sessionToken: sessionId } });
+  if (session.expiresAt < Date.now()) {
+    await convex.mutation(api.anonymousSessions.remove, { sessionToken: sessionId });
     return new Response(
       JSON.stringify({ error: "Session expired. Please start over." }),
       { status: 410, headers: { "Content-Type": "application/json" } }
@@ -107,33 +107,31 @@ export async function POST(request: NextRequest): Promise<Response> {
         // doesn't discard a successfully generated blog.
         let persistenceWarning: string | null = null;
         try {
-          await prisma.anonymousSession.update({
-            where: { sessionToken: sessionId },
-            data: {
-              blogData: {
-                blogId: result.blogId,
-                content: result.content,
-                contentHtml: result.contentHtml,
-                title: result.title,
-                slug: result.slug,
-                metaTitle: result.metaTitle,
-                metaDescription: result.metaDescription,
-                focusKeyword: result.focusKeyword,
-                archetype: result.archetype,
-                wordCount: result.wordCount,
-                seoScore: result.scores.seoScore,
-                qualityScore: result.scores.qualityScore,
-                detectionRisk: result.scores.detectionRisk,
-                detectionRiskScore: result.scores.detectionRiskScore,
-                burstinessScore: result.scores.burstinessScore,
-                readabilityScore: result.scores.readabilityScore,
-                modelUsed: result.modelUsed,
-                inputTokens: result.totalInputTokens,
-                outputTokens: result.totalOutputTokens,
-                generationCostCents: result.totalCostCents,
-                generationTimeMs: result.generationTimeMs,
-                promptVersion: result.promptVersion,
-              },
+          await convex.mutation(api.anonymousSessions.updateBlogData, {
+            sessionToken: sessionId,
+            blogData: {
+              blogId: result.blogId,
+              content: result.content,
+              contentHtml: result.contentHtml,
+              title: result.title,
+              slug: result.slug,
+              metaTitle: result.metaTitle,
+              metaDescription: result.metaDescription,
+              focusKeyword: result.focusKeyword,
+              archetype: result.archetype,
+              wordCount: result.wordCount,
+              seoScore: result.scores.seoScore,
+              qualityScore: result.scores.qualityScore,
+              detectionRisk: result.scores.detectionRisk,
+              detectionRiskScore: result.scores.detectionRiskScore,
+              burstinessScore: result.scores.burstinessScore,
+              readabilityScore: result.scores.readabilityScore,
+              modelUsed: result.modelUsed,
+              inputTokens: result.totalInputTokens,
+              outputTokens: result.totalOutputTokens,
+              generationCostCents: result.totalCostCents,
+              generationTimeMs: result.generationTimeMs,
+              promptVersion: result.promptVersion,
             },
           });
         } catch (e) {
