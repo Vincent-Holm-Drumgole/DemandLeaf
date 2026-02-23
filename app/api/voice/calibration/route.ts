@@ -10,9 +10,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = checkRateLimit(`voice-calibration:${userId}`, { limit: 10, windowSec: 3600 });
+  const rateLimit = await checkRateLimit(`voice-calibration:${userId}`, { limit: 10, windowSec: 3600 });
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      },
+    );
   }
 
   let body: { topic?: string };

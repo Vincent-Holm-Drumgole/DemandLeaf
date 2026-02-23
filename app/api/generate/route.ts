@@ -15,7 +15,7 @@ export const maxDuration = 120;
 
 export async function POST(request: NextRequest): Promise<Response> {
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`generate:${ip}`, { limit: 3, windowSec: 60 });
+  const rl = await checkRateLimit(`generate:${ip}`, { limit: 3, windowSec: 60 });
   if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: "Too many requests. Please wait before generating again." }),

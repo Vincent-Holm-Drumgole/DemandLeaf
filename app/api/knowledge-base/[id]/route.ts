@@ -2,20 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseConvexId } from "@/lib/convex-id";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(request: NextRequest, context: RouteParams): Promise<NextResponse> {
-  void request;
+export async function GET(_request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rateLimit = await checkRateLimit(`kb-get:${userId}`, { limit: 120, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, {
+      status: 429,
+      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const { id } = await context.params;
-  const entryId = parseKnowledgeBaseId(id);
+  const entryId = parseConvexId(id, "knowledgeBase");
   if (!entryId) {
     return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
   }
@@ -43,7 +50,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = checkRateLimit(`kb-update:${userId}`, { limit: 30, windowSec: 60 });
+  const rateLimit = await checkRateLimit(`kb-update:${userId}`, { limit: 30, windowSec: 60 });
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,
@@ -52,7 +59,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   }
 
   const { id } = await context.params;
-  const entryId = parseKnowledgeBaseId(id);
+  const entryId = parseConvexId(id, "knowledgeBase");
   if (!entryId) {
     return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
   }
@@ -97,13 +104,20 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   return NextResponse.json({ success: true });
 }
 
-export async function DELETE(request: NextRequest, context: RouteParams): Promise<NextResponse> {
-  void request;
+export async function DELETE(_request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rateLimit = await checkRateLimit(`kb-delete:${userId}`, { limit: 30, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, {
+      status: 429,
+      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const { id } = await context.params;
-  const entryId = parseKnowledgeBaseId(id);
+  const entryId = parseConvexId(id, "knowledgeBase");
   if (!entryId) {
     return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
   }
@@ -131,9 +145,3 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   return NextResponse.json({ success: true });
 }
 
-function parseKnowledgeBaseId(value: string): Id<"knowledgeBase"> | null {
-  if (!/^[a-z0-9]{10,40}$/.test(value)) {
-    return null;
-  }
-  return value as Id<"knowledgeBase">;
-}

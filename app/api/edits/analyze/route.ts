@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = checkRateLimit(`edits-analyze:${userId}`, { limit: 10, windowSec: 3600 });
+  const rateLimit = await checkRateLimit(`edits-analyze:${userId}`, { limit: 10, windowSec: 3600 });
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },
@@ -18,8 +18,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     );
   }
-
-  void request;
 
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});

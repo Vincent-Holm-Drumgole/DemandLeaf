@@ -78,6 +78,8 @@ export function ConfidenceTrend() {
     if (parsed !== 7 && parsed !== 30 && parsed !== 90) return;
     setIsLoading(true);
     setError(null);
+    setSummary(null);
+    setTrend([]);
     setWindowDays(parsed);
   }
 

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getConvexClient } from "@/lib/convex";
+import { auth } from "@clerk/nextjs/server";
+import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import type { FeedbackRequest } from "@/types";
+import { parseConvexId } from "@/lib/convex-id";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,10 +14,26 @@ export async function POST(
   request: NextRequest,
   context: RouteParams
 ): Promise<NextResponse> {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = await checkRateLimit(`feedback:${userId}`, { limit: 60, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      },
+    );
+  }
+
   const params = await context.params;
-  const blogId = params.id;
+  const blogId = parseConvexId(params.id, "blogs");
   if (!blogId) {
-    return NextResponse.json({ error: "Blog ID is required" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
   }
 
   let body: FeedbackRequest;
@@ -49,18 +67,33 @@ export async function POST(
     );
   }
 
-  const convex = getConvexClient();
-  const { id: createdId, createdAt } = await convex.mutation(api.feedback.create, {
-    blogId: blogId as Id<"blogs">,
-    paragraphIndex,
-    feedback,
-    comment,
-  });
+  const convex = await getAuthedConvexClient();
+  let createdId: string;
+  let createdAt: number;
+  try {
+    const created = await convex.mutation(api.feedback.create, {
+      blogId,
+      paragraphIndex,
+      feedback,
+      comment,
+    });
+    createdId = created.id;
+    createdAt = created.createdAt;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Blog not found")) {
+      return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+    }
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.error("[blog/[id]/feedback/POST] mutation error:", err);
+    return NextResponse.json({ error: "Failed to submit feedback" }, { status: 500 });
+  }
 
   return NextResponse.json(
     {
       id: createdId,
-      blogId,
+      blogId: params.id,
       paragraphIndex,
       feedback,
       comment: comment ?? null,

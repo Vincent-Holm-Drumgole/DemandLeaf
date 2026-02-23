@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseConvexId } from "@/lib/convex-id";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Rate-limit per user: 50 edit records per hour
-  const rateLimit = checkRateLimit(`edits:${userId}`, { limit: 50, windowSec: 3600 });
+  const rateLimit = await checkRateLimit(`edits:${userId}`, { limit: 50, windowSec: 3600 });
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many edit submissions" }, {
       status: 429,
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!blogId || typeof blogId !== "string") {
     return NextResponse.json({ error: "blogId is required" }, { status: 400 });
   }
-  const blogIdTyped = parseBlogId(blogId);
+  const blogIdTyped = parseConvexId(blogId, "blogs");
   if (!blogIdTyped) {
     return NextResponse.json({ error: "Invalid blogId format" }, { status: 400 });
   }
@@ -87,9 +87,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-function parseBlogId(value: string): Id<"blogs"> | null {
-  if (!/^[a-z0-9]{10,40}$/.test(value)) {
-    return null;
-  }
-  return value as Id<"blogs">;
-}

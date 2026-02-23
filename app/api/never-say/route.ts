@@ -24,10 +24,7 @@ export async function GET(): Promise<NextResponse> {
       termType: entry.termType,
       addedAt: entry.addedAt,
     }));
-    return NextResponse.json({
-      items,
-      entries: items,
-    });
+    return NextResponse.json({ items });
   } catch (err) {
     if (err instanceof Error && err.message.includes("Unauthorized")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -41,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = checkRateLimit(`never-say:${userId}`, { limit: 30, windowSec: 60 });
+  const rateLimit = await checkRateLimit(`never-say:${userId}`, { limit: 30, windowSec: 60 });
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },

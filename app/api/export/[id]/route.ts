@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import type { ExportRequest } from "@/types";
+import { parseConvexId } from "@/lib/convex-id";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,10 +19,9 @@ export async function POST(
   }
 
   const params = await context.params;
-  const blogId = params.id;
-
+  const blogId = parseConvexId(params.id, "blogs");
   if (!blogId) {
-    return NextResponse.json({ error: "Blog ID is required" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
   }
 
   let body: ExportRequest;
@@ -45,7 +44,7 @@ export async function POST(
 
   const convex = await getAuthedConvexClient();
   const blog = await convex.query(api.blogs.getExportData, {
-    blogId: blogId as Id<"blogs">,
+    blogId,
   });
 
   if (!blog) {

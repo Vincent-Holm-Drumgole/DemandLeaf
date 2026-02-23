@@ -1,3 +1,5 @@
+import { sanitizePromptInput } from "./sanitize";
+
 export const EDIT_CLASSIFICATION_VERSION = "v1.0";
 
 /**
@@ -34,11 +36,3 @@ Classify this edit. Return JSON only.`;
   return { systemPrompt, userMessage };
 }
 
-function sanitizePromptInput(input: string): string {
-  return input
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/```/g, "\\`\\`\\`");
-}

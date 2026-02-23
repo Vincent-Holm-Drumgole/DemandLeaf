@@ -14,6 +14,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rateLimit = await checkRateLimit(`kb-list:${userId}`, { limit: 120, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, {
+      status: 429,
+      headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const { searchParams } = new URL(request.url);
   const entryTypeRaw = searchParams.get("type");
   const entryType =
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const ip = getClientIp(request);
-  const rateLimit = checkRateLimit(`kb-create:${ip}`, { limit: 30, windowSec: 60 });
+  const rateLimit = await checkRateLimit(`kb-create:${ip}`, { limit: 30, windowSec: 60 });
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,

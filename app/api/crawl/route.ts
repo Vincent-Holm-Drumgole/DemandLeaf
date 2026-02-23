@@ -14,7 +14,7 @@ import type { CrawlRequest, CrawlResponse } from "@/types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`crawl:${ip}`, { limit: 5, windowSec: 60 });
+  const rl = await checkRateLimit(`crawl:${ip}`, { limit: 5, windowSec: 60 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before crawling again." },

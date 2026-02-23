@@ -5,10 +5,9 @@ import {
   internalMutation,
   internalQuery,
 } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { requireWorkspaceAccess } from "./helpers";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
 import { classificationStatusValidator, editTypeValidator } from "./validators";
 
 const PATTERN_ANALYSIS_THRESHOLD = 10;
@@ -374,22 +373,6 @@ export const getClassificationProgress = internalQuery({
   },
 });
 
-async function requireWorkspaceAccess(
-  ctx: QueryCtx | MutationCtx,
-  workspaceId: Id<"workspaces">,
-): Promise<Doc<"workspaces">> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Unauthenticated");
-  }
-
-  const workspace = await ctx.db.get(workspaceId);
-  if (!workspace || workspace.clerkUserId !== identity.subject) {
-    throw new Error("Unauthorized");
-  }
-
-  return workspace;
-}
 
 function toEditType(
   value: unknown,

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = checkRateLimit(`voice-calibration-rate:${userId}`, {
+  const rateLimit = await checkRateLimit(`voice-calibration-rate:${userId}`, {
     limit: 30,
     windowSec: 3600,
   });

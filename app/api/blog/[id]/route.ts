@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
+import { parseConvexId } from "@/lib/convex-id";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,7 +21,7 @@ export async function GET(
   const params = await context.params;
   const blogId = params.id;
 
-  const blogIdTyped = parseBlogId(blogId);
+  const blogIdTyped = parseConvexId(blogId, "blogs");
   if (!blogIdTyped) {
     return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
   }
@@ -79,9 +79,3 @@ export async function GET(
   });
 }
 
-function parseBlogId(value: string): Id<"blogs"> | null {
-  if (!/^[a-z0-9]{10,40}$/.test(value)) {
-    return null;
-  }
-  return value as Id<"blogs">;
-}

@@ -1,4 +1,5 @@
 import type { VoiceProfile } from "@/types";
+import { sanitizePromptInput } from "./sanitize";
 
 export const CALIBRATION_VERSION = "v1.0";
 
@@ -46,11 +47,3 @@ Generate 3 calibration paragraphs following the instructions above. Return JSON 
   return { systemPrompt, userMessage };
 }
 
-function sanitizePromptInput(input: string): string {
-  return input
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/```/g, "\\`\\`\\`");
-}

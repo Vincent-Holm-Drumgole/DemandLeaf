@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { parseConvexId } from "@/lib/convex-id";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,7 +13,7 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
-  const entryId = parseNeverSayId(id);
+  const entryId = parseConvexId(id, "neverSayList");
   if (!entryId) {
     return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
   }
@@ -39,9 +39,3 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   }
 }
 
-function parseNeverSayId(value: string): Id<"neverSayList"> | null {
-  if (!/^[a-z0-9]{10,40}$/.test(value)) {
-    return null;
-  }
-  return value as Id<"neverSayList">;
-}

@@ -14,10 +14,11 @@ interface AnonymousSessionRequest {
 }
 
 const DEFAULT_TTL_HOURS = 24;
+const MAX_TTL_HOURS = 24;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`anon-session:${ip}`, { limit: 20, windowSec: 60 });
+  const rl = await checkRateLimit(`anon-session:${ip}`, { limit: 20, windowSec: 60 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
@@ -37,8 +38,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const sessionToken = randomUUID();
   const expiresInHours =
-    typeof body.expiresInHours === "number" && body.expiresInHours > 0
-      ? body.expiresInHours
+    typeof body.expiresInHours === "number" && Number.isFinite(body.expiresInHours)
+      ? Math.min(Math.max(Math.floor(body.expiresInHours), 1), MAX_TTL_HOURS)
       : DEFAULT_TTL_HOURS;
   const expiresAt = Date.now() + expiresInHours * 60 * 60 * 1000;
 

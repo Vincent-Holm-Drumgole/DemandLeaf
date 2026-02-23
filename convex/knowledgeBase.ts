@@ -6,9 +6,10 @@ import {
   internalQuery,
   internalAction,
 } from "./_generated/server";
-import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
+import { requireWorkspaceAccess } from "./helpers";
 import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import {
   embeddingStatusValidator,
@@ -230,22 +231,6 @@ export const generateAndStoreEmbedding = internalAction({
   },
 });
 
-async function requireWorkspaceAccess(
-  ctx: QueryCtx | MutationCtx,
-  workspaceId: Id<"workspaces">,
-): Promise<Doc<"workspaces">> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Unauthenticated");
-  }
-
-  const workspace = await ctx.db.get(workspaceId);
-  if (!workspace || workspace.clerkUserId !== identity.subject) {
-    throw new Error("Unauthorized");
-  }
-
-  return workspace;
-}
 
 async function requireWorkspaceInAction(
   ctx: ActionCtx,

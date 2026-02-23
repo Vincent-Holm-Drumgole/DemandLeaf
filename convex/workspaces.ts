@@ -40,7 +40,6 @@ export const getByClerkUser = query({
  */
 export const provision = mutation({
   args: {
-    clerkUserId: v.string(),
     name: v.string(),
     sessionToken: v.optional(v.string()),
   },
@@ -49,22 +48,20 @@ export const provision = mutation({
     if (!identity) {
       throw new Error("Unauthenticated");
     }
-    if (identity.subject !== args.clerkUserId) {
-      throw new Error("Unauthorized");
-    }
+    const clerkUserId = identity.subject;
 
     const now = Date.now();
 
     // Find or create workspace
     const existing = await ctx.db
       .query("workspaces")
-      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", clerkUserId))
       .first();
 
     const workspaceId = existing
       ? existing._id
       : await ctx.db.insert("workspaces", {
-          clerkUserId: args.clerkUserId,
+          clerkUserId,
           name: args.name,
           createdAt: now,
           updatedAt: now,

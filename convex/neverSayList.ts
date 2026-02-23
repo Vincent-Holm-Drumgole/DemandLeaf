@@ -1,8 +1,7 @@
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
 import { termTypeValidator } from "./validators";
+import { requireWorkspaceAccess } from "./helpers";
 
 export const listByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },
@@ -78,19 +77,3 @@ export const remove = mutation({
   },
 });
 
-async function requireWorkspaceAccess(
-  ctx: QueryCtx | MutationCtx,
-  workspaceId: Id<"workspaces">,
-): Promise<Doc<"workspaces">> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Unauthenticated");
-  }
-
-  const workspace = await ctx.db.get(workspaceId);
-  if (!workspace || workspace.clerkUserId !== identity.subject) {
-    throw new Error("Unauthorized");
-  }
-
-  return workspace;
-}

@@ -1,3 +1,5 @@
+import { sanitizePromptInput } from "./sanitize";
+
 export const EDIT_PATTERN_VERSION = "v1.0";
 
 interface EditRecord {
@@ -42,12 +44,14 @@ Focus only on patterns with 3+ occurrences. Be specific and actionable.`;
   const editSummary = Object.entries(byType)
     .map(([type, records]) => {
       const examples = records.slice(0, 3).map((r) => {
-        const origRaw = sanitizePromptInput(r.originalText).replace(/\n/g, " ");
-        const editedRaw = sanitizePromptInput(r.editedText).replace(/\n/g, " ");
-        const orig = origRaw.slice(0, 100);
-        const edited = editedRaw.slice(0, 100);
-        const origSuffix = origRaw.length > 100 ? "..." : "";
-        const editedSuffix = editedRaw.length > 100 ? "..." : "";
+        const origNorm = r.originalText.replace(/\n/g, " ");
+        const editedNorm = r.editedText.replace(/\n/g, " ");
+        const origTrunc = origNorm.slice(0, 100);
+        const editedTrunc = editedNorm.slice(0, 100);
+        const origSuffix = origNorm.length > 100 ? "..." : "";
+        const editedSuffix = editedNorm.length > 100 ? "..." : "";
+        const orig = sanitizePromptInput(origTrunc);
+        const edited = sanitizePromptInput(editedTrunc);
         return `  - Original: "${orig}${origSuffix}" → Edited: "${edited}${editedSuffix}"`;
       });
       return `${type.toUpperCase()} (${records.length} edits):\n${examples.join("\n")}`;
@@ -63,11 +67,3 @@ Analyze these patterns and return JSON only.`;
   return { systemPrompt, userMessage };
 }
 
-function sanitizePromptInput(input: string): string {
-  return input
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/```/g, "\\`\\`\\`");
-}
