@@ -32,7 +32,7 @@ export function ScoreSidebar({
           <CardTitle className="text-sm">SEO Score</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <SeoGauge score={scores.seoScore ?? 0} />
+          <SeoGauge score={scores.seoScore} />
         </CardContent>
       </Card>
 
@@ -41,7 +41,7 @@ export function ScoreSidebar({
           <CardTitle className="text-sm">Quality Score</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <SeoGauge score={scores.qualityScore ?? 0} />
+          <SeoGauge score={scores.qualityScore} />
         </CardContent>
       </Card>
 
@@ -94,7 +94,9 @@ export function ScoreSidebar({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Generation time</span>
                 <span className="font-medium">
-                  {(generationTimeMs / 1000).toFixed(0)}s
+                  {generationTimeMs < 1000
+                    ? `${generationTimeMs}ms`
+                    : `${(generationTimeMs / 1000).toFixed(1)}s`}
                 </span>
               </div>
             </>

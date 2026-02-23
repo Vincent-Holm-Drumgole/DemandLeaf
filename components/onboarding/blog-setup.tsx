@@ -1,5 +1,6 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ export function BlogSetup() {
             <label className="block text-sm font-medium text-foreground mb-2">
               Blog Format
             </label>
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Blog format">
               {ARCHETYPE_OPTIONS.map((option) => (
                 <Card
                   key={option.value}
@@ -92,7 +93,16 @@ export function BlogSetup() {
                       ? "border-primary bg-primary/5"
                       : "hover:border-muted-foreground/30"
                   }`}
+                  role="radio"
+                  aria-checked={archetype === option.value}
+                  tabIndex={0}
                   onClick={() => setArchetype(option.value)}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setArchetype(option.value);
+                    }
+                  }}
                 >
                   <CardContent className="flex items-start gap-3 py-3 px-4">
                     <div

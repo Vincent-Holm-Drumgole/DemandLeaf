@@ -14,7 +14,7 @@ export const ANALYTICS_EVENTS = {
 
   // Blog interaction
   BLOG_EXPORTED: "blog_exported",
-  BLOG_FEEDBACK_GIVEN: "feedback_given",
+  BLOG_FEEDBACK_GIVEN: "blog_feedback_given",
 
   // Auth
   SIGNUP_COMPLETED: "signup_completed",

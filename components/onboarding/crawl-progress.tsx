@@ -23,6 +23,8 @@ export function CrawlProgress() {
           {url}
         </p>
 
+        {/* Stages are decorative — the crawl is a single HTTP request with no
+            server-side progress events, so all dots animate simultaneously. */}
         <div className="mt-8 space-y-3 text-left">
           {CRAWL_STAGES.map((stage, i) => (
             <div key={i} className="flex items-center gap-3">

@@ -9,7 +9,7 @@ import { ScoreSidebar } from "@/components/scores/score-sidebar";
 
 export default function BlogPage() {
   const params = useParams();
-  const blogId = params.id as string;
+  const blogId = typeof params.id === "string" ? params.id : "";
   const { blog, isLoading, error, fetchBlog } = useBlogStore();
 
   useEffect(() => {

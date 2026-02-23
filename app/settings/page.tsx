@@ -23,6 +23,10 @@ export default function SettingsPage() {
     );
   }
 
+  if (status === "unauthenticated") {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">

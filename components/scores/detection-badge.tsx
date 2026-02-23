@@ -15,7 +15,8 @@ export function DetectionBadge({ risk }: DetectionBadgeProps) {
     high: { label: "High Risk", variant: "destructive" },
   };
 
-  const info = config[risk] ?? config.low;
+  const info = config[risk];
+  if (!info) return <Badge variant="outline">Unknown</Badge>;
 
   return <Badge variant={info.variant}>{info.label}</Badge>;
 }

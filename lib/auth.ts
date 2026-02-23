@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { isRateLimited, recordFailedAttempt, clearAttempts } from "@/lib/auth-rate-limiter";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
@@ -27,11 +28,18 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const email = credentials.email.trim().toLowerCase();
+
+        if (isRateLimited(email)) {
+          throw new Error("Too many login attempts. Please try again later.");
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.trim().toLowerCase() },
+          where: { email },
         });
 
         if (!user || !user.passwordHash) {
+          recordFailedAttempt(email);
           return null;
         }
 
@@ -41,9 +49,11 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isValid) {
+          recordFailedAttempt(email);
           return null;
         }
 
+        clearAttempts(email);
         return {
           id: user.id,
           email: user.email,

@@ -44,7 +44,7 @@ export function BlogCard({ blog }: BlogCardProps) {
             </span>
             <span>{blog.wordCount ?? "—"} words</span>
             <span className="ml-auto">
-              {new Date(blog.createdAt).toLocaleDateString()}
+              {new Date(blog.createdAt).toLocaleDateString("en-US")}
             </span>
           </div>
         </CardContent>

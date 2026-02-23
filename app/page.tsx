@@ -30,16 +30,17 @@ export default function LandingPage() {
       return;
     }
 
+    const normalized = trimmed.startsWith("http")
+      ? trimmed
+      : `https://${trimmed}`;
+
     try {
-      new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+      new URL(normalized);
     } catch {
       setInputError("Please enter a valid URL");
       return;
     }
 
-    const normalized = trimmed.startsWith("http")
-      ? trimmed
-      : `https://${trimmed}`;
     setUrl(normalized);
     startCrawl();
   }

@@ -89,8 +89,14 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Crawl failed");
+        let errorMessage = "Crawl failed";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Response wasn't JSON
+        }
+        throw new Error(errorMessage);
       }
 
       const data: CrawlResponse = await response.json();
@@ -182,8 +188,8 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
               throw new Error(event.message || "Generation failed");
             }
           } catch (parseErr) {
-            if (parseErr instanceof Error && parseErr.message !== "Generation failed") {
-              // Ignore JSON parse errors from partial chunks
+            if (parseErr instanceof SyntaxError) {
+              // Ignore JSON parse errors from partial SSE chunks
               continue;
             }
             throw parseErr;

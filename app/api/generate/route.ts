@@ -6,6 +6,7 @@ import type { VoiceProfile, Archetype } from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const abortSignal = request.signal;
   let body: GenerateRequest;
   try {
     body = (await request.json()) as GenerateRequest;
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const stream = new ReadableStream({
     async start(controller) {
       function sendEvent(event: GenerateSSEEvent) {
+        if (abortSignal.aborted) return;
         const data = `data: ${JSON.stringify(event)}\n\n`;
         controller.enqueue(encoder.encode(data));
       }
@@ -96,40 +98,48 @@ export async function POST(request: NextRequest): Promise<Response> {
             audience,
           },
           (step) => {
+            if (abortSignal.aborted) throw new Error("Client disconnected");
             sendEvent({ type: "progress", step });
           }
         );
 
-        // Save blog to anonymous session
-        await prisma.anonymousSession.update({
-          where: { sessionToken: sessionId },
-          data: {
-            blogData: {
-              blogId: result.blogId,
-              content: result.content,
-              contentHtml: result.contentHtml,
-              title: result.title,
-              slug: result.slug,
-              metaTitle: result.metaTitle,
-              metaDescription: result.metaDescription,
-              focusKeyword: result.focusKeyword,
-              archetype: result.archetype,
-              wordCount: result.wordCount,
-              seoScore: result.scores.seoScore,
-              qualityScore: result.scores.qualityScore,
-              detectionRisk: result.scores.detectionRisk,
-              detectionRiskScore: result.scores.detectionRiskScore,
-              burstinessScore: result.scores.burstinessScore,
-              readabilityScore: result.scores.readabilityScore,
-              modelUsed: result.modelUsed,
-              inputTokens: result.totalInputTokens,
-              outputTokens: result.totalOutputTokens,
-              generationCostCents: result.totalCostCents,
-              generationTimeMs: result.generationTimeMs,
-              promptVersion: result.promptVersion,
+        // Save blog to anonymous session — isolated so a persistence failure
+        // doesn't discard a successfully generated blog.
+        let persistenceWarning: string | null = null;
+        try {
+          await prisma.anonymousSession.update({
+            where: { sessionToken: sessionId },
+            data: {
+              blogData: {
+                blogId: result.blogId,
+                content: result.content,
+                contentHtml: result.contentHtml,
+                title: result.title,
+                slug: result.slug,
+                metaTitle: result.metaTitle,
+                metaDescription: result.metaDescription,
+                focusKeyword: result.focusKeyword,
+                archetype: result.archetype,
+                wordCount: result.wordCount,
+                seoScore: result.scores.seoScore,
+                qualityScore: result.scores.qualityScore,
+                detectionRisk: result.scores.detectionRisk,
+                detectionRiskScore: result.scores.detectionRiskScore,
+                burstinessScore: result.scores.burstinessScore,
+                readabilityScore: result.scores.readabilityScore,
+                modelUsed: result.modelUsed,
+                inputTokens: result.totalInputTokens,
+                outputTokens: result.totalOutputTokens,
+                generationCostCents: result.totalCostCents,
+                generationTimeMs: result.generationTimeMs,
+                promptVersion: result.promptVersion,
+              },
             },
-          },
-        });
+          });
+        } catch (e) {
+          persistenceWarning = "Blog generated but failed to save to session";
+          console.error("Failed to persist blog to session:", e);
+        }
 
         sendEvent({
           type: "complete",
@@ -145,6 +155,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             totalCostCents: result.totalCostCents,
             aiCalls: result.aiCalls,
           },
+          warning: persistenceWarning,
         });
       } catch (err) {
         const message =

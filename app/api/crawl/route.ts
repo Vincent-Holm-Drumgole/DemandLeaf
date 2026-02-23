@@ -92,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json(response, {
     status: 200,
     headers: {
-      "Set-Cookie": `dl_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor((expiresAt.getTime() - Date.now()) / 1000)}`,
+      "Set-Cookie": `dl_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}; Max-Age=${Math.floor((expiresAt.getTime() - Date.now()) / 1000)}`,
     },
   });
 }

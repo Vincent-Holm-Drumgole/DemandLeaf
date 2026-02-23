@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -29,9 +31,11 @@ export default function DashboardPage() {
         if (response.ok) {
           const json: DashboardResponse = await response.json();
           setData(json);
+        } else {
+          setError("Failed to load dashboard");
         }
       } catch {
-        // Silently fail — empty state shown
+        setError("Something went wrong. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -40,10 +44,37 @@ export default function DashboardPage() {
     loadDashboard();
   }, [status]);
 
+  async function loadMore() {
+    if (!data?.nextCursor) return;
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`/api/dashboard?cursor=${encodeURIComponent(data.nextCursor)}`);
+      if (response.ok) {
+        const json: DashboardResponse = await response.json();
+        setData((prev) => prev
+          ? { ...json, blogs: [...prev.blogs, ...json.blogs] }
+          : json
+        );
+      }
+    } catch {
+      // silently fail — user can retry by clicking the button again
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
+
   if (status === "loading" || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
@@ -68,11 +99,24 @@ export default function DashboardPage() {
         {data.blogs.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="space-y-3">
-            {data.blogs.map((blog) => (
-              <BlogCard key={blog.id} blog={blog} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-3">
+              {data.blogs.map((blog) => (
+                <BlogCard key={blog.id} blog={blog} />
+              ))}
+            </div>
+            {data.nextCursor && (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? "Loading..." : "Load more"}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

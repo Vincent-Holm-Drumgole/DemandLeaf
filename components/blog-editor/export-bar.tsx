@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useBlogStore } from "@/store/blog-store";
 
@@ -11,12 +11,19 @@ interface ExportBarProps {
 export function ExportBar({ blogId }: ExportBarProps) {
   const { exportBlog } = useBlogStore();
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   async function handleExport(format: "html" | "markdown" | "clipboard") {
     const result = await exportBlog(blogId, format);
     if (format === "clipboard" && result === "copied") {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }
 

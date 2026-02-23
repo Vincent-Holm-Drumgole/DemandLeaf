@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { ExportRequest } from "@/types";
 
@@ -10,6 +12,11 @@ export async function POST(
   request: NextRequest,
   context: RouteParams
 ): Promise<NextResponse> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const params = await context.params;
   const blogId = params.id;
 
@@ -63,7 +70,7 @@ export async function POST(
     }
 
     case "markdown": {
-      return new NextResponse(blog.content, {
+      return new NextResponse(blog.content ?? "", {
         status: 200,
         headers: {
           "Content-Type": "text/markdown; charset=utf-8",

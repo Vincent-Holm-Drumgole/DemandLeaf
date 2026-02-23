@@ -30,7 +30,7 @@ export function trackEvent(
   eventName: AnalyticsEventName,
   properties?: Record<string, unknown>
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !initialized) return;
   posthog.capture(eventName, properties);
 }
 
@@ -38,7 +38,7 @@ export function trackEvent(
  * Identify a user after signup/login.
  */
 export function identifyUser(userId: string, traits?: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !initialized) return;
   posthog.identify(userId, traits);
 }
 
@@ -46,6 +46,6 @@ export function identifyUser(userId: string, traits?: Record<string, unknown>) {
  * Reset user identity on logout.
  */
 export function resetUser() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !initialized) return;
   posthog.reset();
 }

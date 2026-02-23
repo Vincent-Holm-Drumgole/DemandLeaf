@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useOnboardingStore } from "@/store/onboarding-store";
@@ -150,9 +151,9 @@ export default function SignupPage() {
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Already have an account?{" "}
-            <a href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline">
               Sign in
-            </a>
+            </Link>
           </p>
         </CardContent>
       </Card>

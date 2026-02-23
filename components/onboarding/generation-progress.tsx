@@ -58,6 +58,17 @@ export function GenerationProgress() {
 
   const stepMap = new Map(generationSteps.map((s) => [s.name, s]));
 
+  if (process.env.NODE_ENV === "development") {
+    for (const step of generationSteps) {
+      if (!STEP_DISPLAY_NAMES.includes(step.name)) {
+        console.warn(
+          `[GenerationProgress] Unknown step name from API: "${step.name}". ` +
+          `Add it to STEP_DISPLAY_NAMES or check for a casing/whitespace mismatch.`
+        );
+      }
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">

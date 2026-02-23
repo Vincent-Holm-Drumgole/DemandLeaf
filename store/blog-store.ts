@@ -37,6 +37,7 @@ interface BlogState {
   isLoading: boolean;
   error: string | null;
   feedbackSubmitting: boolean;
+  feedbackError: string | null;
 
   fetchBlog: (id: string) => Promise<void>;
   submitFeedback: (
@@ -56,6 +57,7 @@ export const useBlogStore = create<BlogState>((set) => ({
   isLoading: false,
   error: null,
   feedbackSubmitting: false,
+  feedbackError: null,
 
   fetchBlog: async (id) => {
     set({ isLoading: true, error: null });
@@ -76,7 +78,7 @@ export const useBlogStore = create<BlogState>((set) => ({
   },
 
   submitFeedback: async (blogId, paragraphIndex, feedback, comment) => {
-    set({ feedbackSubmitting: true });
+    set({ feedbackSubmitting: true, feedbackError: null });
     try {
       const response = await fetch(`/api/blog/${blogId}/feedback`, {
         method: "POST",
@@ -109,7 +111,7 @@ export const useBlogStore = create<BlogState>((set) => ({
         };
       });
     } catch {
-      set({ feedbackSubmitting: false });
+      set({ feedbackSubmitting: false, feedbackError: "Failed to submit feedback" });
     }
   },
 
@@ -125,8 +127,13 @@ export const useBlogStore = create<BlogState>((set) => ({
 
       if (format === "clipboard") {
         const data = await response.json();
-        await navigator.clipboard.writeText(data.content);
-        return "copied";
+        try {
+          await navigator.clipboard.writeText(data.content);
+          return "copied";
+        } catch {
+          console.error("Clipboard write failed");
+          return null;
+        }
       }
 
       const blob = await response.blob();
