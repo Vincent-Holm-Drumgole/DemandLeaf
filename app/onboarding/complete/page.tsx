@@ -10,6 +10,7 @@ export default function OnboardingCompletePage() {
   const reset = useOnboardingStore((s) => s.reset);
   const called = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (called.current) return;
@@ -38,7 +39,7 @@ export default function OnboardingCompletePage() {
     }
 
     provision();
-  }, [sessionId, reset, router]);
+  }, [sessionId, reset, router, retryCount]);
 
   if (error) {
     return (
@@ -48,6 +49,7 @@ export default function OnboardingCompletePage() {
           onClick={() => {
             called.current = false;
             setError(null);
+            setRetryCount((c) => c + 1);
           }}
           className="text-sm underline"
         >

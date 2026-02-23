@@ -23,6 +23,18 @@ interface RateLimitResult {
 // Map<key, sorted list of request timestamps (ms)>
 const store = new Map<string, number[]>();
 
+// Evict keys whose entire timestamp array has aged out of the longest window
+// (60 s) to prevent unbounded growth from unique IPs that never re-request.
+// .unref() prevents this timer from blocking Node from exiting in tests/dev.
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [key, timestamps] of store) {
+    if (timestamps.length === 0 || timestamps[timestamps.length - 1] < cutoff) {
+      store.delete(key);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
 export function checkRateLimit(
   key: string,
   { limit, windowSec }: RateLimitOptions

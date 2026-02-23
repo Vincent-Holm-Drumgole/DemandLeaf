@@ -50,8 +50,7 @@ export const updateBlogData = mutation({
       .withIndex("by_token", (q) => q.eq("sessionToken", args.sessionToken))
       .unique();
     if (!session) {
-      console.debug("[updateBlogData] Session not found:", args.sessionToken.slice(0, 8));
-      return;
+      throw new Error(`Session not found: ${args.sessionToken.slice(0, 8)}...`);
     }
     await ctx.db.patch(session._id, { blogData: args.blogData });
   },

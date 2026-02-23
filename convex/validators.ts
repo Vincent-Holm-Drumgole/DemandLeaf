@@ -27,6 +27,26 @@ export const vocabularyPreferencesValidator = v.object({
 /**
  * Full VoiceProfile shape stored in anonymousSessions.voiceProfile.
  * Mirrors types/voice.ts VoiceProfile.
+ *
+ * DRIFT RISK — this validator intentionally duplicates fields from the two
+ * sub-validators above, because the field names differ at the storage boundary:
+ *
+ *   voiceAttributesValidator      →  voiceProfileValidator
+ *   ─────────────────────────────────────────────────────
+ *   formality                        formality            (same)
+ *   humor                            humor                (same)
+ *   jargonLevel                      jargonLevel          (same)
+ *   sentenceComplexity               sentenceComplexity   (same)
+ *   toneAttributes                   toneAttributes       (same)
+ *
+ *   vocabularyPreferencesValidator →  voiceProfileValidator
+ *   ─────────────────────────────────────────────────────
+ *   preferred                        preferredVocabulary  (renamed)
+ *   avoid                            avoidedVocabulary    (renamed)
+ *
+ * If voiceAttributesValidator or vocabularyPreferencesValidator change,
+ * update this validator to match. Convex will reject mismatched inserts
+ * at runtime, which provides a safety net.
  */
 export const voiceProfileValidator = v.object({
   voiceDescription: v.string(),

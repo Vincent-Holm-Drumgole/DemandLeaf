@@ -31,8 +31,9 @@ export async function GET(
     blog = await convex.query(api.blogs.getById, {
       blogId: blogId as Id<"blogs">,
     });
-  } catch {
-    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
+  } catch (err) {
+    console.error("[blog/GET] query error:", err);
+    return NextResponse.json({ error: "Unable to fetch blog" }, { status: 500 });
   }
 
   if (!blog) {
