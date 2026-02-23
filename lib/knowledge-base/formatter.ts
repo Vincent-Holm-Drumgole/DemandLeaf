@@ -13,7 +13,7 @@ export function formatKBContextForPrompt(context: KBContextResult): string {
   const sections = context.items
     .map(
       (item) =>
-        `[${item.entryType.toUpperCase().replace(/_/g, " ")}] ${item.title}\n${item.content}`
+        `[${item.entryType.toUpperCase().replace(/_/g, " ")}] ${sanitizePromptText(item.title)}\n${sanitizePromptText(item.content)}`
     )
     .join("\n\n---\n\n");
 
@@ -21,4 +21,12 @@ export function formatKBContextForPrompt(context: KBContextResult): string {
 <kb_context>
 ${sections}
 </kb_context>`;
+}
+
+function sanitizePromptText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/```/g, "\\`\\`\\`");
 }

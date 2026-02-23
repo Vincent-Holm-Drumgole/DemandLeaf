@@ -1,12 +1,15 @@
 export type SourceQuality = "strong" | "mixed" | "limited" | "none";
 
-export type EditType =
-  | "tone"
-  | "factual"
-  | "restructure"
-  | "style"
-  | "addition"
-  | "deletion";
+export const EDIT_TYPES = [
+  "tone",
+  "factual",
+  "restructure",
+  "style",
+  "addition",
+  "deletion",
+] as const;
+
+export type EditType = (typeof EDIT_TYPES)[number];
 
 export interface EditPattern {
   editType: EditType;

@@ -3,10 +3,13 @@ import { randomUUID } from "node:crypto";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import type { FunctionArgs } from "convex/server";
+
+type CreateAnonymousSessionArgs = FunctionArgs<typeof api.anonymousSessions.create>;
 
 interface AnonymousSessionRequest {
-  crawlData?: unknown;
-  voiceProfile?: unknown;
+  crawlData?: CreateAnonymousSessionArgs["crawlData"];
+  voiceProfile?: CreateAnonymousSessionArgs["voiceProfile"];
   expiresInHours?: number;
 }
 

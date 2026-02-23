@@ -1,5 +1,7 @@
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 
 export const approveBlog = mutation({
   args: {
@@ -7,6 +9,8 @@ export const approveBlog = mutation({
     workspaceId: v.id("workspaces"),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
       throw new Error("Blog not found");
@@ -25,6 +29,11 @@ export const setVoiceMatchScore = mutation({
     voiceMatchScore: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    if (args.voiceMatchScore < 0 || args.voiceMatchScore > 100) {
+      throw new Error("voiceMatchScore must be between 0 and 100");
+    }
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
       throw new Error("Blog not found");
@@ -42,13 +51,15 @@ export const getWorkspaceTrend = query({
     windowDays: v.number(),
   },
   handler: async (ctx, args) => {
-    const cutoff = Date.now() - args.windowDays * 24 * 60 * 60 * 1000;
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const windowDays = Math.max(1, Math.min(args.windowDays, 365));
+    const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
     const blogs = await ctx.db
       .query("blogs")
       .withIndex("by_workspace_created", (q) =>
-        q.eq("workspaceId", args.workspaceId)
+        q.eq("workspaceId", args.workspaceId).gte("createdAt", cutoff)
       )
-      .filter((q) => q.gte(q.field("createdAt"), cutoff))
       .order("asc")
       .collect();
 
@@ -101,3 +112,20 @@ export const getWorkspaceTrend = query({
     };
   },
 });
+
+async function requireWorkspaceAccess(
+  ctx: QueryCtx | MutationCtx,
+  workspaceId: Id<"workspaces">,
+): Promise<Doc<"workspaces">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthenticated");
+  }
+
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace || workspace.clerkUserId !== identity.subject) {
+    throw new Error("Unauthorized");
+  }
+
+  return workspace;
+}

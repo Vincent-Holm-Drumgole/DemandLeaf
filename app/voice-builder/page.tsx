@@ -49,7 +49,7 @@ export default function VoiceBuilderPage() {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-8">
-        <WizardLayout currentStep={currentStep}>
+        <WizardLayout>
           {currentStep === 1 && <WizardStep1 />}
           {currentStep === 2 && <WizardStep2 />}
           {currentStep === 3 && <WizardStep3Calibration />}

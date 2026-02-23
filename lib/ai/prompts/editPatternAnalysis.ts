@@ -42,9 +42,13 @@ Focus only on patterns with 3+ occurrences. Be specific and actionable.`;
   const editSummary = Object.entries(byType)
     .map(([type, records]) => {
       const examples = records.slice(0, 3).map((r) => {
-        const orig = r.originalText.slice(0, 100).replace(/\n/g, " ");
-        const edited = r.editedText.slice(0, 100).replace(/\n/g, " ");
-        return `  - Original: "${orig}..." → Edited: "${edited}..."`;
+        const origRaw = sanitizePromptInput(r.originalText).replace(/\n/g, " ");
+        const editedRaw = sanitizePromptInput(r.editedText).replace(/\n/g, " ");
+        const orig = origRaw.slice(0, 100);
+        const edited = editedRaw.slice(0, 100);
+        const origSuffix = origRaw.length > 100 ? "..." : "";
+        const editedSuffix = editedRaw.length > 100 ? "..." : "";
+        return `  - Original: "${orig}${origSuffix}" → Edited: "${edited}${editedSuffix}"`;
       });
       return `${type.toUpperCase()} (${records.length} edits):\n${examples.join("\n")}`;
     })
@@ -57,4 +61,13 @@ ${editSummary}
 Analyze these patterns and return JSON only.`;
 
   return { systemPrompt, userMessage };
+}
+
+function sanitizePromptInput(input: string): string {
+  return input
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/```/g, "\\`\\`\\`");
 }

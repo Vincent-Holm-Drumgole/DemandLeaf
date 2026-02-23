@@ -1,5 +1,7 @@
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 
 const MAX_WRITING_EXAMPLES = 5;
 const HIGH_RATING_THRESHOLD = 8;
@@ -13,30 +15,33 @@ export const recordRating = mutation({
     feedback: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const addedToExamples = args.rating >= HIGH_RATING_THRESHOLD;
-
-    // If high-rated, add to writingExamples on the voice profile (capped at MAX)
-    if (addedToExamples) {
-      const profile = await ctx.db.get(args.voiceProfileId);
-      if (profile) {
-        const currentExamples = profile.writingExamples ?? [];
-        if (currentExamples.length < MAX_WRITING_EXAMPLES) {
-          await ctx.db.patch(args.voiceProfileId, {
-            writingExamples: [...currentExamples, args.sampleParagraph],
-            updatedAt: Date.now(),
-          });
-        }
-      }
-    }
-
-    // Increment calibration count
     const profile = await ctx.db.get(args.voiceProfileId);
-    if (profile) {
-      await ctx.db.patch(args.voiceProfileId, {
-        calibrationCount: (profile.calibrationCount ?? 0) + 1,
-        updatedAt: Date.now(),
-      });
+    if (!profile || profile.workspaceId !== args.workspaceId) {
+      throw new Error("Voice profile not found");
     }
+
+    const currentExamples = profile.writingExamples ?? [];
+    const profilePatch: {
+      writingExamples?: string[];
+      calibrationCount: number;
+      updatedAt: number;
+    } = {
+      calibrationCount: (profile.calibrationCount ?? 0) + 1,
+      updatedAt: Date.now(),
+    };
+
+    // If high-rated, append and enforce a hard max of MAX_WRITING_EXAMPLES.
+    if (addedToExamples && currentExamples.length < MAX_WRITING_EXAMPLES) {
+      profilePatch.writingExamples = [...currentExamples, args.sampleParagraph].slice(
+        0,
+        MAX_WRITING_EXAMPLES,
+      );
+    }
+
+    await ctx.db.patch(args.voiceProfileId, profilePatch);
 
     // Record in history
     return ctx.db.insert("calibrationHistory", {
@@ -57,6 +62,8 @@ export const listByWorkspace = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const results = await ctx.db
       .query("calibrationHistory")
       .withIndex("by_workspace_created", (q) =>
@@ -67,3 +74,20 @@ export const listByWorkspace = query({
     return results;
   },
 });
+
+async function requireWorkspaceAccess(
+  ctx: QueryCtx | MutationCtx,
+  workspaceId: Id<"workspaces">,
+): Promise<Doc<"workspaces">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthenticated");
+  }
+
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace || workspace.clerkUserId !== identity.subject) {
+    throw new Error("Unauthorized");
+  }
+
+  return workspace;
+}

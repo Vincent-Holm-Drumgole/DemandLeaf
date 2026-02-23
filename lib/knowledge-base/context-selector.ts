@@ -72,7 +72,7 @@ export function selectKBContext(
 
   for (const { entry, score } of reranked) {
     const entryChars = entry.title.length + entry.content.length + 50; // 50 for formatting
-    if (totalChars + entryChars > charBudget) break;
+    if (totalChars + entryChars > charBudget) continue;
     selected.push({
       entryId: entry._id,
       entryType: entry.entryType as KBContextItem["entryType"],

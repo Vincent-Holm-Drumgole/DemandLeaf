@@ -51,15 +51,17 @@ export function ConfidenceTrend() {
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     fetch(`/api/confidence?windowDays=${windowDays}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch");
+        return r.json();
+      })
       .then((data) => {
         if (cancelled) return;
         setTrend(data.trend ?? []);
         setSummary(data.summary ?? null);
+        setError(null);
       })
       .catch(() => {
         if (!cancelled) setError("Failed to load confidence data");
@@ -70,6 +72,14 @@ export function ConfidenceTrend() {
 
     return () => { cancelled = true; };
   }, [windowDays]);
+
+  function handleWindowChange(value: string) {
+    const parsed = Number(value);
+    if (parsed !== 7 && parsed !== 30 && parsed !== 90) return;
+    setIsLoading(true);
+    setError(null);
+    setWindowDays(parsed);
+  }
 
   // Normalize approval boolean to 0/100 for chart display
   const chartData = trend.map((p) => ({
@@ -82,7 +92,7 @@ export function ConfidenceTrend() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-sm font-semibold">Content Confidence Trend</h3>
-        <Tabs value={String(windowDays)} onValueChange={(v) => setWindowDays(Number(v) as WindowDays)}>
+        <Tabs value={String(windowDays)} onValueChange={handleWindowChange}>
           <TabsList className="h-8">
             {(Object.entries(WINDOW_LABELS) as [string, string][]).map(([days, label]) => (
               <TabsTrigger key={days} value={days} className="text-xs px-3 h-6">
@@ -149,10 +159,13 @@ export function ConfidenceTrend() {
             />
             <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" width={36} />
             <Tooltip
-              formatter={(value: number | null, name: string) =>
-                value === null ? ["—", name] : [`${Math.round(value)}%`, name]
-              }
-              labelFormatter={(label: string) => `Date: ${label}`}
+              formatter={(value, name) => {
+                const numericValue = typeof value === "number" ? value : null;
+                return numericValue === null
+                  ? ["—", String(name)]
+                  : [`${Math.round(numericValue)}%`, String(name)];
+              }}
+              labelFormatter={(label) => `Date: ${String(label)}`}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line

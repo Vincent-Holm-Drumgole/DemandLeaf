@@ -24,12 +24,21 @@ Return valid JSON only:
 { "editType": "<type>", "reasoning": "<one sentence explanation>" }`;
 
   const userMessage = `ORIGINAL:
-${originalText.slice(0, 500)}
+${sanitizePromptInput(originalText).slice(0, 500)}
 
 EDITED:
-${editedText.slice(0, 500)}
+${sanitizePromptInput(editedText).slice(0, 500)}
 
 Classify this edit. Return JSON only.`;
 
   return { systemPrompt, userMessage };
+}
+
+function sanitizePromptInput(input: string): string {
+  return input
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/```/g, "\\`\\`\\`");
 }

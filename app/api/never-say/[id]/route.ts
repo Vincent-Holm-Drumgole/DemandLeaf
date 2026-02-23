@@ -13,18 +13,35 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
+  const entryId = parseNeverSayId(id);
+  if (!entryId) {
+    return NextResponse.json({ error: "Invalid entry ID" }, { status: 400 });
+  }
+
+  void _request;
+
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   try {
     await convex.mutation(api.neverSayList.remove, {
-      entryId: id as Id<"neverSayList">,
+      entryId,
       workspaceId: workspace._id,
     });
     return NextResponse.json({ success: true });
   } catch (err) {
+    if (err instanceof Error && err.message.includes("Entry not found")) {
+      return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+    }
     console.error("[never-say/[id]/DELETE] error:", err);
     return NextResponse.json({ error: "Failed to delete term" }, { status: 500 });
   }
+}
+
+function parseNeverSayId(value: string): Id<"neverSayList"> | null {
+  if (!/^[a-z0-9]{10,40}$/.test(value)) {
+    return null;
+  }
+  return value as Id<"neverSayList">;
 }

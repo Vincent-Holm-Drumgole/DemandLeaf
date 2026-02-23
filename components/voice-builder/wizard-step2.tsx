@@ -50,7 +50,7 @@ export function WizardStep2() {
   });
 
   const [thoughtLeadershipPositions, setThoughtLeadershipPositions] = useState(
-    existing?.thoughtLeadershipPositions.join("\n") ?? ""
+    existing?.thoughtLeadershipPositions?.join("\n") ?? ""
   );
   const [brandPhilosophy, setBrandPhilosophy] = useState(
     existing?.brandPhilosophy ?? ""
@@ -80,7 +80,7 @@ export function WizardStep2() {
       <div>
         <h2 className="text-xl font-semibold">Style Settings</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Calibrate your brand's communication style.
+          Calibrate your brand communication style.
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export function WizardStep2() {
               max={10}
               step={1}
               value={[sliders[id]]}
-              onValueChange={([v]) => updateSlider(id, v)}
+              onValueChange={([v]) => v !== undefined && updateSlider(id, v)}
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">

@@ -6,23 +6,31 @@ import {
   internalQuery,
   internalAction,
 } from "./_generated/server";
+import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import { kbEntryTypeValidator } from "./validators";
+import type { Doc, Id } from "./_generated/dataModel";
+import { api, internal } from "./_generated/api";
+import {
+  embeddingStatusValidator,
+  kbEntryTypeValidator,
+} from "./validators";
 
 // ── Queries ────────────────────────────────────────────────────────────────────
 
 export const listByWorkspace = query({
   args: {
     workspaceId: v.id("workspaces"),
-    entryType: v.optional(v.string()),
+    entryType: v.optional(kbEntryTypeValidator),
   },
   handler: async (ctx, args) => {
-    if (args.entryType) {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const entryType = args.entryType;
+    if (entryType !== undefined) {
       return ctx.db
         .query("knowledgeBase")
         .withIndex("by_workspace_type", (q) =>
-          q.eq("workspaceId", args.workspaceId).eq("entryType", args.entryType!)
+          q.eq("workspaceId", args.workspaceId).eq("entryType", entryType)
         )
         .order("desc")
         .collect();
@@ -41,6 +49,8 @@ export const getById = query({
     workspaceId: v.id("workspaces"),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) return null;
     return entry;
@@ -50,6 +60,8 @@ export const getById = query({
 export const listReadyByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     return ctx.db
       .query("knowledgeBase")
       .withIndex("by_workspace_status", (q) =>
@@ -77,6 +89,8 @@ export const create = mutation({
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const now = Date.now();
     const entryId = await ctx.db.insert("knowledgeBase", {
       workspaceId: args.workspaceId,
@@ -105,6 +119,8 @@ export const update = mutation({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
       throw new Error("Entry not found");
@@ -130,6 +146,8 @@ export const remove = mutation({
     workspaceId: v.id("workspaces"),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
       throw new Error("Entry not found");
@@ -141,8 +159,8 @@ export const remove = mutation({
 export const storeEmbedding = internalMutation({
   args: {
     entryId: v.id("knowledgeBase"),
-    embedding: v.array(v.float64()),
-    status: v.string(),
+    embedding: v.optional(v.array(v.float64())),
+    status: embeddingStatusValidator,
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.entryId, {
@@ -157,26 +175,29 @@ export const storeEmbedding = internalMutation({
 
 export const searchByEmbedding = action({
   args: {
-    workspaceId: v.id("workspaces"),
     queryEmbedding: v.array(v.float64()),
     limit: v.number(),
   },
   handler: async (ctx, args) => {
+    const workspace = await requireWorkspaceInAction(ctx);
+    const safeLimit = Math.max(1, Math.min(25, Math.floor(args.limit)));
+
     const results = await ctx.vectorSearch("knowledgeBase", "by_embedding", {
       vector: args.queryEmbedding,
-      limit: args.limit,
-      filter: (q) => q.eq("workspaceId", args.workspaceId),
+      limit: safeLimit,
+      filter: (q) => q.eq("workspaceId", workspace._id),
     });
-    // Fetch full entry data for each result
-    const entries = await Promise.all(
-      results.map(async (r) => {
+
+    type VectorSearchEntry = { entry: Doc<"knowledgeBase">; score: number };
+    const entries: Array<VectorSearchEntry | null> = await Promise.all(
+      results.map(async (result) => {
         const entry = await ctx.runQuery(internal.knowledgeBase.getByIdInternal, {
-          entryId: r._id,
+          entryId: result._id,
         });
-        return entry ? { entry, score: r._score } : null;
-      })
+        return entry ? { entry, score: result._score } : null;
+      }),
     );
-    return entries.filter((e): e is NonNullable<typeof e> => e !== null);
+    return entries.filter((entry): entry is VectorSearchEntry => entry !== null);
   },
 });
 
@@ -202,9 +223,36 @@ export const generateAndStoreEmbedding = internalAction({
       console.error("[knowledgeBase] embedding failed:", err);
       await ctx.runMutation(internal.knowledgeBase.storeEmbedding, {
         entryId: args.entryId,
-        embedding: [],
+        embedding: undefined,
         status: "failed",
       });
     }
   },
 });
+
+async function requireWorkspaceAccess(
+  ctx: QueryCtx | MutationCtx,
+  workspaceId: Id<"workspaces">,
+): Promise<Doc<"workspaces">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthenticated");
+  }
+
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace || workspace.clerkUserId !== identity.subject) {
+    throw new Error("Unauthorized");
+  }
+
+  return workspace;
+}
+
+async function requireWorkspaceInAction(
+  ctx: ActionCtx,
+): Promise<Doc<"workspaces">> {
+  const workspace = await ctx.runQuery(api.workspaces.getByClerkUser, {});
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
+  return workspace;
+}

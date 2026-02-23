@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,16 @@ export function KBEntryForm({ open, entry, onClose, onSave }: KBEntryFormProps) 
   const [tagInput, setTagInput] = useState(entry?.tags.join(", ") ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setEntryType(entry?.entryType ?? "company_info");
+      setTitle(entry?.title ?? "");
+      setContent(entry?.content ?? "");
+      setTagInput(entry?.tags?.join(", ") ?? "");
+      setError(null);
+    }
+  }, [open, entry]);
 
   const tags = tagInput
     .split(",")

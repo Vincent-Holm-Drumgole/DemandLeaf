@@ -8,6 +8,9 @@ let _client: OpenAI | null = null;
 
 function getClient(): OpenAI {
   if (!_client) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
+    }
     _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
   return _client;
@@ -25,6 +28,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     input,
     dimensions: EMBEDDING_DIMENSIONS,
   });
+  if (!response.data.length || !response.data[0].embedding) {
+    throw new Error("Empty embedding response from OpenAI");
+  }
   return response.data[0].embedding;
 }
 

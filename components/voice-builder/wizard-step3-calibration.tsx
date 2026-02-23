@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useVoiceWizardStore } from "@/store/voice-wizard-store";
 import type { CalibrationRating } from "@/store/voice-wizard-store";
 
@@ -28,10 +29,25 @@ export function WizardStep3Calibration() {
   const [submitted, setSubmitted] = useState(false);
 
   function updateRating(id: number, field: "rating" | "feedback", value: number | string) {
-    setRatings((prev) => ({
-      ...prev,
-      [id]: { rating: 5, feedback: "", ...prev[id], [field]: value },
-    }));
+    setRatings((prev) => {
+      const existing = prev[id] ?? { rating: 5, feedback: "" };
+      if (field === "rating") {
+        return {
+          ...prev,
+          [id]: {
+            ...existing,
+            rating: typeof value === "number" ? value : existing.rating,
+          },
+        };
+      }
+      return {
+        ...prev,
+        [id]: {
+          ...existing,
+          feedback: typeof value === "string" ? value : existing.feedback,
+        },
+      };
+    });
   }
 
   async function handleGenerate() {
@@ -48,7 +64,9 @@ export function WizardStep3Calibration() {
       feedback: ratings[s.id]?.feedback || undefined,
     }));
     await submitRatings(ratingsList);
-    setSubmitted(true);
+    if (!useVoiceWizardStore.getState().error) {
+      setSubmitted(true);
+    }
   }
 
   async function handleFinish() {
@@ -69,7 +87,7 @@ export function WizardStep3Calibration() {
           </p>
         </div>
         <Button asChild>
-          <a href="/dashboard">Go to Dashboard</a>
+          <Link href="/dashboard">Go to Dashboard</Link>
         </Button>
       </div>
     );
@@ -172,7 +190,11 @@ export function WizardStep3Calibration() {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              onClick={() => { useVoiceWizardStore.getState().reset(); }}
+              onClick={() => {
+                useVoiceWizardStore.setState({ calibrationSamples: null, error: null });
+                setRatings({});
+                setSubmitted(false);
+              }}
               className="flex-shrink-0"
             >
               Regenerate

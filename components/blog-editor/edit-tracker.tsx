@@ -47,7 +47,7 @@ export const EditTracker = forwardRef<EditTrackerHandle, EditTrackerProps>(
     function levenshteinApprox(a: string, b: string): number {
       // Fast approximation: count differing chars at aligned positions
       const minLen = Math.min(a.length, b.length);
-      let diff = Math.abs(a.length - b.length);
+      let diff = 0;
       for (let i = 0; i < minLen; i++) {
         if (a[i] !== b[i]) diff++;
       }

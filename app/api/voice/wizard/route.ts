@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import type { FunctionArgs } from "convex/server";
+import type { SourceQuality, VoiceProfile } from "@/types";
 import type {
   WizardStep1Answers,
   WizardStep2Answers,
 } from "@/lib/voice/wizard-translator";
 import { translateWizardToProfile } from "@/lib/voice/wizard-translator";
+
+type VoiceWizardPatch = FunctionArgs<typeof api.voiceProfiles.updateFromWizard>["patch"];
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -44,7 +48,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       workspaceId: workspace._id,
     });
 
-    const patch = translateWizardToProfile(body.step1, body.step2, voiceProfile ?? {});
+    const existingProfile: Partial<VoiceProfile> = voiceProfile
+      ? {
+          preferredVocabulary: voiceProfile.vocabularyPreferences?.preferred ?? [],
+          avoidedVocabulary: voiceProfile.vocabularyPreferences?.avoid ?? [],
+          writingExamples: voiceProfile.writingExamples ?? [],
+          sourceQuality: normalizeSourceQuality(voiceProfile.sourceQuality) ?? "none",
+        }
+      : {};
+
+    const translated = translateWizardToProfile(body.step1, body.step2, existingProfile);
+    const patch: VoiceWizardPatch = {
+      voiceDescription: translated.voiceDescription ?? "Professional and clear",
+      formality: translated.formality ?? 5,
+      humor: translated.humor ?? 5,
+      jargonLevel: translated.jargonLevel ?? 5,
+      sentenceComplexity: translated.sentenceComplexity ?? 5,
+      toneAttributes: translated.toneAttributes ?? [],
+      preferredVocabulary: translated.preferredVocabulary ?? [],
+      avoidedVocabulary: translated.avoidedVocabulary ?? [],
+      writingExamples: translated.writingExamples ?? [],
+      sourceQuality: translated.sourceQuality ?? "none",
+      thoughtLeadershipPositions: translated.thoughtLeadershipPositions,
+      brandPhilosophy: translated.brandPhilosophy,
+    };
 
     try {
       await convex.mutation(api.voiceProfiles.updateFromWizard, {
@@ -61,4 +88,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Steps 1 and 2 are just acknowledged — client stores answers in Zustand
   return NextResponse.json({ success: true, step: body.step });
+}
+
+function normalizeSourceQuality(value: unknown): SourceQuality | undefined {
+  if (
+    value === "strong" ||
+    value === "mixed" ||
+    value === "limited" ||
+    value === "none"
+  ) {
+    return value;
+  }
+  return undefined;
 }

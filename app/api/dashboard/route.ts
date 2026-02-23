@@ -19,7 +19,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
   });
 
-  const dashboardBlogs: DashboardBlog[] = data.blogs.map((blog) => ({
+  const dashboardBlogs: DashboardBlog[] = data.blogs.map((blog: (typeof data.blogs)[number]) => ({
     id: blog._id,
     title: blog.title,
     archetype: blog.archetype as DashboardBlog["archetype"],

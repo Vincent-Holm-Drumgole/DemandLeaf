@@ -1,16 +1,19 @@
-export type KBEntryType =
-  | "company_info"
-  | "product"
-  | "audience"
-  | "competitor"
-  | "industry"
-  | "customer_story"
-  | "expert_insight"
-  | "proprietary_data"
-  | "hot_take"
-  | "lesson_learned"
-  | "methodology"
-  | "thought_leadership_position";
+export const KB_ENTRY_TYPES = [
+  "company_info",
+  "product",
+  "audience",
+  "competitor",
+  "industry",
+  "customer_story",
+  "expert_insight",
+  "proprietary_data",
+  "hot_take",
+  "lesson_learned",
+  "methodology",
+  "thought_leadership_position",
+] as const;
+
+export type KBEntryType = (typeof KB_ENTRY_TYPES)[number];
 
 export type KBEmbeddingStatus = "pending" | "ready" | "failed";
 

@@ -55,8 +55,14 @@ export const useVoiceWizardStore = create<VoiceWizardState>((set, get) => ({
         body: JSON.stringify({ topic }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to generate samples");
+        let errorMsg = "Failed to generate samples";
+        try {
+          const data = await res.json();
+          errorMsg = data.error ?? errorMsg;
+        } catch {
+          // Response wasn't JSON, use default message
+        }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       set({ calibrationSamples: data.samples, isLoading: false });
@@ -77,8 +83,14 @@ export const useVoiceWizardStore = create<VoiceWizardState>((set, get) => ({
         body: JSON.stringify({ samples: ratings }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to submit ratings");
+        let errorMsg = "Failed to submit ratings";
+        try {
+          const data = await res.json();
+          errorMsg = data.error ?? errorMsg;
+        } catch {
+          // Response wasn't JSON, use default message
+        }
+        throw new Error(errorMsg);
       }
       set({ isLoading: false });
     } catch (err) {
@@ -103,8 +115,14 @@ export const useVoiceWizardStore = create<VoiceWizardState>((set, get) => ({
         body: JSON.stringify({ step: 3, step1: step1Answers, step2: step2Answers }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to save voice profile");
+        let errorMsg = "Failed to save voice profile";
+        try {
+          const data = await res.json();
+          errorMsg = data.error ?? errorMsg;
+        } catch {
+          // Response wasn't JSON, use default message
+        }
+        throw new Error(errorMsg);
       }
       set({ wizardCompleted: true, isLoading: false });
     } catch (err) {

@@ -45,6 +45,14 @@ export const provision = mutation({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+    if (identity.subject !== args.clerkUserId) {
+      throw new Error("Unauthorized");
+    }
+
     const now = Date.now();
 
     // Find or create workspace

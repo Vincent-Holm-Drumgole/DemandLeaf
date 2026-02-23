@@ -10,6 +10,9 @@ import type { GenerateRequest, GenerateSSEEvent, KBContextResult } from "@/types
 import type { VoiceProfile, Archetype } from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
 export async function POST(request: NextRequest): Promise<Response> {
   const ip = getClientIp(request);
   const rl = checkRateLimit(`generate:${ip}`, { limit: 3, windowSec: 60 });
@@ -56,8 +59,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   if (!archetype || !ARCHETYPES[archetype]) {
+    const allowedArchetypes = Object.keys(ARCHETYPES).join(", ");
     return new Response(
-      JSON.stringify({ error: "Invalid archetype. Use: how_to, listicle, or definitive_guide" }),
+      JSON.stringify({ error: `Invalid archetype. Use one of: ${allowedArchetypes}` }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -108,18 +112,17 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (workspace) {
         const workspaceId = workspace._id;
 
-        // Fetch never-say terms (fast, no embedding needed)
-        const neverSayItems = await authedConvex.query(api.neverSayList.getAllTerms, { workspaceId });
+        const [neverSayItems, kbEntries] = await Promise.all([
+          authedConvex.query(api.neverSayList.getAllTerms, { workspaceId }),
+          authedConvex.query(api.knowledgeBase.listReadyByWorkspace, { workspaceId }),
+        ]);
         if (neverSayItems.length > 0) {
           neverSayTerms = neverSayItems;
         }
 
-        // Fetch KB entries and run vector search if any are ready
-        const kbEntries = await authedConvex.query(api.knowledgeBase.listReadyByWorkspace, { workspaceId });
         if (kbEntries.length > 0) {
           const queryEmbedding = await generateEmbedding(keyword);
           const vectorResults = await authedConvex.action(api.knowledgeBase.searchByEmbedding, {
-            workspaceId,
             queryEmbedding,
             limit: 10,
           });
@@ -138,8 +141,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let closed = false;
+      const closeController = () => {
+        if (closed) return;
+        closed = true;
+        controller.close();
+      };
+      const onAbort = () => {
+        closeController();
+      };
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+
       function sendEvent(event: GenerateSSEEvent) {
-        if (abortSignal.aborted) return;
+        if (abortSignal.aborted || closed) return;
         const data = `data: ${JSON.stringify(event)}\n\n`;
         controller.enqueue(encoder.encode(data));
       }
@@ -161,6 +175,10 @@ export async function POST(request: NextRequest): Promise<Response> {
             sendEvent({ type: "progress", step });
           }
         );
+
+        if (abortSignal.aborted) {
+          return;
+        }
 
         // Save blog to anonymous session — isolated so a persistence failure
         // doesn't discard a successfully generated blog.
@@ -219,7 +237,8 @@ export async function POST(request: NextRequest): Promise<Response> {
           err instanceof Error ? err.message : "Generation failed";
         sendEvent({ type: "error", message });
       } finally {
-        controller.close();
+        abortSignal.removeEventListener("abort", onAbort);
+        closeController();
       }
     },
   });

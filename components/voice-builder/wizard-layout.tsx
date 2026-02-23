@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useVoiceWizardStore } from "@/store/voice-wizard-store";
 
 const STEPS = [
@@ -31,7 +32,7 @@ export function WizardLayout({ children }: WizardLayoutProps) {
                       : "border-muted-foreground/30 text-muted-foreground"
                 }`}
               >
-                {currentStep > step.id ? "✓" : step.id}
+                {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id}
               </div>
               <span
                 className={`text-xs mt-1 whitespace-nowrap ${

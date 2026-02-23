@@ -6,6 +6,13 @@
  * and serves as the authoritative runtime contract for these structures.
  */
 import { v } from "convex/values";
+import { KB_ENTRY_TYPES } from "../types/knowledge-base";
+import { EDIT_TYPES } from "../types/voice";
+
+function literalUnion<const T extends readonly [string, string, ...string[]]>(values: T) {
+  const [first, second, ...rest] = values;
+  return v.union(v.literal(first), v.literal(second), ...rest.map((value) => v.literal(value)));
+}
 
 // ── Voice profile ─────────────────────────────────────────────────────────────
 
@@ -67,31 +74,30 @@ export const voiceProfileValidator = v.object({
 // ── Knowledge Base ─────────────────────────────────────────────────────────────
 
 /** Valid entry types for knowledge base entries */
-export const kbEntryTypeValidator = v.union(
-  v.literal("company_info"),
-  v.literal("product"),
-  v.literal("audience"),
-  v.literal("competitor"),
-  v.literal("industry"),
-  v.literal("customer_story"),
-  v.literal("expert_insight"),
-  v.literal("proprietary_data"),
-  v.literal("hot_take"),
-  v.literal("lesson_learned"),
-  v.literal("methodology"),
-  v.literal("thought_leadership_position")
-);
+export const kbEntryTypeValidator = literalUnion(KB_ENTRY_TYPES);
 
 // ── Edit Learning ─────────────────────────────────────────────────────────────
 
 /** Edit type classification for blog edits */
-export const editTypeValidator = v.union(
-  v.literal("tone"),
-  v.literal("factual"),
-  v.literal("restructure"),
-  v.literal("style"),
-  v.literal("addition"),
-  v.literal("deletion")
+export const editTypeValidator = literalUnion(EDIT_TYPES);
+
+// ── Status enums ──────────────────────────────────────────────────────────────
+
+export const embeddingStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("ready"),
+  v.literal("failed")
+);
+
+export const termTypeValidator = v.union(
+  v.literal("word"),
+  v.literal("phrase")
+);
+
+export const classificationStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("classified"),
+  v.literal("failed")
 );
 
 // ── Crawl data ────────────────────────────────────────────────────────────────

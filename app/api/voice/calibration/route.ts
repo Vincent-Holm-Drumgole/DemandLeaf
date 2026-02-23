@@ -3,17 +3,30 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { callSonnet, parseJsonResponse } from "@/lib/ai/client";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { buildCalibrationSamplesPrompt } from "@/lib/ai/prompts/voiceCalibration";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rateLimit = checkRateLimit(`voice-calibration:${userId}`, { limit: 10, windowSec: 3600 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let body: { topic?: string };
   try {
     body = await request.json();
   } catch {
     body = {};
+  }
+
+  if (body.topic !== undefined && (typeof body.topic !== "string" || body.topic.trim().length === 0)) {
+    return NextResponse.json({ error: "topic must be a non-empty string when provided" }, { status: 400 });
+  }
+  if (typeof body.topic === "string" && body.topic.length > 200) {
+    return NextResponse.json({ error: "topic must be 200 characters or less" }, { status: 400 });
   }
 
   const convex = await getAuthedConvexClient();
@@ -47,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { systemPrompt, userMessage } = buildCalibrationSamplesPrompt(
     profile,
-    body.topic ?? `${workspace.industry ?? "your industry"} content strategy`
+    body.topic?.trim() ?? `${workspace.industry ?? "your industry"} content strategy`
   );
 
   try {

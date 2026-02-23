@@ -1,6 +1,15 @@
-import { mutation, query, internalAction, internalMutation } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import { classificationStatusValidator, editTypeValidator } from "./validators";
 
 const PATTERN_ANALYSIS_THRESHOLD = 10;
 
@@ -9,12 +18,21 @@ const PATTERN_ANALYSIS_THRESHOLD = 10;
 export const getEditStats = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
-    const edits = await ctx.db
-      .query("blogEdits")
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const profile = await ctx.db
+      .query("voiceProfiles")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .unique();
+
+    const classified = await ctx.db
+      .query("blogEdits")
+      .withIndex("by_workspace_unclassified", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "classified"),
+      )
       .collect();
-    const total = edits.length;
-    const classified = edits.filter((e) => e.classificationStatus === "classified");
+
+    const total = profile?.editCount ?? 0;
     const byType: Record<string, number> = {};
     for (const edit of classified) {
       if (edit.editType) {
@@ -28,11 +46,49 @@ export const getEditStats = query({
 export const listByBlog = query({
   args: { blogId: v.id("blogs") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog) {
+      return [];
+    }
+    const workspace = await ctx.db.get(blog.workspaceId);
+    if (!workspace || workspace.clerkUserId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
     return ctx.db
       .query("blogEdits")
       .withIndex("by_blog", (q) => q.eq("blogId", args.blogId))
       .order("desc")
       .collect();
+  },
+});
+
+export const hasMinimumClassifiedEdits = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    minimum: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const minimum = Math.max(1, Math.min(Math.floor(args.minimum ?? 5), 100));
+    const classified = await ctx.db
+      .query("blogEdits")
+      .withIndex("by_workspace_unclassified", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "classified"),
+      )
+      .take(minimum);
+
+    return {
+      ready: classified.length >= minimum,
+      count: classified.length,
+      minimum,
+    };
   },
 });
 
@@ -47,6 +103,13 @@ export const recordEdit = mutation({
     editedText: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== args.workspaceId) {
+      throw new Error("Blog not found");
+    }
+
     const now = Date.now();
     const editId = await ctx.db.insert("blogEdits", {
       blogId: args.blogId,
@@ -59,37 +122,57 @@ export const recordEdit = mutation({
     });
 
     // Increment blog edit count
-    const blog = await ctx.db.get(args.blogId);
-    if (blog) {
-      await ctx.db.patch(args.blogId, {
-        editCount: (blog.editCount ?? 0) + 1,
-        updatedAt: now,
-      });
-    }
+    await ctx.db.patch(args.blogId, {
+      editCount: (blog.editCount ?? 0) + 1,
+      updatedAt: now,
+    });
 
     // Schedule Haiku classification
     await ctx.scheduler.runAfter(0, internal.blogEdits.classifyEdit, { editId });
 
-    // Check if we've crossed the pattern analysis threshold
-    const allEdits = await ctx.db
-      .query("blogEdits")
+    // Atomically increment workspace-level edit counter on voiceProfile
+    // and use it for the threshold check — avoids a full table scan and
+    // eliminates the race condition where concurrent inserts could both
+    // read the same count and either both trigger or skip pattern analysis.
+    const profile = await ctx.db
+      .query("voiceProfiles")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
-    if (allEdits.length % PATTERN_ANALYSIS_THRESHOLD === 0) {
-      await ctx.scheduler.runAfter(5000, internal.blogEdits.analyzeEditPatterns, {
-        workspaceId: args.workspaceId,
-      });
+      .unique();
+    if (profile) {
+      const newEditCount = (profile.editCount ?? 0) + 1;
+      await ctx.db.patch(profile._id, { editCount: newEditCount, updatedAt: now });
+      if (newEditCount % PATTERN_ANALYSIS_THRESHOLD === 0) {
+        await ctx.scheduler.runAfter(15000, internal.blogEdits.analyzeEditPatterns, {
+          workspaceId: args.workspaceId,
+        });
+      }
+    } else {
+      console.warn(
+        `[blogEdits] missing voice profile for workspace ${String(args.workspaceId)}; skipped pattern counter`,
+      );
     }
 
     return editId;
   },
 });
 
+export const requestPatternAnalysis = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    await ctx.scheduler.runAfter(0, internal.blogEdits.analyzeEditPatterns, {
+      workspaceId: args.workspaceId,
+    });
+  },
+});
+
 export const storeClassification = internalMutation({
   args: {
     editId: v.id("blogEdits"),
-    editType: v.optional(v.string()),
-    status: v.string(),
+    editType: v.optional(editTypeValidator),
+    status: classificationStatusValidator,
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.editId, {
@@ -104,7 +187,7 @@ export const storeEditPatterns = internalMutation({
     workspaceId: v.id("workspaces"),
     editPatterns: v.array(
       v.object({
-        editType: v.string(),
+        editType: editTypeValidator,
         frequency: v.number(),
         examples: v.array(v.string()),
         suggestedAdjustment: v.string(),
@@ -119,11 +202,9 @@ export const storeEditPatterns = internalMutation({
       .unique();
     if (profile) {
       await ctx.db.patch(profile._id, {
+        editPatterns: args.editPatterns,
         updatedAt: Date.now(),
       });
-      // Store patterns as a JSON field (we store as string to avoid schema complexity)
-      // Note: voiceProfiles doesn't have an editPatterns field in schema directly
-      // We handle this through the API response layer
     }
   },
 });
@@ -152,12 +233,11 @@ export const classifyEdit = internalAction({
         userMessage,
         maxTokens: 256,
         temperature: 0.1,
-        responseFormat: "json",
       });
       const parsed = JSON.parse(result.content) as { editType?: string };
       await ctx.runMutation(internal.blogEdits.storeClassification, {
         editId: args.editId,
-        editType: parsed.editType,
+        editType: toEditType(parsed.editType),
         status: "classified",
       });
     } catch (err) {
@@ -171,7 +251,7 @@ export const classifyEdit = internalAction({
   },
 });
 
-export const getEditById = query({
+export const getEditById = internalQuery({
   args: { editId: v.id("blogEdits") },
   handler: async (ctx, args) => ctx.db.get(args.editId),
 });
@@ -179,11 +259,23 @@ export const getEditById = query({
 export const analyzeEditPatterns = internalAction({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
+    const progress = await ctx.runQuery(internal.blogEdits.getClassificationProgress, {
+      workspaceId: args.workspaceId,
+    });
+    if (progress.classifiedCount < 5) {
+      // Classification is async. If pending edits still exist, retry shortly.
+      if (progress.hasPending) {
+        await ctx.scheduler.runAfter(15000, internal.blogEdits.analyzeEditPatterns, {
+          workspaceId: args.workspaceId,
+        });
+      }
+      return;
+    }
+
     // Gather recent classified edits
     const edits = await ctx.runQuery(internal.blogEdits.getClassifiedEdits, {
       workspaceId: args.workspaceId,
     });
-    if (edits.length < 5) return; // Not enough data yet
 
     try {
       const { callAI } = await import("../lib/ai/client");
@@ -203,7 +295,6 @@ export const analyzeEditPatterns = internalAction({
         userMessage,
         maxTokens: 1024,
         temperature: 0.1,
-        responseFormat: "json",
       });
       const parsed = JSON.parse(result.content) as {
         patterns?: Array<{
@@ -213,10 +304,31 @@ export const analyzeEditPatterns = internalAction({
           suggestedAdjustment: string;
         }>;
       };
-      if (parsed.patterns) {
+      const patterns = (parsed.patterns ?? [])
+        .map((pattern) => ({
+          ...pattern,
+          editType: toEditType(pattern.editType),
+        }))
+        .filter(
+          (
+            pattern,
+          ): pattern is {
+            editType: "tone" | "factual" | "restructure" | "style" | "addition" | "deletion";
+            frequency: number;
+            examples: string[];
+            suggestedAdjustment: string;
+          } =>
+            Boolean(pattern.editType) &&
+            Number.isFinite(pattern.frequency) &&
+            pattern.frequency > 0 &&
+            Array.isArray(pattern.examples) &&
+            typeof pattern.suggestedAdjustment === "string",
+        );
+
+      if (patterns.length > 0) {
         await ctx.runMutation(internal.blogEdits.storeEditPatterns, {
           workspaceId: args.workspaceId,
-          editPatterns: parsed.patterns,
+          editPatterns: patterns,
         });
       }
     } catch (err) {
@@ -225,14 +337,72 @@ export const analyzeEditPatterns = internalAction({
   },
 });
 
-export const getClassifiedEdits = query({
+export const getClassifiedEdits = internalQuery({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     return ctx.db
       .query("blogEdits")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .filter((q) => q.eq(q.field("classificationStatus"), "classified"))
+      .withIndex("by_workspace_unclassified", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "classified"),
+      )
       .order("desc")
       .take(50);
   },
 });
+
+export const getClassificationProgress = internalQuery({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const classified = await ctx.db
+      .query("blogEdits")
+      .withIndex("by_workspace_unclassified", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "classified"),
+      )
+      .take(5);
+
+    const pending = await ctx.db
+      .query("blogEdits")
+      .withIndex("by_workspace_unclassified", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "pending"),
+      )
+      .take(1);
+
+    return {
+      classifiedCount: classified.length,
+      hasPending: pending.length > 0,
+    };
+  },
+});
+
+async function requireWorkspaceAccess(
+  ctx: QueryCtx | MutationCtx,
+  workspaceId: Id<"workspaces">,
+): Promise<Doc<"workspaces">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthenticated");
+  }
+
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace || workspace.clerkUserId !== identity.subject) {
+    throw new Error("Unauthorized");
+  }
+
+  return workspace;
+}
+
+function toEditType(
+  value: unknown,
+): "tone" | "factual" | "restructure" | "style" | "addition" | "deletion" | undefined {
+  if (
+    value === "tone" ||
+    value === "factual" ||
+    value === "restructure" ||
+    value === "style" ||
+    value === "addition" ||
+    value === "deletion"
+  ) {
+    return value;
+  }
+  return undefined;
+}

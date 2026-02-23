@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -35,18 +35,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!blogId || typeof blogId !== "string") {
     return NextResponse.json({ error: "blogId is required" }, { status: 400 });
   }
-  if (typeof paragraphIndex !== "number" || paragraphIndex < 0) {
+  const blogIdTyped = parseBlogId(blogId);
+  if (!blogIdTyped) {
+    return NextResponse.json({ error: "Invalid blogId format" }, { status: 400 });
+  }
+  if (
+    typeof paragraphIndex !== "number" ||
+    !Number.isInteger(paragraphIndex) ||
+    paragraphIndex < 0
+  ) {
     return NextResponse.json({ error: "paragraphIndex must be a non-negative number" }, { status: 400 });
   }
+  const paragraphIndexValue = paragraphIndex;
   if (!originalText || typeof originalText !== "string") {
     return NextResponse.json({ error: "originalText is required" }, { status: 400 });
   }
   if (!editedText || typeof editedText !== "string") {
     return NextResponse.json({ error: "editedText is required" }, { status: 400 });
   }
-  // Only record edits with meaningful changes (>10 chars difference)
-  if (Math.abs(editedText.length - originalText.length) < 10 && originalText === editedText) {
-    return NextResponse.json({ success: true, skipped: true });
+  if (originalText.length > 10000 || editedText.length > 10000) {
+    return NextResponse.json({ error: "Paragraph text must be 10,000 characters or less" }, { status: 400 });
+  }
+
+  const normalizeText = (value: string) => value.replace(/\s+/g, " ").trim();
+  if (normalizeText(originalText) === normalizeText(editedText)) {
+    return NextResponse.json({ success: true, skipped: true }, { status: 200 });
   }
 
   const convex = await getAuthedConvexClient();
@@ -55,15 +68,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const editId = await convex.mutation(api.blogEdits.recordEdit, {
-      blogId: blogId as Id<"blogs">,
+      blogId: blogIdTyped,
       workspaceId: workspace._id,
-      paragraphIndex,
+      paragraphIndex: paragraphIndexValue,
       originalText,
       editedText,
     });
     return NextResponse.json({ id: editId, classificationStatus: "pending" }, { status: 201 });
   } catch (err) {
+    if (err instanceof Error && err.message.includes("Blog not found")) {
+      return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+    }
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     console.error("[edits/POST] error:", err);
     return NextResponse.json({ error: "Failed to record edit" }, { status: 500 });
   }
+}
+
+function parseBlogId(value: string): Id<"blogs"> | null {
+  if (!/^[a-z0-9]{10,40}$/.test(value)) {
+    return null;
+  }
+  return value as Id<"blogs">;
 }

@@ -47,7 +47,7 @@ export function KBEntryCard({ entry, onEdit, onDelete }: KBEntryCardProps) {
             </span>
             <h3 className="font-semibold text-sm leading-tight truncate">{entry.title}</h3>
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
             <Button
               variant="ghost"
               size="sm"

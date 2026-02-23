@@ -64,6 +64,11 @@ function formatArchetype(archetype: Archetype): string {
     how_to: "how-to guide",
     listicle: "listicle",
     definitive_guide: "definitive guide",
+    thought_leadership: "thought leadership article",
+    comparison: "comparison article",
+    data_study: "data study",
+    case_study: "case study",
+    news_commentary: "news commentary article",
   };
   return labels[archetype];
 }

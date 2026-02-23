@@ -44,29 +44,35 @@ export function KBList() {
   }, [fetchEntries]);
 
   async function handleSave(data: { entryType: KBEntryType; title: string; content: string; tags: string[] }) {
-    if (editingEntry) {
-      const res = await fetch(`/api/knowledge-base/${editingEntry.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error ?? "Failed to update entry");
+    try {
+      if (editingEntry) {
+        const res = await fetch(`/api/knowledge-base/${editingEntry.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          const json = await res.json();
+          throw new Error(json.error ?? "Failed to update entry");
+        }
+      } else {
+        const res = await fetch("/api/knowledge-base", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          const json = await res.json();
+          throw new Error(json.error ?? "Failed to create entry");
+        }
       }
-    } else {
-      const res = await fetch("/api/knowledge-base", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error ?? "Failed to create entry");
-      }
+      setFormOpen(false);
+      setEditingEntry(null);
+      setError(null);
+      void fetchEntries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save entry");
     }
-    setEditingEntry(null);
-    void fetchEntries();
   }
 
   async function handleDelete(id: string) {
@@ -74,6 +80,8 @@ export function KBList() {
     const res = await fetch(`/api/knowledge-base/${id}`, { method: "DELETE" });
     if (res.ok) {
       setEntries((prev) => prev.filter((e) => e.id !== id));
+    } else {
+      setError("Failed to delete entry");
     }
   }
 

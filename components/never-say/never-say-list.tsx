@@ -21,6 +21,7 @@ export function NeverSayList() {
   const [termType, setTermType] = useState<"word" | "phrase">("word");
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchTerms = useCallback(async () => {
@@ -29,6 +30,7 @@ export function NeverSayList() {
       if (!res.ok) throw new Error("Failed to load never-say list");
       const data = await res.json();
       setItems(data.items ?? []);
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -72,6 +74,8 @@ export function NeverSayList() {
   }
 
   async function handleDelete(id: string) {
+    if (deletingIds.has(id)) return;
+    setDeletingIds((prev) => new Set(prev).add(id));
     setItems((prev) => prev.filter((i) => i._id !== id));
     try {
       const res = await fetch(`/api/never-say/${id}`, { method: "DELETE" });
@@ -82,6 +86,12 @@ export function NeverSayList() {
     } catch {
       await fetchTerms();
       setError("Failed to delete term");
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -115,6 +125,7 @@ export function NeverSayList() {
       <div className="flex gap-2">
         <div className="flex rounded-md border overflow-hidden flex-shrink-0">
           <button
+            type="button"
             onClick={() => setTermType("word")}
             className={`px-3 py-2 text-xs font-medium transition-colors ${
               termType === "word"
@@ -125,6 +136,7 @@ export function NeverSayList() {
             Word
           </button>
           <button
+            type="button"
             onClick={() => setTermType("phrase")}
             className={`px-3 py-2 text-xs font-medium border-l transition-colors ${
               termType === "phrase"
@@ -183,7 +195,9 @@ export function NeverSayList() {
                   >
                     {item.term}
                     <button
+                      type="button"
                       onClick={() => handleDelete(item._id)}
+                      disabled={deletingIds.has(item._id)}
                       className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5 transition-colors"
                       aria-label={`Remove "${item.term}"`}
                     >
@@ -209,7 +223,9 @@ export function NeverSayList() {
                   >
                     {item.term}
                     <button
+                      type="button"
                       onClick={() => handleDelete(item._id)}
+                      disabled={deletingIds.has(item._id)}
                       className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5 transition-colors"
                       aria-label={`Remove "${item.term}"`}
                     >

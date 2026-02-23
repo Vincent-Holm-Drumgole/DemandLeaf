@@ -6,6 +6,11 @@ import {
   voiceProfileValidator,
   crawlDataValidator,
   blogDataValidator,
+  kbEntryTypeValidator,
+  editTypeValidator,
+  embeddingStatusValidator,
+  termTypeValidator,
+  classificationStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -34,6 +39,17 @@ export default defineSchema({
     wizardCompleted: v.optional(v.boolean()),
     wizardCompletedAt: v.optional(v.number()),
     calibrationCount: v.optional(v.number()),
+    editCount: v.optional(v.number()),
+    editPatterns: v.optional(
+      v.array(
+        v.object({
+          editType: editTypeValidator,
+          frequency: v.number(),
+          examples: v.array(v.string()),
+          suggestedAdjustment: v.string(),
+        })
+      )
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
@@ -126,12 +142,12 @@ export default defineSchema({
 
   knowledgeBase: defineTable({
     workspaceId: v.id("workspaces"),
-    entryType: v.string(),
+    entryType: kbEntryTypeValidator,
     title: v.string(),
     content: v.string(),
     tags: v.array(v.string()),
     embedding: v.optional(v.array(v.float64())),
-    embeddingStatus: v.string(), // "pending" | "ready" | "failed"
+    embeddingStatus: embeddingStatusValidator,
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -147,7 +163,7 @@ export default defineSchema({
   neverSayList: defineTable({
     workspaceId: v.id("workspaces"),
     term: v.string(),
-    termType: v.string(), // "word" | "phrase"
+    termType: termTypeValidator,
     addedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
 
@@ -169,8 +185,8 @@ export default defineSchema({
     paragraphIndex: v.number(),
     originalText: v.string(),
     editedText: v.string(),
-    editType: v.optional(v.string()), // classified by Haiku
-    classificationStatus: v.string(), // "pending" | "classified" | "failed"
+    editType: v.optional(editTypeValidator), // classified by Haiku
+    classificationStatus: classificationStatusValidator,
     createdAt: v.number(),
   })
     .index("by_blog", ["blogId"])

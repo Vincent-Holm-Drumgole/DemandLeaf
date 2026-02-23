@@ -32,7 +32,7 @@ export function WizardStep1() {
     existing?.nonNegotiables ?? []
   );
   const [personalityWords, setPersonalityWords] = useState(
-    existing?.brandPersonalityWords.join(", ") ?? ""
+    existing?.brandPersonalityWords?.join(", ") ?? ""
   );
   const [error, setError] = useState<string | null>(null);
 
