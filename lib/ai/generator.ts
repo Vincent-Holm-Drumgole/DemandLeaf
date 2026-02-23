@@ -68,6 +68,14 @@ export async function generateBlog(
 
   // ── Step 2: Generate draft (5-layer prompt) ────────────────────────
   onProgress?.({ name: "Writing in your voice", status: "running" });
+
+  // Format KB context if provided (Phase 2)
+  let kbContextString: string | undefined;
+  if (input.kbContext && input.kbContext.items.length > 0) {
+    const { formatKBContextForPrompt } = await import("@/lib/knowledge-base/formatter");
+    kbContextString = formatKBContextForPrompt(input.kbContext);
+  }
+
   const { systemPrompt, userMessage } = buildBlogDraftPrompt({
     archetype: input.archetype,
     voiceProfile: input.voiceProfile,
@@ -76,6 +84,8 @@ export async function generateBlog(
     industry: input.industry,
     audience: input.audience,
     outline: brief.outline,
+    kbContext: kbContextString,
+    neverSayTerms: input.neverSayTerms,
   });
 
   const draftResult = await callSonnet(systemPrompt, userMessage, {
@@ -89,6 +99,8 @@ export async function generateBlog(
   // ── Step 3: Voice check (Haiku) ────────────────────────────────────
   onProgress?.({ name: "Checking voice consistency", status: "running" });
   let voiceFlags: Array<{ paragraphIndex: number; reason: string }> = [];
+  // overallScore is 1-5 scale; normalize to 0-100 for voiceMatchScore
+  let voiceMatchScore: number | undefined;
   try {
     const voiceCheck = await checkVoiceAdherence(blogContent, input.voiceProfile);
     tracker.record("voice_check", voiceCheck.aiResult);
@@ -96,6 +108,7 @@ export async function generateBlog(
       paragraphIndex: flag.paragraphIndex,
       reason: flag.reason,
     }));
+    voiceMatchScore = Math.round(((voiceCheck.result.overallScore - 1) / 4) * 100);
     onProgress?.({
       name: "Checking voice consistency",
       status: "complete",
@@ -283,6 +296,7 @@ export async function generateBlog(
       burstinessScore: finalDetection.burstinessStats.standardDeviation,
       readabilityScore,
     },
+    voiceMatchScore,
     generationTimeMs,
     totalCostCents: summary.totalCostCents,
     totalInputTokens: summary.totalInputTokens,

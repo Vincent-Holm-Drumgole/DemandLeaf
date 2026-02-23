@@ -2,7 +2,16 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
-const VALID_ARCHETYPES = ["how_to", "listicle", "definitive_guide"] as const;
+const VALID_ARCHETYPES = [
+  "how_to",
+  "listicle",
+  "definitive_guide",
+  "thought_leadership",
+  "comparison",
+  "data_study",
+  "case_study",
+  "news_commentary",
+] as const;
 type Archetype = (typeof VALID_ARCHETYPES)[number];
 
 // ─── Queries ──────────────────────────────────────────────────────────────────

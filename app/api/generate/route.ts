@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { getConvexClient } from "@/lib/convex";
+import { getConvexClient, getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
-import type { GenerateRequest, GenerateSSEEvent } from "@/types";
+import { generateEmbedding } from "@/lib/ai/embedding";
+import { selectKBContext } from "@/lib/knowledge-base/context-selector";
+import type { GenerateRequest, GenerateSSEEvent, KBContextResult } from "@/types";
 import type { VoiceProfile, Archetype } from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 
@@ -93,6 +96,44 @@ export async function POST(request: NextRequest): Promise<Response> {
   const industry = typeof crawlData.industry === "string" ? crawlData.industry : "General";
   const audience = typeof crawlData.audience === "string" ? crawlData.audience : "Business professionals";
 
+  // Enrich with workspace KB context + never-say list for authenticated users
+  let kbContext: KBContextResult | undefined;
+  let neverSayTerms: string[] | undefined;
+
+  try {
+    const { userId } = await auth();
+    if (userId) {
+      const authedConvex = await getAuthedConvexClient();
+      const workspace = await authedConvex.query(api.workspaces.getByClerkUser, {});
+      if (workspace) {
+        const workspaceId = workspace._id;
+
+        // Fetch never-say terms (fast, no embedding needed)
+        const neverSayItems = await authedConvex.query(api.neverSayList.getAllTerms, { workspaceId });
+        if (neverSayItems.length > 0) {
+          neverSayTerms = neverSayItems;
+        }
+
+        // Fetch KB entries and run vector search if any are ready
+        const kbEntries = await authedConvex.query(api.knowledgeBase.listReadyByWorkspace, { workspaceId });
+        if (kbEntries.length > 0) {
+          const queryEmbedding = await generateEmbedding(keyword);
+          const vectorResults = await authedConvex.action(api.knowledgeBase.searchByEmbedding, {
+            workspaceId,
+            queryEmbedding,
+            limit: 10,
+          });
+          if (vectorResults.length > 0) {
+            kbContext = selectKBContext(vectorResults, archetype as Archetype);
+          }
+        }
+      }
+    }
+  } catch (enrichErr) {
+    // KB enrichment is non-critical — log and continue
+    console.warn("[generate] KB/never-say enrichment failed, proceeding without:", enrichErr);
+  }
+
   // SSE stream
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -112,6 +153,8 @@ export async function POST(request: NextRequest): Promise<Response> {
             companyContext,
             industry,
             audience,
+            kbContext,
+            neverSayTerms,
           },
           (step) => {
             if (abortSignal.aborted) throw new Error("Client disconnected");

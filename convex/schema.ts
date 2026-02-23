@@ -28,6 +28,12 @@ export default defineSchema({
     vocabularyPreferences: v.optional(vocabularyPreferencesValidator),
     writingExamples: v.array(v.string()),
     sourceQuality: v.optional(v.string()),
+    // Phase 2: Brand intelligence fields
+    thoughtLeadershipPositions: v.optional(v.array(v.string())),
+    brandPhilosophy: v.optional(v.string()),
+    wizardCompleted: v.optional(v.boolean()),
+    wizardCompletedAt: v.optional(v.number()),
+    calibrationCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
@@ -70,6 +76,11 @@ export default defineSchema({
     generationCostCents: v.optional(v.number()),
     generationTimeMs: v.optional(v.number()),
     promptVersion: v.optional(v.string()),
+    // Phase 2: Confidence fields
+    voiceMatchScore: v.optional(v.number()),
+    userApproval: v.optional(v.boolean()),
+    editCount: v.optional(v.number()),
+    editRatio: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -110,4 +121,60 @@ export default defineSchema({
   })
     .index("by_token", ["sessionToken"])
     .index("by_expires", ["expiresAt"]),
+
+  // ── Phase 2: Brand Intelligence tables ──────────────────────────────────────
+
+  knowledgeBase: defineTable({
+    workspaceId: v.id("workspaces"),
+    entryType: v.string(),
+    title: v.string(),
+    content: v.string(),
+    tags: v.array(v.string()),
+    embedding: v.optional(v.array(v.float64())),
+    embeddingStatus: v.string(), // "pending" | "ready" | "failed"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_type", ["workspaceId", "entryType"])
+    .index("by_workspace_status", ["workspaceId", "embeddingStatus"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["workspaceId"],
+    }),
+
+  neverSayList: defineTable({
+    workspaceId: v.id("workspaces"),
+    term: v.string(),
+    termType: v.string(), // "word" | "phrase"
+    addedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  calibrationHistory: defineTable({
+    workspaceId: v.id("workspaces"),
+    voiceProfileId: v.id("voiceProfiles"),
+    sampleParagraph: v.string(),
+    rating: v.number(), // 1-10
+    feedback: v.optional(v.string()),
+    addedToExamples: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_created", ["workspaceId", "createdAt"]),
+
+  blogEdits: defineTable({
+    blogId: v.id("blogs"),
+    workspaceId: v.id("workspaces"),
+    paragraphIndex: v.number(),
+    originalText: v.string(),
+    editedText: v.string(),
+    editType: v.optional(v.string()), // classified by Haiku
+    classificationStatus: v.string(), // "pending" | "classified" | "failed"
+    createdAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_created", ["workspaceId", "createdAt"])
+    .index("by_workspace_unclassified", ["workspaceId", "classificationStatus"]),
 });

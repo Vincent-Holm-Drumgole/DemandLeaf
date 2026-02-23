@@ -1,6 +1,15 @@
 import type { VoiceProfile } from "./voice";
+import type { KBContextResult } from "./knowledge-base";
 
-export type Archetype = "how_to" | "listicle" | "definitive_guide";
+export type Archetype =
+  | "how_to"
+  | "listicle"
+  | "definitive_guide"
+  | "thought_leadership"
+  | "comparison"
+  | "data_study"
+  | "case_study"
+  | "news_commentary";
 
 export type BlogStatus = "draft" | "approved" | "exported" | "published";
 
@@ -13,6 +22,8 @@ export interface GenerationInput {
   companyContext: string;
   industry: string;
   audience: string;
+  kbContext?: KBContextResult;
+  neverSayTerms?: string[];
 }
 
 export interface GenerationResult {
@@ -27,6 +38,7 @@ export interface GenerationResult {
   archetype: Archetype;
   wordCount: number;
   scores: BlogScores;
+  voiceMatchScore?: number;
   generationTimeMs: number;
   totalCostCents: number;
   totalInputTokens: number;

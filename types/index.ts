@@ -1,5 +1,5 @@
 export type { CrawledPage, CrawlResult, CrawlError, PageType } from "./crawl";
-export type { VoiceProfile, SourceQuality } from "./voice";
+export type { VoiceProfile, SourceQuality, EditType, EditPattern } from "./voice";
 export type {
   Archetype,
   BlogStatus,
@@ -31,3 +31,10 @@ export type {
   DashboardResponse,
 } from "./api";
 export type { AICallResult, AIModel, AICallOptions } from "./ai";
+export type {
+  KBEntry,
+  KBEntryType,
+  KBEmbeddingStatus,
+  KBContextItem,
+  KBContextResult,
+} from "./knowledge-base";

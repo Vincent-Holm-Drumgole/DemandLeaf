@@ -59,7 +59,40 @@ export const voiceProfileValidator = v.object({
   avoidedVocabulary: v.array(v.string()),
   writingExamples: v.array(v.string()),
   sourceQuality: v.string(),
+  // Phase 2 optional fields
+  thoughtLeadershipPositions: v.optional(v.array(v.string())),
+  brandPhilosophy: v.optional(v.string()),
 });
+
+// ── Knowledge Base ─────────────────────────────────────────────────────────────
+
+/** Valid entry types for knowledge base entries */
+export const kbEntryTypeValidator = v.union(
+  v.literal("company_info"),
+  v.literal("product"),
+  v.literal("audience"),
+  v.literal("competitor"),
+  v.literal("industry"),
+  v.literal("customer_story"),
+  v.literal("expert_insight"),
+  v.literal("proprietary_data"),
+  v.literal("hot_take"),
+  v.literal("lesson_learned"),
+  v.literal("methodology"),
+  v.literal("thought_leadership_position")
+);
+
+// ── Edit Learning ─────────────────────────────────────────────────────────────
+
+/** Edit type classification for blog edits */
+export const editTypeValidator = v.union(
+  v.literal("tone"),
+  v.literal("factual"),
+  v.literal("restructure"),
+  v.literal("style"),
+  v.literal("addition"),
+  v.literal("deletion")
+);
 
 // ── Crawl data ────────────────────────────────────────────────────────────────
 
