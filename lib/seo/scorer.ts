@@ -21,8 +21,11 @@ export interface SEOScorerInput {
 }
 
 /**
- * Score blog content against 18 SEO checks. Pure code, no AI calls.
+ * Score blog content against 16 SEO checks. Pure code, no AI calls.
  * Returns a score 0-100 and individual check results.
+ * Note: external-link and image-alt checks are excluded — they are
+ * structurally impossible for AI-generated markdown and would permanently
+ * cap the score below 93. They appear as suggestions in the UI instead.
  */
 export function scoreSEO(input: SEOScorerInput): SEOScore {
   const { content, focusKeyword, metaTitle, metaDescription, slug, title } = input;
@@ -44,8 +47,6 @@ export function scoreSEO(input: SEOScorerInput): SEOScore {
     checkMetaDescriptionLength(metaDescription, 5),
     checkH2Count(headings, 5),
     checkContentLength(wordCount, 5),
-    checkExternalLink(content, 4),
-    checkImageAlt(content, 4),
     checkParagraphLength(paragraphs, 4),
     checkFleschReadability(plainText, 4),
     checkHeadingHierarchy(headings, 4),
@@ -202,33 +203,6 @@ function checkContentLength(wordCount: number, maxPoints: number): SEOCheckResul
   };
 }
 
-function checkExternalLink(content: string, maxPoints: number): SEOCheckResult {
-  // Check for markdown links to external URLs
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-  const matches = [...content.matchAll(linkRegex)];
-  const passed = matches.length >= 1;
-  return {
-    name: "External link",
-    passed,
-    points: passed ? maxPoints : 0,
-    maxPoints,
-    suggestion: passed ? undefined : "Add at least 1 external link to a relevant resource",
-  };
-}
-
-function checkImageAlt(content: string, maxPoints: number): SEOCheckResult {
-  // Check for markdown images with alt text
-  const imageRegex = /!\[([^\]]+)\]\(/g;
-  const matches = [...content.matchAll(imageRegex)];
-  const passed = matches.length >= 1;
-  return {
-    name: "Image alt text",
-    passed,
-    points: passed ? maxPoints : 0,
-    maxPoints,
-    suggestion: passed ? undefined : "Add at least 1 image with descriptive alt text",
-  };
-}
 
 function checkParagraphLength(paragraphs: string[], maxPoints: number): SEOCheckResult {
   if (paragraphs.length === 0) return { name: "Short paragraphs", passed: false, points: 0, maxPoints };

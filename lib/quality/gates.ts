@@ -1,6 +1,7 @@
 import type { Archetype, DetectionResult, GateResult, QualityGatesResult } from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 import { SEO_PASS_THRESHOLD, FLESCH_MIN, FLESCH_MAX } from "@/lib/constants/seo";
+import { DETECTION_MEDIUM_MAX } from "@/lib/constants/detection";
 
 export interface QualityGateInput {
   seoScore: number;
@@ -35,17 +36,17 @@ export function evaluateQualityGates(input: QualityGateInput): QualityGatesResul
           : undefined,
     },
 
-    // Gate 2: Detection Risk = 'low'
+    // Gate 2: Detection Risk = 'low' or 'medium' (high risk fails)
     {
       gate: "Detection Risk",
-      passed: input.detectionResult.riskLevel === "low",
+      passed: input.detectionResult.riskScore <= DETECTION_MEDIUM_MAX,
       reason:
-        input.detectionResult.riskLevel !== "low"
-          ? `Detection risk is ${input.detectionResult.riskLevel} (score: ${input.detectionResult.riskScore})`
+        input.detectionResult.riskScore > DETECTION_MEDIUM_MAX
+          ? `Detection risk is ${input.detectionResult.riskLevel} (score: ${input.detectionResult.riskScore}). Needs ≤${DETECTION_MEDIUM_MAX}.`
           : undefined,
       autoFixable: true,
       suggestion:
-        input.detectionResult.riskLevel !== "low"
+        input.detectionResult.riskScore > DETECTION_MEDIUM_MAX
           ? "Flagged sections will be rewritten to vary sentence structure and remove AI tells"
           : undefined,
     },

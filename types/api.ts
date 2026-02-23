@@ -32,6 +32,7 @@ export interface GenerateSSEEvent {
   step?: PipelineStep;
   result?: GenerateResult;
   message?: string;
+  warning?: string | null;
 }
 
 export interface GenerateResult {
@@ -83,4 +84,6 @@ export interface DashboardBlog {
 export interface DashboardResponse {
   blogs: DashboardBlog[];
   workspaceName: string;
+  nextCursor?: string | null;
+  total: number;
 }

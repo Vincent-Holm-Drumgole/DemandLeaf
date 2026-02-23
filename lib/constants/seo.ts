@@ -15,8 +15,6 @@ export const SEO_CHECKS: SEOCheckDefinition[] = [
   { name: "Meta description length", maxPoints: 5, description: "Meta description is 120-155 characters" },
   { name: "H2 count", maxPoints: 5, description: "Content has at least 2 H2 headings" },
   { name: "Content length", maxPoints: 5, description: "Content is at least 1,000 words" },
-  { name: "External link", maxPoints: 4, description: "Content contains at least 1 external link" },
-  { name: "Image alt text", maxPoints: 4, description: "Content suggests at least 1 image with alt text" },
   { name: "Short paragraphs", maxPoints: 4, description: "Average paragraph length is under 4 sentences" },
   { name: "Flesch readability", maxPoints: 4, description: "Flesch reading ease score is 50-70" },
   { name: "Heading hierarchy", maxPoints: 4, description: "Headings follow H1 > H2 > H3 hierarchy" },

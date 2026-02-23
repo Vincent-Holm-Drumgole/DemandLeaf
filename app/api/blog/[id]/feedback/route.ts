@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { FeedbackRequest } from "@/types";
 
 interface RouteParams {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(
@@ -33,7 +33,7 @@ export async function POST(
   const comment =
     typeof body.comment === "string" && body.comment.trim().length > 0
       ? body.comment.trim()
-      : null;
+      : undefined;
 
   if (!Number.isInteger(paragraphIndex) || paragraphIndex < 0) {
     return NextResponse.json(
@@ -49,32 +49,22 @@ export async function POST(
     );
   }
 
-  const blogExists = await prisma.blog.findUnique({
-    where: { id: blogId },
-    select: { id: true },
-  });
-
-  if (!blogExists) {
-    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
-  }
-
-  const created = await prisma.blogFeedback.create({
-    data: {
-      blogId,
-      paragraphIndex,
-      feedback,
-      comment,
-    },
+  const convex = getConvexClient();
+  const { id: createdId, createdAt } = await convex.mutation(api.feedback.create, {
+    blogId: blogId as Id<"blogs">,
+    paragraphIndex,
+    feedback,
+    comment,
   });
 
   return NextResponse.json(
     {
-      id: created.id,
-      blogId: created.blogId,
-      paragraphIndex: created.paragraphIndex,
-      feedback: created.feedback,
-      comment: created.comment,
-      createdAt: created.createdAt,
+      id: createdId,
+      blogId,
+      paragraphIndex,
+      feedback,
+      comment: comment ?? null,
+      createdAt: new Date(createdAt).toISOString(),
     },
     { status: 201 }
   );
