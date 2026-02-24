@@ -20,7 +20,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const convex = await getAuthedConvexClient();
     const { workspaceId } = await convex.mutation(api.workspaces.provision, {
-      clerkUserId: userId,
       name: "My Workspace",
       sessionToken: sessionId,
     });

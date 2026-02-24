@@ -6,6 +6,13 @@
  * and serves as the authoritative runtime contract for these structures.
  */
 import { v } from "convex/values";
+import { KB_ENTRY_TYPES } from "../types/knowledge-base";
+import { EDIT_TYPES } from "../types/voice";
+
+function literalUnion<const T extends readonly [string, string, ...string[]]>(values: T) {
+  const [first, second, ...rest] = values;
+  return v.union(v.literal(first), v.literal(second), ...rest.map((value) => v.literal(value)));
+}
 
 // ── Voice profile ─────────────────────────────────────────────────────────────
 
@@ -59,7 +66,39 @@ export const voiceProfileValidator = v.object({
   avoidedVocabulary: v.array(v.string()),
   writingExamples: v.array(v.string()),
   sourceQuality: v.string(),
+  // Phase 2 optional fields
+  thoughtLeadershipPositions: v.optional(v.array(v.string())),
+  brandPhilosophy: v.optional(v.string()),
 });
+
+// ── Knowledge Base ─────────────────────────────────────────────────────────────
+
+/** Valid entry types for knowledge base entries */
+export const kbEntryTypeValidator = literalUnion(KB_ENTRY_TYPES);
+
+// ── Edit Learning ─────────────────────────────────────────────────────────────
+
+/** Edit type classification for blog edits */
+export const editTypeValidator = literalUnion(EDIT_TYPES);
+
+// ── Status enums ──────────────────────────────────────────────────────────────
+
+export const embeddingStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("ready"),
+  v.literal("failed")
+);
+
+export const termTypeValidator = v.union(
+  v.literal("word"),
+  v.literal("phrase")
+);
+
+export const classificationStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("classified"),
+  v.literal("failed")
+);
 
 // ── Crawl data ────────────────────────────────────────────────────────────────
 

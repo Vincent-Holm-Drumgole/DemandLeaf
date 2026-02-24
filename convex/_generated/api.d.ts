@@ -9,9 +9,17 @@
  */
 
 import type * as anonymousSessions from "../anonymousSessions.js";
+import type * as blogEdits from "../blogEdits.js";
 import type * as blogs from "../blogs.js";
+import type * as calibration from "../calibration.js";
+import type * as confidenceScores from "../confidenceScores.js";
+import type * as errors from "../errors.js";
 import type * as feedback from "../feedback.js";
+import type * as helpers from "../helpers.js";
+import type * as knowledgeBase from "../knowledgeBase.js";
+import type * as neverSayList from "../neverSayList.js";
 import type * as validators from "../validators.js";
+import type * as voiceProfiles from "../voiceProfiles.js";
 import type * as workspaces from "../workspaces.js";
 
 import type {
@@ -22,9 +30,17 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   anonymousSessions: typeof anonymousSessions;
+  blogEdits: typeof blogEdits;
   blogs: typeof blogs;
+  calibration: typeof calibration;
+  confidenceScores: typeof confidenceScores;
+  errors: typeof errors;
   feedback: typeof feedback;
+  helpers: typeof helpers;
+  knowledgeBase: typeof knowledgeBase;
+  neverSayList: typeof neverSayList;
   validators: typeof validators;
+  voiceProfiles: typeof voiceProfiles;
   workspaces: typeof workspaces;
 }>;
 

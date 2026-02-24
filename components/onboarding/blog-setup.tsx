@@ -5,29 +5,7 @@ import { useOnboardingStore } from "@/store/onboarding-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { Archetype } from "@/types";
-
-const ARCHETYPE_OPTIONS: {
-  value: Archetype;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "how_to",
-    label: "How-To Guide",
-    description: "Step-by-step instructions that solve a specific problem",
-  },
-  {
-    value: "listicle",
-    label: "Listicle",
-    description: "Numbered list of tips, tools, or strategies",
-  },
-  {
-    value: "definitive_guide",
-    label: "Definitive Guide",
-    description: "Comprehensive deep-dive on a topic (2500+ words)",
-  },
-];
+import { ARCHETYPE_LIST } from "@/lib/constants/archetypes";
 
 export function BlogSetup() {
   const {
@@ -85,29 +63,29 @@ export function BlogSetup() {
               Blog Format
             </label>
             <div className="space-y-2" role="radiogroup" aria-label="Blog format">
-              {ARCHETYPE_OPTIONS.map((option) => (
+              {ARCHETYPE_LIST.map((option) => (
                 <Card
-                  key={option.value}
+                  key={option.id}
                   className={`cursor-pointer transition-colors ${
-                    archetype === option.value
+                    archetype === option.id
                       ? "border-primary bg-primary/5"
                       : "hover:border-muted-foreground/30"
                   }`}
                   role="radio"
-                  aria-checked={archetype === option.value}
+                  aria-checked={archetype === option.id}
                   tabIndex={0}
-                  onClick={() => setArchetype(option.value)}
+                  onClick={() => setArchetype(option.id)}
                   onKeyDown={(e: KeyboardEvent) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setArchetype(option.value);
+                      setArchetype(option.id);
                     }
                   }}
                 >
                   <CardContent className="flex items-start gap-3 py-3 px-4">
                     <div
                       className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${
-                        archetype === option.value
+                        archetype === option.id
                           ? "border-primary bg-primary"
                           : "border-muted-foreground/40"
                       }`}

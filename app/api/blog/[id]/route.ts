@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
+import { parseConvexId } from "@/lib/convex-id";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,15 +21,16 @@ export async function GET(
   const params = await context.params;
   const blogId = params.id;
 
-  if (!blogId) {
-    return NextResponse.json({ error: "Blog ID is required" }, { status: 400 });
+  const blogIdTyped = parseConvexId(blogId, "blogs");
+  if (!blogIdTyped) {
+    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
   }
 
   const convex = await getAuthedConvexClient();
   let blog: FunctionReturnType<typeof api.blogs.getById>;
   try {
     blog = await convex.query(api.blogs.getById, {
-      blogId: blogId as Id<"blogs">,
+      blogId: blogIdTyped,
     });
   } catch (err) {
     console.error("[blog/GET] query error:", err);
@@ -68,7 +69,7 @@ export async function GET(
     promptVersion: blog.promptVersion ?? null,
     createdAt: new Date(blog.createdAt).toISOString(),
     updatedAt: new Date(blog.updatedAt).toISOString(),
-    feedback: blog.feedback.map((f) => ({
+    feedback: blog.feedback.map((f: (typeof blog.feedback)[number]) => ({
       id: f._id,
       paragraphIndex: f.paragraphIndex,
       feedback: f.feedback,
@@ -77,3 +78,4 @@ export async function GET(
     })),
   });
 }
+

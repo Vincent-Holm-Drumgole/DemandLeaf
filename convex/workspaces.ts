@@ -2,7 +2,16 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
-const VALID_ARCHETYPES = ["how_to", "listicle", "definitive_guide"] as const;
+const VALID_ARCHETYPES = [
+  "how_to",
+  "listicle",
+  "definitive_guide",
+  "thought_leadership",
+  "comparison",
+  "data_study",
+  "case_study",
+  "news_commentary",
+] as const;
 type Archetype = (typeof VALID_ARCHETYPES)[number];
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -31,23 +40,28 @@ export const getByClerkUser = query({
  */
 export const provision = mutation({
   args: {
-    clerkUserId: v.string(),
     name: v.string(),
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+    const clerkUserId = identity.subject;
+
     const now = Date.now();
 
     // Find or create workspace
     const existing = await ctx.db
       .query("workspaces")
-      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", clerkUserId))
       .first();
 
     const workspaceId = existing
       ? existing._id
       : await ctx.db.insert("workspaces", {
-          clerkUserId: args.clerkUserId,
+          clerkUserId,
           name: args.name,
           createdAt: now,
           updatedAt: now,

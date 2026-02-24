@@ -3,24 +3,28 @@ import { randomUUID } from "node:crypto";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import type { FunctionArgs } from "convex/server";
+
+type CreateAnonymousSessionArgs = FunctionArgs<typeof api.anonymousSessions.create>;
 
 interface AnonymousSessionRequest {
-  crawlData?: unknown;
-  voiceProfile?: unknown;
+  crawlData?: CreateAnonymousSessionArgs["crawlData"];
+  voiceProfile?: CreateAnonymousSessionArgs["voiceProfile"];
   expiresInHours?: number;
 }
 
 const DEFAULT_TTL_HOURS = 24;
+const MAX_TTL_HOURS = 24;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`anon-session:${ip}`, { limit: 20, windowSec: 60 });
+  const rl = await checkRateLimit(`anon-session:${ip}`, { limit: 20, windowSec: 60 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again shortly." },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+        headers: { "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))) },
       }
     );
   }
@@ -34,8 +38,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const sessionToken = randomUUID();
   const expiresInHours =
-    typeof body.expiresInHours === "number" && body.expiresInHours > 0
-      ? body.expiresInHours
+    typeof body.expiresInHours === "number" && Number.isFinite(body.expiresInHours)
+      ? Math.min(Math.max(Math.floor(body.expiresInHours), 1), MAX_TTL_HOURS)
       : DEFAULT_TTL_HOURS;
   const expiresAt = Date.now() + expiresInHours * 60 * 60 * 1000;
 
