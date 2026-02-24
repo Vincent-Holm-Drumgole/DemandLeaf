@@ -54,17 +54,41 @@ export async function generateBlog(
   const tracker = new TokenTracker();
   const startTime = Date.now();
 
-  // ── Step 1: Generate brief ─────────────────────────────────────────
+  // ── Step 1: Generate brief (or use pre-approved hint) ──────────────
   onProgress?.({ name: "Researching your topic", status: "running" });
-  const { brief, aiResult: briefResult } = await generateBrief({
-    keyword: input.keyword,
-    archetype: input.archetype,
-    industry: input.industry,
-    audience: input.audience,
-    companyContext: input.companyContext,
-  });
-  tracker.record("brief", briefResult);
-  onProgress?.({ name: "Researching your topic", status: "complete", durationMs: briefResult.durationMs });
+  let brief: Awaited<ReturnType<typeof generateBrief>>["brief"];
+  if (input.briefHint) {
+    // Use the pre-approved Phase 3 content brief — skip Claude call for Step 1
+    const firstOutlineHeading = input.briefHint.outline
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.startsWith("## "))
+      ?.replace(/^##\s+/, "");
+    brief = {
+      title: firstOutlineHeading || input.keyword,
+      outline: input.briefHint.outline,
+      hookOptions: input.briefHint.hookOptions.length >= 3
+        ? input.briefHint.hookOptions.slice(0, 3)
+        : [
+            input.briefHint.hookOptions[0] ?? `Most teams overlook the fundamentals of ${input.keyword}.`,
+            `${input.keyword} gets easier once you stop following generic playbooks.`,
+            `The biggest mistake with ${input.keyword} is skipping foundational setup.`,
+          ],
+      uniqueAngle: "",
+    };
+    onProgress?.({ name: "Researching your topic", status: "complete", durationMs: 0 });
+  } else {
+    const { brief: generatedBrief, aiResult: briefResult } = await generateBrief({
+      keyword: input.keyword,
+      archetype: input.archetype,
+      industry: input.industry,
+      audience: input.audience,
+      companyContext: input.companyContext,
+    });
+    brief = generatedBrief;
+    tracker.record("brief", briefResult);
+    onProgress?.({ name: "Researching your topic", status: "complete", durationMs: briefResult.durationMs });
+  }
 
   // ── Step 2: Generate draft (5-layer prompt) ────────────────────────
   onProgress?.({ name: "Writing in your voice", status: "running" });

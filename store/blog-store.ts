@@ -38,6 +38,8 @@ interface BlogState {
   error: string | null;
   feedbackSubmitting: boolean;
   feedbackError: string | null;
+  isSaving: boolean;
+  saveError: string | null;
 
   fetchBlog: (id: string) => Promise<void>;
   submitFeedback: (
@@ -50,6 +52,10 @@ interface BlogState {
     blogId: string,
     format: "html" | "markdown" | "clipboard"
   ) => Promise<string | null>;
+  updateBlog: (
+    id: string,
+    fields: Partial<BlogData> & { contentHtml?: string }
+  ) => Promise<boolean>;
 }
 
 export const useBlogStore = create<BlogState>((set) => ({
@@ -58,6 +64,8 @@ export const useBlogStore = create<BlogState>((set) => ({
   error: null,
   feedbackSubmitting: false,
   feedbackError: null,
+  isSaving: false,
+  saveError: null,
 
   fetchBlog: async (id) => {
     set({ isLoading: true, error: null });
@@ -147,6 +155,32 @@ export const useBlogStore = create<BlogState>((set) => ({
       return "downloaded";
     } catch {
       return null;
+    }
+  },
+
+  updateBlog: async (id, fields) => {
+    set({ isSaving: true, saveError: null });
+    try {
+      const response = await fetch(`/api/blog/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || "Failed to save");
+      }
+      set((state) => ({
+        blog: state.blog ? { ...state.blog, ...fields } : state.blog,
+        isSaving: false,
+      }));
+      return true;
+    } catch (err) {
+      set({
+        isSaving: false,
+        saveError: err instanceof Error ? err.message : "Failed to save",
+      });
+      return false;
     }
   },
 }));

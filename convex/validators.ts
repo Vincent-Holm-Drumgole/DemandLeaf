@@ -100,6 +100,48 @@ export const classificationStatusValidator = v.union(
   v.literal("failed")
 );
 
+// ── Phase 3: Strategy & Keyword Intelligence ──────────────────────────────────
+
+export const searchIntentValidator = v.union(
+  v.literal("informational"),
+  v.literal("commercial"),
+  v.literal("transactional"),
+  v.literal("navigational")
+);
+
+export const buyerStageValidator = v.union(
+  v.literal("awareness"),
+  v.literal("consideration"),
+  v.literal("decision")
+);
+
+export const keywordStatusValidator = v.union(
+  v.literal("unassigned"),
+  v.literal("briefed"),
+  v.literal("written"),
+  v.literal("published"),
+  v.literal("ranking")
+);
+
+export const briefStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("written")
+);
+
+export const calendarStatusValidator = v.union(
+  v.literal("scheduled"),
+  v.literal("in_progress"),
+  v.literal("completed"),
+  v.literal("skipped")
+);
+
+export const strategyStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("archived")
+);
+
 // ── Crawl data ────────────────────────────────────────────────────────────────
 
 const crawledPageValidator = v.object({

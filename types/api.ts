@@ -25,6 +25,7 @@ export interface GenerateRequest {
   sessionId: string;
   keyword: string;
   archetype: Archetype;
+  briefId?: string;
 }
 
 export interface GenerateSSEEvent {

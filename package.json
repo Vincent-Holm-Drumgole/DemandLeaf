@@ -12,6 +12,9 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@clerk/nextjs": "^6.38.1",
     "@sentry/nextjs": "^10.39.0",
+    "@tiptap/pm": "^3.20.0",
+    "@tiptap/react": "^3.20.0",
+    "@tiptap/starter-kit": "^3.20.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
     "cheerio": "^1.2.0",
@@ -22,6 +25,7 @@
     "inngest": "^3.52.3",
     "lucide-react": "^0.575.0",
     "marked": "^17.0.3",
+    "ml-kmeans": "^7.0.0",
     "next": "16.1.6",
     "openai": "^6.22.0",
     "posthog-js": "^1.352.0",
@@ -33,6 +37,7 @@
     "remark-gfm": "^4.0.1",
     "svix": "^1.85.0",
     "tailwind-merge": "^3.5.0",
+    "turndown": "^7.2.2",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
@@ -40,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/turndown": "^5.0.6",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",

@@ -11,6 +11,12 @@ import {
   embeddingStatusValidator,
   termTypeValidator,
   classificationStatusValidator,
+  strategyStatusValidator,
+  searchIntentValidator,
+  buyerStageValidator,
+  keywordStatusValidator,
+  briefStatusValidator,
+  calendarStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -193,4 +199,88 @@ export default defineSchema({
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_created", ["workspaceId", "createdAt"])
     .index("by_workspace_unclassified", ["workspaceId", "classificationStatus"]),
+
+  // ── Phase 3: Strategy & Keyword Intelligence tables ──────────────────────────
+
+  strategies: defineTable({
+    workspaceId: v.id("workspaces"),
+    name: v.string(),
+    businessOutcomes: v.string(),
+    targetAudience: v.optional(v.string()),
+    seedKeywords: v.array(v.string()),
+    status: strategyStatusValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  keywords: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keyword: v.string(),
+    searchVolume: v.optional(v.number()),
+    keywordDifficulty: v.optional(v.number()), // 0–100
+    cpc: v.optional(v.number()),
+    searchIntent: v.optional(searchIntentValidator),
+    buyerStage: v.optional(buyerStageValidator),
+    opportunityScore: v.optional(v.number()),
+    assignedBlogId: v.optional(v.id("blogs")),
+    clusterId: v.optional(v.id("topicClusters")),
+    status: keywordStatusValidator,
+    dataFetchedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"])
+    .index("by_strategy_keyword", ["strategyId", "keyword"])
+    .index("by_cluster", ["clusterId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
+
+  topicClusters: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    name: v.string(),
+    pillarKeyword: v.string(),
+    pillarBlogId: v.optional(v.id("blogs")),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"]),
+
+  contentBriefs: defineTable({
+    workspaceId: v.id("workspaces"),
+    keywordId: v.id("keywords"),
+    briefData: v.any(),
+    status: briefStatusValidator,
+    userModifications: v.optional(v.any()),
+    blogId: v.optional(v.id("blogs")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_keyword", ["keywordId"]),
+
+  contentCalendar: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    briefId: v.optional(v.id("contentBriefs")),
+    keywordId: v.id("keywords"),
+    scheduledDate: v.number(), // epoch ms
+    archetype: v.string(),
+    priority: v.number(), // 1 = highest
+    status: calendarStatusValidator,
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_date", ["workspaceId", "scheduledDate"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_strategy", ["strategyId"])
+    .index("by_workspace_strategy_date", ["workspaceId", "strategyId", "scheduledDate"])
+    .index("by_strategy_keyword", ["strategyId", "keywordId"]),
+
+  seoDataCache: defineTable({
+    cacheKey: v.string(), // "keyword:{kw}", "serp:{kw}", "related:{kw}", "domain:{domain}"
+    data: v.any(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_cache_key", ["cacheKey"]), // Not unique in Convex; duplicates are de-duped in convex/seoDataCache.ts.
 });

@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireWorkspaceAccess } from "./helpers";
 
 const PAGE_SIZE = 20;
 
@@ -48,6 +49,18 @@ export const listByWorkspace = query({
       workspaceName: workspace.name,
       total,
     };
+  },
+});
+
+export const listByWorkspaceId = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    return ctx.db
+      .query("blogs")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .order("desc")
+      .collect();
   },
 });
 
@@ -133,5 +146,37 @@ export const create = mutation({
 
     const now = Date.now();
     return ctx.db.insert("blogs", { ...args, createdAt: now, updatedAt: now });
+  },
+});
+
+export const update = mutation({
+  args: {
+    blogId: v.id("blogs"),
+    title: v.optional(v.string()),
+    content: v.optional(v.string()),
+    contentHtml: v.optional(v.string()),
+    metaTitle: v.optional(v.string()),
+    metaDescription: v.optional(v.string()),
+    focusKeyword: v.optional(v.string()),
+    slug: v.optional(v.string()),
+    status: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const { blogId, ...fields } = args;
+    const blog = await ctx.db.get(blogId);
+    if (!blog) throw new Error("Blog not found");
+
+    const workspace = await ctx.db.get(blog.workspaceId);
+    if (!workspace || workspace.clerkUserId !== identity.subject) {
+      throw new Error("Access denied");
+    }
+
+    const updates = Object.fromEntries(
+      Object.entries(fields).filter(([, val]) => val !== undefined)
+    );
+    await ctx.db.patch(blogId, { ...updates, updatedAt: Date.now() });
   },
 });

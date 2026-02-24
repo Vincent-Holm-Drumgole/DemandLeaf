@@ -79,3 +79,44 @@ export async function GET(
   });
 }
 
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams
+): Promise<NextResponse> {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const params = await context.params;
+  const blogIdTyped = parseConvexId(params.id, "blogs");
+  if (!blogIdTyped) {
+    return NextResponse.json({ error: "Invalid blog ID" }, { status: 400 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const allowed = ["title", "content", "contentHtml", "metaTitle", "metaDescription", "focusKeyword", "slug", "status"];
+  const fields: Record<string, string> = {};
+  for (const key of allowed) {
+    if (typeof body[key] === "string") {
+      fields[key] = body[key] as string;
+    }
+  }
+
+  try {
+    const convex = await getAuthedConvexClient();
+    await convex.mutation(api.blogs.update, { blogId: blogIdTyped, ...fields });
+  } catch (err) {
+    console.error("[blog/PATCH] mutation error:", err);
+    return NextResponse.json({ error: "Failed to update blog" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+

@@ -1,0 +1,1 @@
+export { generateBrief } from "./generator";

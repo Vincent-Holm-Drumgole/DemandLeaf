@@ -4,6 +4,7 @@ export type {
   Archetype,
   BlogStatus,
   DetectionRisk,
+  BriefHint,
   GenerationInput,
   GenerationResult,
   AICallBreakdown,
@@ -38,3 +39,18 @@ export type {
   KBContextItem,
   KBContextResult,
 } from "./knowledge-base";
+export type {
+  SearchIntent,
+  BuyerStage,
+  KeywordStatus,
+  BriefStatus,
+  CalendarStatus,
+  StrategyStatus,
+  SerpResult,
+  OutlineSection,
+  BriefData,
+  KeywordMetric,
+  ClusterResult,
+  CannibalizationResult,
+  CalendarItem,
+} from "./strategy";
