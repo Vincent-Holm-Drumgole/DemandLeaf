@@ -15,6 +15,6 @@ export const ERR_UNAUTHORIZED = "Unauthorized";
 export const ERR_BLOG_NOT_FOUND = "Blog not found";
 export const ERR_ENTRY_NOT_FOUND = "Entry not found";
 /** Partial token: embedded in the full never-say limit-reached message. */
-export const ERR_NEVER_SAY_LIMIT = "limit reached";
+export const ERR_NEVER_SAY_LIMIT = "NEVER_SAY_LIMIT:";
 /** Partial token: embedded in the full never-say duplicate-term message. */
-export const ERR_NEVER_SAY_DUPLICATE = "already exists";
+export const ERR_NEVER_SAY_DUPLICATE = "NEVER_SAY_DUPLICATE:";

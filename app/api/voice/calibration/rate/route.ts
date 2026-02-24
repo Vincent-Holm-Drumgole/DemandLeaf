@@ -54,8 +54,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (typeof s.rating !== "number" || s.rating < 1 || s.rating > 10) {
       return NextResponse.json({ error: "Each sample must have a rating between 1 and 10" }, { status: 400 });
     }
-    if (s.feedback !== undefined && (typeof s.feedback !== "string" || s.feedback.length > 1000)) {
-      return NextResponse.json({ error: "feedback must be a string up to 1000 characters" }, { status: 400 });
+    if (s.feedback !== undefined && (typeof s.feedback !== "string" || s.feedback.trim().length === 0 || s.feedback.length > 1000)) {
+      return NextResponse.json({ error: "feedback must be a non-empty string up to 1000 characters" }, { status: 400 });
     }
   }
 
@@ -73,23 +73,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Voice profile not found" }, { status: 422 });
   }
 
-  let addedToExamples = 0;
-  let successCount = 0;
-  for (const sample of samples) {
-    try {
-      await convex.mutation(api.calibration.recordRating, {
+  const results = await Promise.allSettled(
+    samples.map((sample) =>
+      convex.mutation(api.calibration.recordRating, {
         workspaceId: workspace._id,
         voiceProfileId: voiceProfile._id,
         sampleParagraph: sample.text.trim(),
         rating: sample.rating,
         feedback: sample.feedback?.trim() || undefined,
-      });
+      }),
+    ),
+  );
+
+  let addedToExamples = 0;
+  let successCount = 0;
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
       successCount++;
-      if (sample.rating >= 8) addedToExamples++;
-    } catch (err) {
-      console.error("[voice/calibration/rate] record error:", err);
+      if (samples[i].rating >= 8) addedToExamples++;
+    } else {
+      console.error("[voice/calibration/rate] record error:", result.reason);
     }
-  }
+  });
 
   if (successCount === 0) {
     return NextResponse.json({ error: "Failed to record any ratings" }, { status: 500 });

@@ -104,8 +104,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to add term";
-    if (message.includes(ERR_NEVER_SAY_LIMIT) || message.includes(ERR_NEVER_SAY_DUPLICATE)) {
-      return NextResponse.json({ error: message }, { status: 409 });
+    if (message.includes(ERR_NEVER_SAY_LIMIT)) {
+      return NextResponse.json({ error: "You have reached the never-say list limit." }, { status: 409 });
+    }
+    if (message.includes(ERR_NEVER_SAY_DUPLICATE)) {
+      return NextResponse.json({ error: "This term already exists in your never-say list." }, { status: 409 });
     }
     if (message.includes(ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -1,7 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_BLOG_NOT_FOUND } from "./errors";
+import { ERR_BLOG_NOT_FOUND, ERR_UNAUTHENTICATED } from "./errors";
 
 export const create = mutation({
   args: {
@@ -11,6 +11,9 @@ export const create = mutation({
     comment: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error(ERR_UNAUTHENTICATED);
+
     if (!Number.isInteger(args.paragraphIndex) || args.paragraphIndex < 0) {
       throw new Error("Invalid paragraph index");
     }
