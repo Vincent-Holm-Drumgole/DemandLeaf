@@ -20,6 +20,7 @@ import { parseConvexId } from "@/lib/convex-id";
 import { ERR_BRIEF_NOT_FOUND } from "@/convex/errors";
 import type { Id } from "@/convex/_generated/dataModel";
 import { isBriefData } from "@/lib/brief/validate";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -81,7 +82,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   // ── Brief-mode: load approved Phase 3 brief and override keyword/archetype ──
   let briefHint: BriefHint | undefined;
   let resolvedBriefId: Id<"contentBriefs"> | undefined;
-  let briefKeywordId: Id<"keywords"> | undefined;
 
   if (rawBriefId) {
     const briefIdTyped = parseConvexId(rawBriefId, "contentBriefs");
@@ -91,9 +91,24 @@ export async function POST(request: NextRequest): Promise<Response> {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    const { userId } = await auth();
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Authentication is required to generate from a brief" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     try {
       const authedConvex = await getAuthedConvexClient();
       const brief = await authedConvex.query(api.contentBriefs.getById, { briefId: briefIdTyped });
+      if (!brief) {
+        return new Response(
+          JSON.stringify({ error: "Brief not found" }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
       if (brief.status !== "approved") {
         return new Response(
           JSON.stringify({ error: "Brief must be approved before generating" }),
@@ -120,9 +135,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         .join("\n");
       briefHint = { outline: outlineStr, hookOptions: briefData.hookOptions };
       resolvedBriefId = briefIdTyped;
-      briefKeywordId = brief.keywordId;
     } catch (err) {
-      if (err instanceof Error && err.message.includes(ERR_BRIEF_NOT_FOUND)) {
+      if (hasConvexErrorCode(err, ERR_BRIEF_NOT_FOUND)) {
         return new Response(
           JSON.stringify({ error: "Brief not found" }),
           { status: 404, headers: { "Content-Type": "application/json" } }
@@ -318,18 +332,14 @@ export async function POST(request: NextRequest): Promise<Response> {
                 generationTimeMs: result.generationTimeMs,
                 promptVersion: result.promptVersion,
               });
-              await Promise.allSettled([
-                authedConvex.mutation(api.contentBriefs.linkBlog, {
+              try {
+                await authedConvex.mutation(api.contentBriefs.linkBlog, {
                   briefId: resolvedBriefId,
                   blogId: workspaceBlogId,
-                }),
-                briefKeywordId
-                  ? authedConvex.mutation(api.keywords.assignToBlog, {
-                      keywordId: briefKeywordId,
-                      blogId: workspaceBlogId,
-                    })
-                  : Promise.resolve(),
-              ]);
+                });
+              } catch (linkErr) {
+                console.warn("[generate] linkBlog failed:", linkErr);
+              }
             }
           } catch (linkErr) {
             // Non-critical — blog was generated and streamed successfully

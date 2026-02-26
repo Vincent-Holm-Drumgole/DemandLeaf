@@ -16,7 +16,10 @@ import {
   buyerStageValidator,
   keywordStatusValidator,
   briefStatusValidator,
+  briefDataValidator,
+  briefDataModificationsValidator,
   calendarStatusValidator,
+  seoDataCacheDataValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -211,7 +214,9 @@ export default defineSchema({
     status: strategyStatusValidator,
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_workspace", ["workspaceId"]),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
 
   keywords: defineTable({
     workspaceId: v.id("workspaces"),
@@ -242,22 +247,25 @@ export default defineSchema({
     pillarKeyword: v.string(),
     pillarBlogId: v.optional(v.id("blogs")),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_workspace", ["workspaceId"])
     .index("by_strategy", ["strategyId"]),
 
   contentBriefs: defineTable({
     workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
     keywordId: v.id("keywords"),
-    briefData: v.any(),
+    briefData: briefDataValidator,
     status: briefStatusValidator,
-    userModifications: v.optional(v.any()),
+    userModifications: v.optional(briefDataModificationsValidator),
     blogId: v.optional(v.id("blogs")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_workspace", ["workspaceId"])
-    .index("by_keyword", ["keywordId"]),
+    .index("by_keyword", ["keywordId"])
+    .index("by_strategy", ["strategyId"]),
 
   contentCalendar: defineTable({
     workspaceId: v.id("workspaces"),
@@ -269,6 +277,7 @@ export default defineSchema({
     priority: v.number(), // 1 = highest
     status: calendarStatusValidator,
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_date", ["workspaceId", "scheduledDate"])
@@ -279,7 +288,7 @@ export default defineSchema({
 
   seoDataCache: defineTable({
     cacheKey: v.string(), // "keyword:{kw}", "serp:{kw}", "related:{kw}", "domain:{domain}"
-    data: v.any(),
+    data: seoDataCacheDataValidator,
     expiresAt: v.number(),
     createdAt: v.number(),
   }).index("by_cache_key", ["cacheKey"]), // Not unique in Convex; duplicates are de-duped in convex/seoDataCache.ts.

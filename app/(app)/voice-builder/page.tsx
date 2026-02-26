@@ -1,8 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { WizardLayout } from "@/components/voice-builder/wizard-layout";
 import { WizardStep1 } from "@/components/voice-builder/wizard-step1";
 import { WizardStep2 } from "@/components/voice-builder/wizard-step2";
@@ -13,15 +11,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function VoiceBuilderPage() {
-  const { isLoaded, isSignedIn } = useUser();
-  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const currentStep = useVoiceWizardStore((s) => s.currentStep);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (

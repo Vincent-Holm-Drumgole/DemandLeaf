@@ -29,6 +29,11 @@ function EditableSection({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
+  const startEditing = () => {
+    setDraft(value);
+    setEditing(true);
+  };
+
   if (editing) {
     return (
       <div className="space-y-2">
@@ -64,7 +69,7 @@ function EditableSection({
         <div className="font-medium text-sm text-muted-foreground">{label}</div>
         <button
           className="opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => setEditing(true)}
+          onClick={startEditing}
         >
           <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
         </button>
@@ -82,7 +87,7 @@ function OutlineDisplay({ outline }: { outline: OutlineSection[] }) {
           key={i}
           className={`text-sm ${section.level === 3 ? "pl-4 text-muted-foreground" : "font-medium"}`}
         >
-          {section.level === 2 ? "H2: " : "  H3: "}
+          {`H${section.level}: `}
           {section.heading}
         </div>
       ))}
@@ -101,12 +106,19 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      await fetch(`/api/brief/${briefId}/approve`, {
+      const res = await fetch(`/api/brief/${briefId}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ modifications: Object.keys(modifications).length > 0 ? modifications : undefined }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to approve brief");
+      }
       router.refresh();
+    } catch (err) {
+      // TODO: surface error to user (e.g., toast notification)
+      console.error("Approve failed:", err);
     } finally {
       setIsApproving(false);
     }
@@ -115,8 +127,15 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
   const handleReject = async () => {
     setIsRejecting(true);
     try {
-      await fetch(`/api/brief/${briefId}/reject`, { method: "PUT" });
+      const res = await fetch(`/api/brief/${briefId}/reject`, { method: "PUT" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to reject brief");
+      }
       router.push("/keywords");
+    } catch (err) {
+      // TODO: surface error to user (e.g., toast notification)
+      console.error("Reject failed:", err);
     } finally {
       setIsRejecting(false);
     }

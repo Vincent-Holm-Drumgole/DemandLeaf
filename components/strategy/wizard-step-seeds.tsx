@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useStrategyStore } from "@/store/strategy-store";
+import { useStrategyStore, WIZARD_STEP } from "@/store/strategy-store";
 
 export function WizardStepSeeds() {
   const {
@@ -69,12 +69,13 @@ export function WizardStepSeeds() {
             businessOutcomes: outcomes,
             targetAudience: targetAudience || undefined,
             seedKeywords: localSeeds,
+            competitorDomains: localDomains,
           }),
         });
         if (!updateResponse.ok) {
           throw new Error("Failed to update strategy");
         }
-        setStep(3);
+        setStep(WIZARD_STEP.DISCOVER);
         return;
       }
 
@@ -86,6 +87,7 @@ export function WizardStepSeeds() {
           businessOutcomes: outcomes,
           targetAudience: targetAudience || undefined,
           seedKeywords: localSeeds,
+          competitorDomains: localDomains,
         }),
       });
       if (!createResponse.ok) {
@@ -101,7 +103,7 @@ export function WizardStepSeeds() {
 
       const data = await createResponse.json();
       setCurrentStrategy(data.strategyId);
-      setStep(3);
+      setStep(WIZARD_STEP.DISCOVER);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create strategy");
     } finally {
@@ -137,7 +139,11 @@ export function WizardStepSeeds() {
               {localSeeds.map((seed) => (
                 <Badge key={seed} variant="secondary" className="gap-1">
                   {seed}
-                  <button onClick={() => setLocalSeeds(localSeeds.filter((s) => s !== seed))}>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${seed}`}
+                    onClick={() => setLocalSeeds(localSeeds.filter((s) => s !== seed))}
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -167,7 +173,11 @@ export function WizardStepSeeds() {
               {localDomains.map((domain) => (
                 <Badge key={domain} variant="outline" className="gap-1">
                   {domain}
-                  <button onClick={() => setLocalDomains(localDomains.filter((d) => d !== domain))}>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${domain}`}
+                    onClick={() => setLocalDomains(localDomains.filter((d) => d !== domain))}
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

@@ -3,6 +3,13 @@ import type { SearchIntent } from "@/types";
 
 const BATCH_SIZE = 50;
 
+const VALID_INTENTS = new Set<SearchIntent>([
+  "informational",
+  "commercial",
+  "transactional",
+  "navigational",
+]);
+
 /**
  * Classifies the search intent of a list of keywords using Haiku.
  * Processes in batches of 50 to keep prompt size reasonable.
@@ -32,27 +39,20 @@ Respond with JSON only, no other text.`;
           systemPrompt:
             "You are an SEO expert. Classify keyword search intent. Always respond with valid JSON array only.",
           userMessage,
-          maxTokens: 1000,
+          maxTokens: 2048,
         });
         const text = res.content.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
         parsed = JSON.parse(text);
-      } catch {
-        // Silently skip failed batches — unclassified keywords get no entry in map
+      } catch (err) {
+        console.warn("[classifyIntents] batch failed, skipping:", err);
         return;
       }
-
-      const validIntents = new Set<SearchIntent>([
-        "informational",
-        "commercial",
-        "transactional",
-        "navigational",
-      ]);
 
       for (const item of parsed) {
         if (
           typeof item.keyword === "string" &&
           typeof item.intent === "string" &&
-          validIntents.has(item.intent as SearchIntent)
+          VALID_INTENTS.has(item.intent as SearchIntent)
         ) {
           result.set(item.keyword.toLowerCase().trim(), item.intent as SearchIntent);
         }

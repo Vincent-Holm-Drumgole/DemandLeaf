@@ -3,6 +3,9 @@ import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 
 const PAGE_SIZE = 20;
+const MAX_DASHBOARD_SCAN = 5_000;
+const MAX_CANNIBALIZATION_BLOGS = 300;
+const MAX_BLOG_FEEDBACK = 500;
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -30,7 +33,7 @@ export const listByWorkspace = query({
       .query("blogs")
       .withIndex("by_workspace_created", (q) => q.eq("workspaceId", workspace._id))
       .order("desc")
-      .collect();
+      .take(MAX_DASHBOARD_SCAN);
 
     // Cursor filtering (createdAt < cursor)
     const filtered =
@@ -60,7 +63,7 @@ export const listByWorkspaceId = query({
       .query("blogs")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .order("desc")
-      .collect();
+      .take(MAX_CANNIBALIZATION_BLOGS);
   },
 });
 
@@ -81,7 +84,7 @@ export const getById = query({
       .query("blogFeedback")
       .withIndex("by_blog_created", (q) => q.eq("blogId", args.blogId))
       .order("desc")
-      .collect();
+      .take(MAX_BLOG_FEEDBACK);
 
     return { ...blog, feedback };
   },
@@ -177,6 +180,7 @@ export const update = mutation({
     const updates = Object.fromEntries(
       Object.entries(fields).filter(([, val]) => val !== undefined)
     );
+    if (Object.keys(updates).length === 0) return;
     await ctx.db.patch(blogId, { ...updates, updatedAt: Date.now() });
   },
 });

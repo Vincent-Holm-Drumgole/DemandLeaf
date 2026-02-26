@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useStrategyStore } from "@/store/strategy-store";
+import { useStrategyStore, WIZARD_STEP } from "@/store/strategy-store";
 
 const INTENT_COLORS: Record<string, string> = {
   informational: "bg-blue-100 text-blue-800",
@@ -132,7 +132,7 @@ export function WizardStepDiscovery() {
         </div>
         <Button
           className="w-full mt-4"
-          onClick={() => setStep(4)}
+          onClick={() => setStep(WIZARD_STEP.CLUSTERS)}
           disabled={discoveredKeywords.length === 0}
         >
           Continue to Clustering

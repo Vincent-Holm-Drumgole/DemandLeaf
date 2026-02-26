@@ -4,6 +4,7 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { parseConvexId } from "@/lib/convex-id";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -88,6 +89,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rateLimit = await checkRateLimit(`blog-update:${userId}`, { limit: 60, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, {
+      status: 429,
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
+    });
+  }
+
   const params = await context.params;
   const blogIdTyped = parseConvexId(params.id, "blogs");
   if (!blogIdTyped) {
@@ -101,9 +110,23 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const allowed = ["title", "content", "contentHtml", "metaTitle", "metaDescription", "focusKeyword", "slug", "status"];
+  const VALID_STATUSES = ["draft", "approved", "exported", "published"] as const;
+  const stringFields = ["title", "content", "contentHtml", "metaTitle", "metaDescription", "focusKeyword", "slug", "status"] as const;
+
+  for (const key of stringFields) {
+    if (body[key] !== undefined && typeof body[key] !== "string") {
+      return NextResponse.json({ error: `${key} must be a string` }, { status: 400 });
+    }
+  }
+  if (body.status !== undefined && !VALID_STATUSES.includes(body.status as (typeof VALID_STATUSES)[number])) {
+    return NextResponse.json(
+      { error: `status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
   const fields: Record<string, string> = {};
-  for (const key of allowed) {
+  for (const key of stringFields) {
     if (typeof body[key] === "string") {
       fields[key] = body[key] as string;
     }

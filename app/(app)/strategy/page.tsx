@@ -26,6 +26,8 @@ export default function StrategyPage() {
   const router = useRouter();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [fetchKey, setFetchKey] = useState(0);
   const [showWizard, setShowWizard] = useState(false);
   const { reset } = useStrategyStore();
 
@@ -35,6 +37,9 @@ export default function StrategyPage() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    setLoadError(null);
     fetch("/api/strategy")
       .then(async (response) => {
         if (!response.ok) {
@@ -44,9 +49,12 @@ export default function StrategyPage() {
         return response.json();
       })
       .then((data) => setStrategies(data.strategies ?? []))
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setLoadError("Failed to load strategies. Please try again.");
+      })
       .finally(() => setIsLoading(false));
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, fetchKey]);
 
   const handleOpenWizard = () => {
     reset();
@@ -78,6 +86,15 @@ export default function StrategyPage() {
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
+      ) : loadError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <p className="text-destructive">{loadError}</p>
+            <Button variant="outline" onClick={() => setFetchKey((k) => k + 1)}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       ) : strategies.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
@@ -111,8 +128,8 @@ export default function StrategyPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-1">
-                    {strategy.seedKeywords.slice(0, 5).map((kw) => (
-                      <Badge key={kw} variant="outline" className="text-xs">{kw}</Badge>
+                    {strategy.seedKeywords.slice(0, 5).map((kw, i) => (
+                      <Badge key={`${kw}-${i}`} variant="outline" className="text-xs">{kw}</Badge>
                     ))}
                     {strategy.seedKeywords.length > 5 && (
                       <Badge variant="outline" className="text-xs">

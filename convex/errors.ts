@@ -23,5 +23,6 @@ export const ERR_NEVER_SAY_DUPLICATE = "NEVER_SAY_DUPLICATE:";
 export const ERR_STRATEGY_NOT_FOUND = "Strategy not found";
 export const ERR_KEYWORD_NOT_FOUND = "Keyword not found";
 export const ERR_BRIEF_NOT_FOUND = "Brief not found";
+export const ERR_BRIEF_ALREADY_WRITTEN = "Cannot reject a brief that has already been written";
 /** Partial token: embedded in the keyword-already-briefed message. */
 export const ERR_KEYWORD_ALREADY_BRIEFED = "KEYWORD_ALREADY_BRIEFED:";

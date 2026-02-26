@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_KEYWORD_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
+import { ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 import {
   buyerStageValidator,
@@ -13,12 +13,12 @@ export const listByStrategy = query({
   args: { strategyId: v.id("strategies") },
   handler: async (ctx, args) => {
     const strategy = await ctx.db.get(args.strategyId);
-    if (!strategy) return [];
+    if (!strategy) throw new Error(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
     return ctx.db
       .query("keywords")
       .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
-      .collect();
+      .take(500);
   },
 });
 
@@ -31,18 +31,23 @@ export const listByCluster = query({
     return ctx.db
       .query("keywords")
       .withIndex("by_cluster", (q) => q.eq("clusterId", args.clusterId))
-      .collect();
+      .take(500);
   },
 });
 
 export const listByWorkspace = query({
-  args: { workspaceId: v.id("workspaces") },
+  args: {
+    workspaceId: v.id("workspaces"),
+    cursor: v.union(v.string(), v.null()),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
-    return ctx.db
+    const result = await ctx.db
       .query("keywords")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .paginate({ numItems: args.limit ?? 100, cursor: args.cursor });
+    return { items: result.page, nextCursor: result.isDone ? null : result.continueCursor };
   },
 });
 
@@ -63,6 +68,13 @@ export const bulkCreate = mutation({
     keywords: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    // Each keyword costs up to 2 DB ops (1 read + 1 insert). Cap at 500 to
+    // stay well within Convex's 4,096 ops-per-transaction limit.
+    const MAX_KEYWORDS_PER_BATCH = 500;
+    if (args.keywords.length > MAX_KEYWORDS_PER_BATCH) {
+      throw new Error(`Batch too large: maximum ${MAX_KEYWORDS_PER_BATCH} keywords per call`);
+    }
+
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy || strategy.workspaceId !== args.workspaceId) {

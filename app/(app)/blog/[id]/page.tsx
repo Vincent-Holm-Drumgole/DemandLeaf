@@ -46,7 +46,8 @@ export default function BlogPage() {
 
   // Initialise local state once blog loads
   useEffect(() => {
-    if (blog) {
+    if (blog && !isDirty) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTitle(blog.title);
       setStatus(blog.status);
       setMeta({
@@ -56,9 +57,8 @@ export default function BlogPage() {
         focusKeyword: blog.focusKeyword ?? "",
       });
       currentHtmlRef.current = blog.contentHtml ?? "";
-      setIsDirty(false);
     }
-  }, [blog]);
+  }, [blog, isDirty]);
 
   const handleMetaChange = useCallback((partial: Partial<MetaFields>) => {
     setMeta((prev) => ({ ...prev, ...partial }));
@@ -80,7 +80,7 @@ export default function BlogPage() {
     setIsDirty(true);
   }, []);
 
-  async function handleSave() {
+  const handleSave = useCallback(async () => {
     if (!blog) return;
     const html = currentHtmlRef.current;
     const markdown = html ? td.turndown(html) : "";
@@ -99,7 +99,7 @@ export default function BlogPage() {
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSavedOk(false), 2000);
     }
-  }
+  }, [blog, blogId, title, status, meta, updateBlog]);
 
   useEffect(() => {
     return () => {

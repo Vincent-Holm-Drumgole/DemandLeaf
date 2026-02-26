@@ -133,7 +133,7 @@ export function NavSidebar() {
 
       {/* User footer */}
       <div className="border-t px-3 py-3 flex items-center gap-2.5">
-        <UserButton afterSignOutUrl="/" />
+        <UserButton />
         {user?.primaryEmailAddress && (
           <p className="text-xs text-muted-foreground truncate">
             {user.primaryEmailAddress.emailAddress}

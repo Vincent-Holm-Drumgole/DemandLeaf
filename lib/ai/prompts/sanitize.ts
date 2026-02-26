@@ -34,3 +34,13 @@ export function sanitizeXmlContent(input: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
+
+/**
+ * Like sanitizePromptInput, but also collapses all whitespace (including
+ * newlines) into a single space. Use this for fields that should occupy
+ * exactly one line in the prompt (keyword, industry, audience, etc.) so that
+ * newline injection cannot create false prompt sections.
+ */
+export function sanitizeSingleLine(input: string): string {
+  return sanitizePromptInput(input).replace(/\s+/g, " ").trim();
+}

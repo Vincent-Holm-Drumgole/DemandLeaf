@@ -42,6 +42,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 }
     );
   }
+  if (url.length > 2048) {
+    return NextResponse.json(
+      { error: "URL is too long" },
+      { status: 400 },
+    );
+  }
 
   // Step 1: Crawl the website
   const crawlResult = await crawlWebsite(url);
@@ -87,25 +93,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
   const convex = getConvexClient();
-  await convex.mutation(api.anonymousSessions.create, {
-    sessionToken,
-    crawlData: {
-      url,
-      pages: crawlResult.pages.map((p) => ({
-        url: p.url,
-        type: p.type,
-        title: p.title,
-        content: p.content,
-        wordCount: p.wordCount,
-      })),
-      companyName: crawlResult.companyName,
-      industry: industryResult.industry,
-      audience: industryResult.audience,
-      audienceExpertise: industryResult.audienceExpertise,
-    },
-    voiceProfile: voiceResult.profile,
-    expiresAt,
-  });
+  try {
+    await convex.mutation(api.anonymousSessions.create, {
+      sessionToken,
+      crawlData: {
+        url,
+        pages: crawlResult.pages.map((p) => ({
+          url: p.url,
+          type: p.type,
+          title: p.title,
+          content: p.content,
+          wordCount: p.wordCount,
+        })),
+        companyName: crawlResult.companyName,
+        industry: industryResult.industry,
+        audience: industryResult.audience,
+        audienceExpertise: industryResult.audienceExpertise,
+      },
+      voiceProfile: voiceResult.profile,
+      expiresAt,
+    });
+  } catch (err) {
+    console.error("[crawl] failed to persist anonymous session:", err);
+    return NextResponse.json(
+      { error: "Unable to save crawl session. Please try again." },
+      { status: 500 },
+    );
+  }
 
   const response: CrawlResponse = {
     sessionId: sessionToken,

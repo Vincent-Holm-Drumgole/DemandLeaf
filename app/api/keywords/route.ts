@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -26,10 +26,13 @@ export async function GET(): Promise<NextResponse> {
     const workspace = await convex.query(api.workspaces.getByClerkUser, {});
     if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
-    const keywords = await convex.query(api.keywords.listByWorkspace, {
+    const cursor = request.nextUrl.searchParams.get("cursor");
+    const result = await convex.query(api.keywords.listByWorkspace, {
       workspaceId: workspace._id,
+      cursor: cursor ?? null,
+      limit: 100,
     });
-    return NextResponse.json({ keywords });
+    return NextResponse.json({ keywords: result.items, nextCursor: result.nextCursor });
   } catch (err) {
     console.error("[keywords/GET] error:", err);
     return NextResponse.json({ error: "Failed to load keywords" }, { status: 500 });

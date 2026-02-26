@@ -195,3 +195,115 @@ export const blogDataValidator = v.object({
   generationTimeMs: v.optional(v.number()),
   promptVersion: v.optional(v.string()),
 });
+
+// ── Brief data ────────────────────────────────────────────────────────────────
+
+const outlineSectionValidator = v.object({
+  heading: v.string(),
+  level: v.union(v.literal(2), v.literal(3)),
+  subheadings: v.optional(v.array(v.string())),
+});
+
+const serpResultValidator = v.object({
+  position: v.number(),
+  title: v.string(),
+  url: v.string(),
+  snippet: v.string(),
+});
+
+/**
+ * Typed validator for BriefData (mirrors types/strategy.ts BriefData).
+ * Used in contentBriefs.create and contentBriefs.approve to replace v.any().
+ */
+export const briefDataValidator = v.object({
+  targetKeyword: v.string(),
+  searchIntent: v.union(
+    v.literal("informational"),
+    v.literal("commercial"),
+    v.literal("transactional"),
+    v.literal("navigational"),
+  ),
+  buyerStage: v.union(
+    v.literal("awareness"),
+    v.literal("consideration"),
+    v.literal("decision"),
+  ),
+  keywordDifficulty: v.number(),
+  searchVolume: v.number(),
+  cpc: v.number(),
+  opportunityScore: v.number(),
+  serpAnalysis: v.array(serpResultValidator),
+  contentGap: v.string(),
+  uniqueAngle: v.string(),
+  archetypeRecommendation: v.string(),
+  outline: v.array(outlineSectionValidator),
+  hookOptions: v.array(v.string()),
+  kbContext: v.array(v.string()),
+  internalLinkOpportunities: v.array(v.string()),
+  estimatedWordCount: v.number(),
+  citationNeeds: v.string(),
+  successCriteria: v.string(),
+  cannibalizationNote: v.optional(v.string()),
+});
+
+/**
+ * Partial BriefData validator for user-provided brief edits.
+ * Each field is optional so PATCH-style updates can store only changed values.
+ */
+export const briefDataModificationsValidator = v.object({
+  targetKeyword: v.optional(v.string()),
+  searchIntent: v.optional(
+    v.union(
+      v.literal("informational"),
+      v.literal("commercial"),
+      v.literal("transactional"),
+      v.literal("navigational"),
+    ),
+  ),
+  buyerStage: v.optional(
+    v.union(
+      v.literal("awareness"),
+      v.literal("consideration"),
+      v.literal("decision"),
+    ),
+  ),
+  keywordDifficulty: v.optional(v.number()),
+  searchVolume: v.optional(v.number()),
+  cpc: v.optional(v.number()),
+  opportunityScore: v.optional(v.number()),
+  serpAnalysis: v.optional(v.array(serpResultValidator)),
+  contentGap: v.optional(v.string()),
+  uniqueAngle: v.optional(v.string()),
+  archetypeRecommendation: v.optional(v.string()),
+  outline: v.optional(v.array(outlineSectionValidator)),
+  hookOptions: v.optional(v.array(v.string())),
+  kbContext: v.optional(v.array(v.string())),
+  internalLinkOpportunities: v.optional(v.array(v.string())),
+  estimatedWordCount: v.optional(v.number()),
+  citationNeeds: v.optional(v.string()),
+  successCriteria: v.optional(v.string()),
+  cannibalizationNote: v.optional(v.union(v.string(), v.null())),
+});
+
+// ── SEO data cache ─────────────────────────────────────────────────────────────
+
+const keywordMetricCacheValidator = v.object({
+  keyword: v.string(),
+  searchVolume: v.number(),
+  keywordDifficulty: v.number(),
+  cpc: v.number(),
+});
+
+/**
+ * Union of the concrete payload shapes written to seoDataCache.data.
+ * Keyed by prefix convention (keyword: / serp: / related: / domain:) — the
+ * three shapes are structurally disjoint so no type-tag wrapper is needed.
+ *   keyword: → { keyword, searchVolume, keywordDifficulty, cpc }
+ *   serp:    → SerpResult[]
+ *   related: / domain: → string[]
+ */
+export const seoDataCacheDataValidator = v.union(
+  keywordMetricCacheValidator,
+  v.array(serpResultValidator),
+  v.array(v.string()),
+);

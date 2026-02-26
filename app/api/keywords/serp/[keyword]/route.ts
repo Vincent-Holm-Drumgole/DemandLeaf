@@ -33,11 +33,11 @@ export async function GET(_request: NextRequest, context: RouteParams): Promise<
     return NextResponse.json({ error: "keyword must be 120 characters or fewer" }, { status: 400 });
   }
 
-  const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
-  if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-
   try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
     const results = await getSerpResults(convex, decoded);
     return NextResponse.json({ keyword: decoded, results });
   } catch (err) {

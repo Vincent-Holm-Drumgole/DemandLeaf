@@ -73,3 +73,35 @@ export function isBriefData(value: unknown): value is BriefData {
     (value.cannibalizationNote === undefined || typeof value.cannibalizationNote === "string")
   );
 }
+
+export function isBriefDataPatch(value: unknown): value is Partial<BriefData> {
+  if (!isObject(value)) return false;
+
+  if (value.targetKeyword !== undefined && typeof value.targetKeyword !== "string") return false;
+  if (value.searchIntent !== undefined && (!VALID_INTENTS.has(value.searchIntent as SearchIntent))) return false;
+  if (value.buyerStage !== undefined && (!VALID_STAGES.has(value.buyerStage as BuyerStage))) return false;
+  if (value.keywordDifficulty !== undefined && typeof value.keywordDifficulty !== "number") return false;
+  if (value.searchVolume !== undefined && typeof value.searchVolume !== "number") return false;
+  if (value.cpc !== undefined && typeof value.cpc !== "number") return false;
+  if (value.opportunityScore !== undefined && typeof value.opportunityScore !== "number") return false;
+  if (value.serpAnalysis !== undefined && !isSerpResultArray(value.serpAnalysis)) return false;
+  if (value.contentGap !== undefined && typeof value.contentGap !== "string") return false;
+  if (value.uniqueAngle !== undefined && typeof value.uniqueAngle !== "string") return false;
+  if (value.archetypeRecommendation !== undefined && typeof value.archetypeRecommendation !== "string") return false;
+  if (value.outline !== undefined && !isOutlineSectionArray(value.outline)) return false;
+  if (value.hookOptions !== undefined && !isStringArray(value.hookOptions)) return false;
+  if (value.kbContext !== undefined && !isStringArray(value.kbContext)) return false;
+  if (value.internalLinkOpportunities !== undefined && !isStringArray(value.internalLinkOpportunities)) return false;
+  if (value.estimatedWordCount !== undefined && typeof value.estimatedWordCount !== "number") return false;
+  if (value.citationNeeds !== undefined && typeof value.citationNeeds !== "string") return false;
+  if (value.successCriteria !== undefined && typeof value.successCriteria !== "string") return false;
+  if (
+    value.cannibalizationNote !== undefined &&
+    value.cannibalizationNote !== null &&
+    typeof value.cannibalizationNote !== "string"
+  ) {
+    return false;
+  }
+
+  return true;
+}

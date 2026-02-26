@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useStrategyStore } from "@/store/strategy-store";
+import { useStrategyStore, WIZARD_STEP } from "@/store/strategy-store";
 
 export function WizardStepOutcomes() {
   const { outcomes, targetAudience, name, saveName, saveOutcomes, setStep } = useStrategyStore();
@@ -19,7 +19,7 @@ export function WizardStepOutcomes() {
     if (!localName.trim() || !localOutcomes.trim()) return;
     saveName(localName.trim());
     saveOutcomes(localOutcomes.trim(), localAudience.trim() || undefined);
-    setStep(2);
+    setStep(WIZARD_STEP.SEEDS);
   };
 
   return (
@@ -38,6 +38,8 @@ export function WizardStepOutcomes() {
             placeholder="e.g. Q1 2025 SEO Push"
             value={localName}
             onChange={(e) => setLocalName(e.target.value)}
+            required
+            aria-required="true"
           />
         </div>
         <div className="space-y-2">
@@ -48,6 +50,8 @@ export function WizardStepOutcomes() {
             className="min-h-[120px]"
             value={localOutcomes}
             onChange={(e) => setLocalOutcomes(e.target.value)}
+            required
+            aria-required="true"
           />
         </div>
         <div className="space-y-2">

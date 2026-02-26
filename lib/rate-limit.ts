@@ -15,6 +15,7 @@
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { isIP } from "node:net";
 
 export interface RateLimitOptions {
   /** Maximum requests allowed within the window */
@@ -135,7 +136,39 @@ export async function checkRateLimit(
  * loopback address so that local development without a proxy still works.
  */
 export function getClientIp(request: Request): string {
-  const xff = (request.headers as Headers).get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
+  const headers = request.headers as Headers;
+  const candidates = [
+    headers.get("cf-connecting-ip"),
+    headers.get("x-real-ip"),
+    headers.get("x-forwarded-for")?.split(",")[0] ?? null,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIpCandidate(candidate);
+    if (normalized) return normalized;
+  }
+
   return "127.0.0.1";
+}
+
+function normalizeIpCandidate(raw: string | null): string | null {
+  if (!raw) return null;
+  let value = raw.trim();
+  if (!value) return null;
+  if (value.length > 100) return null;
+
+  value = value.replace(/^for=/i, "").replace(/^"+|"+$/g, "");
+
+  const bracketedIpv6 = value.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (bracketedIpv6) {
+    value = bracketedIpv6[1];
+  } else {
+    const ipv4WithPort = value.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/);
+    if (ipv4WithPort) {
+      value = ipv4WithPort[1];
+    }
+  }
+
+  if (isIP(value) === 0) return null;
+  return value.toLowerCase();
 }

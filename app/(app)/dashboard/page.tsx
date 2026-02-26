@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   async function loadMore() {
     if (!data?.nextCursor) return;
     setIsLoadingMore(true);
+    setLoadMoreError(null);
     try {
       const response = await fetch(`/api/dashboard?cursor=${encodeURIComponent(data.nextCursor)}`);
       if (response.ok) {
@@ -55,9 +57,11 @@ export default function DashboardPage() {
           ? { ...json, blogs: [...prev.blogs, ...json.blogs] }
           : json
         );
+      } else {
+        setLoadMoreError("Failed to load more. Please try again.");
       }
     } catch {
-      // silently fail — user can retry by clicking the button again
+      setLoadMoreError("Something went wrong. Please try again.");
     } finally {
       setIsLoadingMore(false);
     }
@@ -106,7 +110,10 @@ export default function DashboardPage() {
               ))}
             </div>
             {data.nextCursor && (
-              <div className="mt-6 flex justify-center">
+              <div className="mt-6 flex flex-col items-center gap-2">
+                {loadMoreError && (
+                  <p className="text-sm text-destructive">{loadMoreError}</p>
+                )}
                 <Button
                   variant="outline"
                   onClick={loadMore}

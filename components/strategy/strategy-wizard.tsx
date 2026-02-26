@@ -9,6 +9,9 @@ import { WizardStepDiscovery } from "./wizard-step-discovery";
 import { WizardStepClusters } from "./wizard-step-clusters";
 import { WizardStepCalendar } from "./wizard-step-calendar";
 
+type Step = 1 | 2 | 3 | 4 | 5;
+const clampStep = (n: number): Step => Math.max(1, Math.min(5, n)) as Step;
+
 const STEPS = [
   { id: 1, label: "Goals" },
   { id: 2, label: "Seeds" },
@@ -83,14 +86,14 @@ export function StrategyWizard({ onComplete }: StrategyWizardProps) {
       <div className="flex justify-between mt-6">
         <Button
           variant="outline"
-          onClick={() => setStep((wizardStep - 1) as 1 | 2 | 3 | 4 | 5)}
+          onClick={() => setStep(clampStep(wizardStep - 1))}
           disabled={!canGoBack}
         >
           Back
         </Button>
         {wizardStep < 5 && (
           <Button
-            onClick={() => setStep((wizardStep + 1) as 1 | 2 | 3 | 4 | 5)}
+            onClick={() => setStep(clampStep(wizardStep + 1))}
             disabled={!canGoForward}
           >
             Next

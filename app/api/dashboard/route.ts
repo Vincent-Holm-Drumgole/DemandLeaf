@@ -2,12 +2,26 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { DashboardResponse, DashboardBlog } from "@/types";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = await checkRateLimit(`dashboard:${userId}`, { limit: 120, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
   }
 
   const { searchParams } = new URL(request.url);

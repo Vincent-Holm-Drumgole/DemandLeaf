@@ -48,7 +48,7 @@ export default function StrategyDetailPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const strategyId = params?.id as string;
+  const strategyId = typeof params?.id === "string" ? params.id : "";
 
   const [data, setData] = useState<StrategyPageData | null>(null);
   const [calendarItems, setCalendarItems] = useState<CalendarEntry[]>([]);
@@ -67,19 +67,18 @@ export default function StrategyDetailPage() {
       fetch(`/api/calendar?strategyId=${encodeURIComponent(strategyId)}`),
     ])
       .then(async ([strategyResponse, calendarResponse]) => {
+        const [strategyData, calendarData] = await Promise.all([
+          strategyResponse.json().catch(() => ({})),
+          calendarResponse.json().catch(() => ({})),
+        ]);
+
         if (!strategyResponse.ok) {
-          const data = await strategyResponse.json().catch(() => ({}));
-          throw new Error(data.error ?? "Failed to load strategy");
+          throw new Error(strategyData.error ?? "Failed to load strategy");
         }
         if (!calendarResponse.ok) {
-          const data = await calendarResponse.json().catch(() => ({}));
-          throw new Error(data.error ?? "Failed to load calendar");
+          throw new Error(calendarData.error ?? "Failed to load calendar");
         }
 
-        const [strategyData, calendarData] = await Promise.all([
-          strategyResponse.json(),
-          calendarResponse.json(),
-        ]);
         setData(strategyData);
         setCalendarItems(calendarData.items ?? []);
       })

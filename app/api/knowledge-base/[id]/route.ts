@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_ENTRY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -92,10 +93,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       tags: body.tags?.filter((tag): tag is string => typeof tag === "string"),
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/[id]/PUT] error:", err);
@@ -133,10 +134,10 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
       workspaceId: workspace._id,
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/[id]/DELETE] error:", err);
@@ -145,4 +146,3 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
 
   return NextResponse.json({ success: true });
 }
-

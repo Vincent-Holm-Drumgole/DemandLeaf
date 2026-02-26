@@ -9,7 +9,7 @@ import {
 } from "@/lib/ai/prompts/briefGeneration";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { BriefData, SearchIntent } from "@/types";
+import type { Archetype, BriefData, SearchIntent } from "@/types";
 import type { ConvexHttpClient } from "convex/browser";
 import { isBriefData } from "./validate";
 
@@ -32,7 +32,9 @@ export async function generateBrief(
 ): Promise<BriefData> {
   // 1. Load keyword and strategy
   const keyword = await convex.query(api.keywords.getById, { keywordId });
+  if (!keyword) throw new Error(`Keyword not found: ${keywordId}`);
   const strategy = await convex.query(api.strategies.getById, { strategyId: keyword.strategyId });
+  if (!strategy) throw new Error(`Strategy not found for keyword: ${keywordId}`);
 
   const keywordText: string = keyword.keyword;
   const intent: SearchIntent = (keyword.searchIntent as SearchIntent) ?? "informational";
@@ -55,7 +57,13 @@ export async function generateBrief(
       limit: 10,
     });
     if (kbCandidates.length > 0) {
-      const kbContext = selectKBContext(kbCandidates, "how_to"); // archetype hint
+      const INTENT_ARCHETYPE: Record<SearchIntent, Archetype> = {
+        informational: "how_to",
+        transactional: "how_to",
+        commercial: "comparison",
+        navigational: "thought_leadership",
+      };
+      const kbContext = selectKBContext(kbCandidates, INTENT_ARCHETYPE[intent]);
       kbContextTitles = kbContext.items.map(
         (item: { title: string }) => item.title
       );
@@ -106,6 +114,7 @@ export async function generateBrief(
   try {
     parsed = JSON.parse(text);
   } catch {
+    console.warn("[generateBrief] Raw AI response (parse failed):", text.slice(0, 500));
     throw new Error("Brief generation returned invalid JSON");
   }
 

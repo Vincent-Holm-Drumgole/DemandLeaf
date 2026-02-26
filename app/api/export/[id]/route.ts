@@ -4,6 +4,8 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import type { ExportRequest } from "@/types";
 import { parseConvexId } from "@/lib/convex-id";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { sanitizeGeneratedHtml } from "@/lib/html-sanitize";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -16,6 +18,19 @@ export async function POST(
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = await checkRateLimit(`export:${userId}`, { limit: 60, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
   }
 
   const params = await context.params;
@@ -89,6 +104,10 @@ function buildHtmlExport(blog: {
   title: string;
   contentHtml: string | null;
 }): string {
+  const safeContentHtml = blog.contentHtml
+    ? sanitizeGeneratedHtml(blog.contentHtml)
+    : "<p>No HTML content available.</p>";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,7 +127,7 @@ function buildHtmlExport(blog: {
   </style>
 </head>
 <body>
-${blog.contentHtml || "<p>No HTML content available.</p>"}
+${safeContentHtml}
 </body>
 </html>`;
 }

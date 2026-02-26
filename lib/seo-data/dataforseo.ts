@@ -46,6 +46,7 @@ async function dfsFetch(path: string, body: unknown): Promise<unknown> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000), // 30s timeout
   });
   if (!res.ok) {
     throw new Error(`DataForSEO ${path} failed: ${res.status} ${res.statusText}`);
@@ -54,13 +55,14 @@ async function dfsFetch(path: string, body: unknown): Promise<unknown> {
 }
 
 type ConvexClient = ConvexHttpClient;
+type SeoCacheData = KeywordMetric | SerpResult[] | string[];
 
 async function getCached(convex: ConvexClient, cacheKey: string): Promise<unknown | null> {
   const cached = await convex.query(api.seoDataCache.get, { cacheKey });
   return cached ?? null;
 }
 
-async function setCache(convex: ConvexClient, cacheKey: string, data: unknown, ttlMs: number): Promise<void> {
+async function setCache(convex: ConvexClient, cacheKey: string, data: SeoCacheData, ttlMs: number): Promise<void> {
   await convex.mutation(api.seoDataCache.set, {
     cacheKey,
     data,
@@ -76,27 +78,28 @@ export async function getKeywordData(convex: ConvexClient, keywords: string[]): 
   const results: KeywordMetric[] = [];
   const toFetch: string[] = [];
 
-  const cacheChecks = await Promise.all(
-    keywords.map(async (keyword) => {
-      const cacheKey = `keyword:${keyword.toLowerCase()}`;
-      const cached = await getCached(convex, cacheKey);
-      return { keyword, cached };
-    }),
-  );
-  for (const check of cacheChecks) {
-    if (check.cached) {
-      results.push(check.cached as KeywordMetric);
+  // Single Convex round-trip for all cache lookups (replaces N parallel queries).
+  const cacheKeys = keywords.map((kw) => `keyword:${kw.toLowerCase()}`);
+  const cacheHits = await convex.query(api.seoDataCache.getMany, { cacheKeys });
+  for (const keyword of keywords) {
+    const cacheKey = `keyword:${keyword.toLowerCase()}`;
+    if (cacheHits[cacheKey] !== undefined) {
+      results.push(cacheHits[cacheKey] as KeywordMetric);
     } else {
-      toFetch.push(check.keyword);
+      toFetch.push(keyword);
     }
   }
 
   if (toFetch.length === 0) return results;
 
-  // Batch fetch from DataForSEO Keywords Data API (Google Ads)
+  // Batch fetch from DataForSEO Keywords Data API (Google Ads).
+  // NOTE: this endpoint returns search_volume and cpc but NOT keyword_difficulty.
+  // Keyword difficulty requires a separate call to
+  // /dataforseo_labs/google/bulk_keyword_difficulty/live.
+  // keywordDifficulty is set to 0 until that endpoint is integrated.
   const response = await dfsFetch("/keywords_data/google_ads/search_volume/live", [
     { keywords: toFetch, location_code: 2840, language_code: "en" },
-  ]) as { tasks?: { result?: { keyword: string; search_volume: number; keyword_difficulty: number; cpc: number }[] }[] };
+  ]) as { tasks?: { result?: { keyword: string; search_volume: number; cpc: number }[] }[] };
 
   const taskResult = response.tasks?.[0]?.result ?? [];
   const cacheWrites: Array<Promise<void>> = [];
@@ -104,7 +107,7 @@ export async function getKeywordData(convex: ConvexClient, keywords: string[]): 
     const metric: KeywordMetric = {
       keyword: item.keyword,
       searchVolume: item.search_volume ?? 0,
-      keywordDifficulty: item.keyword_difficulty ?? 0,
+      keywordDifficulty: 0,
       cpc: item.cpc ?? 0,
     };
     results.push(metric);

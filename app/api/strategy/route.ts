@@ -51,6 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { name, businessOutcomes, targetAudience, seedKeywords } = body;
+  const safeTargetAudience = typeof targetAudience === "string" ? targetAudience.trim() : undefined;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       workspaceId: workspace._id,
       name: name.trim(),
       businessOutcomes: businessOutcomes.trim(),
-      targetAudience: targetAudience?.trim(),
+      targetAudience: safeTargetAudience,
       seedKeywords: cleanSeedKeywords,
     });
 

@@ -10,6 +10,9 @@ import { classifyIntents } from "@/lib/strategy/intent-classifier";
 import { scoreOpportunity } from "@/lib/strategy/opportunity-scorer";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
+import { hasConvexErrorCode } from "@/lib/convex-error";
+
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -45,18 +48,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "At least one valid seed is required" }, { status: 400 });
   }
   const cleanDomains = Array.isArray(competitorDomains)
-    ? competitorDomains
-        .filter((domain): domain is string => typeof domain === "string")
-        .map((domain) => domain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
-        .filter((domain) => domain.length > 0 && domain.length <= 255)
-        .slice(0, 5)
+    ? Array.from(
+        new Set(
+          competitorDomains
+            .filter((domain): domain is string => typeof domain === "string")
+            .map((domain) => normalizeDomain(domain))
+            .filter((domain): domain is string => domain !== null),
+        ),
+      ).slice(0, 5)
     : [];
 
-  const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
-  if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-
   try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
     const strategy = await convex.query(api.strategies.getByIdInternal, {
       strategyId: strategyIdTyped,
       workspaceId: workspace._id,
@@ -89,33 +95,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     );
 
-    // 5. Update metrics for each keyword in parallel
-    await Promise.allSettled(
-      ids.map(async (id, i: number) => {
-        const kw = keywordStrings[i].toLowerCase();
-        const metric = metricsMap.get(kw) ?? { searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
-        const intent = intents.get(kw) ?? "informational";
-        const score = scoreOpportunity(metric.searchVolume, metric.keywordDifficulty, intent);
-        await convex.mutation(api.keywords.updateMetrics, {
-          keywordId: id,
-          searchVolume: metric.searchVolume,
-          keywordDifficulty: metric.keywordDifficulty,
-          cpc: metric.cpc,
-          opportunityScore: score,
-          searchIntent: intent,
-        });
-      })
-    );
+    // 5. Update metrics in batches to avoid overwhelming Convex with concurrent mutations
+    const BATCH_SIZE = 25;
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async (id, j) => {
+          const kw = keywordStrings[i + j].toLowerCase();
+          const metric = metricsMap.get(kw) ?? { searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
+          const intent = intents.get(kw) ?? "informational";
+          const score = scoreOpportunity(metric.searchVolume, metric.keywordDifficulty, intent);
+          await convex.mutation(api.keywords.updateMetrics, {
+            keywordId: id,
+            searchVolume: metric.searchVolume,
+            keywordDifficulty: metric.keywordDifficulty,
+            cpc: metric.cpc,
+            opportunityScore: score,
+            searchIntent: intent,
+          });
+        })
+      );
+    }
 
     return NextResponse.json({ keywords: keywordStrings, count: keywordStrings.length }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[keywords/research/POST] error:", err);
     return NextResponse.json({ error: "Failed to run keyword research" }, { status: 500 });
   }
+}
+
+function normalizeDomain(raw: string): string | null {
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/^\.+|\.+$/g, "");
+  if (normalized.length === 0 || normalized.length > 255) return null;
+  if (normalized === "localhost") return null;
+  const DOMAIN_REGEX = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+  return DOMAIN_REGEX.test(normalized) ? normalized : null;
 }

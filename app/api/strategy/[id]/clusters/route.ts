@@ -8,6 +8,7 @@ import { clusterKeywords } from "@/lib/strategy/topic-clusterer";
 import { generateCalendar } from "@/lib/strategy/calendar-generator";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // POST /api/strategy/[id]/clusters — run topic clustering; store clusters + preview calendar
 export async function POST(
@@ -30,7 +31,14 @@ export async function POST(
   if (!strategyId) return NextResponse.json({ error: "Invalid strategy id" }, { status: 400 });
 
   let body: { startDate?: string; postsPerMonth?: number } = {};
-  try { body = await request.json(); } catch { /* body optional */ }
+  const rawBody = await request.text();
+  if (rawBody.trim().length > 0) {
+    try {
+      body = JSON.parse(rawBody) as { startDate?: string; postsPerMonth?: number };
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+  }
 
   const postsPerMonth =
     typeof body.postsPerMonth === "number" && Number.isFinite(body.postsPerMonth) && body.postsPerMonth > 0
@@ -46,6 +54,7 @@ export async function POST(
     const workspace = await convex.query(api.workspaces.getByClerkUser, {});
     if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
+    // Throws if strategy doesn't exist or user lacks access
     await convex.query(api.strategies.getByIdInternal, { strategyId, workspaceId: workspace._id });
 
     // 1. Load keywords for this strategy
@@ -77,7 +86,7 @@ export async function POST(
     // 5. Update each keyword's clusterId
     const keywordByString = new Map(keywords.map((kw) => [kw.keyword, kw._id]));
 
-    await Promise.allSettled(
+    const assignResults = await Promise.allSettled(
       clusters.flatMap((cluster, clusterIndex) =>
         cluster.keywords.map(async (kw) => {
           const kwId = keywordByString.get(kw);
@@ -89,6 +98,13 @@ export async function POST(
         })
       )
     );
+    const assignFailures = assignResults.filter((r) => r.status === "rejected");
+    if (assignFailures.length > 0) {
+      console.error(
+        `[strategy/[id]/clusters/POST] ${assignFailures.length} keyword-cluster assignment(s) failed`,
+        assignFailures,
+      );
+    }
 
     // 6. Generate preview calendar (persistence happens in POST /api/calendar)
     const keywordEntries = keywords.map((kw) => ({
@@ -104,10 +120,10 @@ export async function POST(
       count: clusters.length,
     }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[strategy/[id]/clusters/POST] error:", err);

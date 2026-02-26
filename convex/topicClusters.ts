@@ -4,6 +4,8 @@ import { requireWorkspaceAccess } from "./helpers";
 import { ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 
+const MAX_EXISTING_CLUSTERS = 500;
+
 export const listByStrategy = query({
   args: { strategyId: v.id("strategies") },
   handler: async (ctx, args) => {
@@ -13,7 +15,7 @@ export const listByStrategy = query({
     return ctx.db
       .query("topicClusters")
       .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
-      .collect();
+      .take(100);
   },
 });
 
@@ -38,13 +40,13 @@ export const bulkCreate = mutation({
     const existingClusters = await ctx.db
       .query("topicClusters")
       .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
-      .collect();
+      .take(MAX_EXISTING_CLUSTERS);
 
     if (existingClusters.length > 0) {
       const existingKeywords = await ctx.db
         .query("keywords")
         .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
-        .collect();
+        .take(500);
 
       await Promise.all(
         existingKeywords
@@ -64,6 +66,7 @@ export const bulkCreate = mutation({
         name: cluster.name,
         pillarKeyword: cluster.pillarKeyword,
         createdAt: now,
+        updatedAt: now,
       });
       ids.push(id);
     }
@@ -78,12 +81,12 @@ export const setPillarBlog = mutation({
   },
   handler: async (ctx, args) => {
     const cluster = await ctx.db.get(args.clusterId);
-    if (!cluster) return;
+    if (!cluster) throw new Error("Cluster not found");
     await requireWorkspaceAccess(ctx, cluster.workspaceId);
     const blog = await ctx.db.get(args.pillarBlogId);
     if (!blog || blog.workspaceId !== cluster.workspaceId) {
       throw new Error(ERR_UNAUTHORIZED);
     }
-    await ctx.db.patch(args.clusterId, { pillarBlogId: args.pillarBlogId });
+    await ctx.db.patch(args.clusterId, { pillarBlogId: args.pillarBlogId, updatedAt: Date.now() });
   },
 });

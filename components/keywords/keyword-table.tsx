@@ -38,12 +38,13 @@ export interface KeywordRow {
   clusterId?: string;
 }
 
-interface KeywordTableProps {
+export interface KeywordTableProps {
   keywords: KeywordRow[];
   onGenerateBrief?: (keywordId: string) => void;
+  generatingId?: string | null;
 }
 
-export function KeywordTable({ keywords, onGenerateBrief }: KeywordTableProps) {
+export function KeywordTable({ keywords, onGenerateBrief, generatingId }: KeywordTableProps) {
   if (keywords.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-12 border rounded-md">
@@ -92,7 +93,7 @@ export function KeywordTable({ keywords, onGenerateBrief }: KeywordTableProps) {
                 )}
               </TableCell>
               <TableCell className="text-right">
-                {kw.cpc !== undefined ? `$${kw.cpc.toFixed(2)}` : "—"}
+                {kw.cpc !== undefined ? kw.cpc.toLocaleString(undefined, { style: "currency", currency: "USD" }) : "—"}
               </TableCell>
               <TableCell>
                 {kw.searchIntent && (
@@ -119,6 +120,7 @@ export function KeywordTable({ keywords, onGenerateBrief }: KeywordTableProps) {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={generatingId != null}
                       onClick={() => onGenerateBrief(kw._id)}
                     >
                       Brief

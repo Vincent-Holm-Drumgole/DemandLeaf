@@ -17,6 +17,8 @@ import {
   kbEntryTypeValidator,
 } from "./validators";
 
+const MAX_KB_ENTRIES_PER_QUERY = 500;
+
 // ── Queries ────────────────────────────────────────────────────────────────────
 
 export const listByWorkspace = query({
@@ -35,13 +37,13 @@ export const listByWorkspace = query({
           q.eq("workspaceId", args.workspaceId).eq("entryType", entryType)
         )
         .order("desc")
-        .collect();
+        .take(MAX_KB_ENTRIES_PER_QUERY);
     }
     return ctx.db
       .query("knowledgeBase")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .order("desc")
-      .collect();
+      .take(MAX_KB_ENTRIES_PER_QUERY);
   },
 });
 
@@ -69,7 +71,7 @@ export const listReadyByWorkspace = query({
       .withIndex("by_workspace_status", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "ready")
       )
-      .collect();
+      .take(MAX_KB_ENTRIES_PER_QUERY);
   },
 });
 

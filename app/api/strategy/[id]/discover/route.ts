@@ -10,6 +10,7 @@ import { classifyIntents } from "@/lib/strategy/intent-classifier";
 import { scoreOpportunity } from "@/lib/strategy/opportunity-scorer";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // POST /api/strategy/[id]/discover — full keyword discovery pipeline
 export async function POST(
@@ -32,7 +33,14 @@ export async function POST(
   if (!strategyId) return NextResponse.json({ error: "Invalid strategy id" }, { status: 400 });
 
   let body: { competitorDomains?: string[] } = {};
-  try { body = await request.json(); } catch { /* body is optional */ }
+  const rawBody = await request.text();
+  if (rawBody.trim().length > 0) {
+    try {
+      body = JSON.parse(rawBody) as { competitorDomains?: string[] };
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+  }
 
   try {
     const convex = await getAuthedConvexClient();
@@ -45,11 +53,14 @@ export async function POST(
     });
 
     const domains = Array.isArray(body.competitorDomains)
-      ? body.competitorDomains
-          .filter((domain): domain is string => typeof domain === "string")
-          .map((domain) => domain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
-          .filter((domain) => domain.length > 0 && domain.length <= 255)
-          .slice(0, 5)
+      ? Array.from(
+          new Set(
+            body.competitorDomains
+              .filter((domain): domain is string => typeof domain === "string")
+              .map((domain) => normalizeDomain(domain))
+              .filter((domain): domain is string => domain !== null),
+          ),
+        ).slice(0, 5)
       : [];
 
     // 1. Discover keywords from strategy's seed keywords + optional competitor domains
@@ -77,33 +88,62 @@ export async function POST(
       }
     );
 
-    // 5. Update metrics for each keyword
-    await Promise.allSettled(
-      ids.map(async (rawId, i: number) => {
-        const kw = keywordStrings[i].toLowerCase();
-        const metric = metricsMap.get(kw) ?? { searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
-        const intent = intents.get(kw) ?? "informational";
-        const score = scoreOpportunity(metric.searchVolume, metric.keywordDifficulty, intent);
-        await convex.mutation(api.keywords.updateMetrics, {
-          keywordId: rawId,
-          searchVolume: metric.searchVolume,
-          keywordDifficulty: metric.keywordDifficulty,
-          cpc: metric.cpc,
-          opportunityScore: score,
-          searchIntent: intent,
-        });
-      })
-    );
+    // 5. Update metrics in batches to avoid overwhelming Convex with concurrent mutations
+    const BATCH_SIZE = 25;
+    let metricFailures = 0;
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map(async (rawId, j) => {
+          const kw = keywordStrings[i + j].toLowerCase();
+          const metric = metricsMap.get(kw) ?? { searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
+          const intent = intents.get(kw) ?? "informational";
+          const score = scoreOpportunity(metric.searchVolume, metric.keywordDifficulty, intent);
+          await convex.mutation(api.keywords.updateMetrics, {
+            keywordId: rawId,
+            searchVolume: metric.searchVolume,
+            keywordDifficulty: metric.keywordDifficulty,
+            cpc: metric.cpc,
+            opportunityScore: score,
+            searchIntent: intent,
+          });
+        })
+      );
+      const batchFailures = batchResults.filter((r) => r.status === "rejected");
+      metricFailures += batchFailures.length;
+    }
+    if (metricFailures > 0) {
+      console.error(
+        `[strategy/[id]/discover/POST] ${metricFailures}/${ids.length} metric update(s) failed`,
+      );
+    }
 
-    return NextResponse.json({ keywords: keywordStrings, count: keywordStrings.length }, { status: 201 });
+    return NextResponse.json({
+      keywords: keywordStrings,
+      count: keywordStrings.length,
+      ...(metricFailures > 0 && { partialFailures: metricFailures }),
+    }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[strategy/[id]/discover/POST] error:", err);
     return NextResponse.json({ error: "Failed to run keyword discovery" }, { status: 500 });
   }
+}
+
+function normalizeDomain(raw: string): string | null {
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/^\.+|\.+$/g, "");
+  if (normalized.length === 0 || normalized.length > 255) return null;
+  if (normalized === "localhost") return null;
+  const DOMAIN_REGEX = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+  return DOMAIN_REGEX.test(normalized) ? normalized : null;
 }

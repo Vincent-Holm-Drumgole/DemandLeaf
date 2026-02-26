@@ -5,6 +5,10 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
+
+const VALID_STATUSES = ["scheduled", "in_progress", "completed", "skipped"] as const;
+type CalendarStatus = (typeof VALID_STATUSES)[number];
 
 // PUT /api/calendar/[id] — reschedule or update status of a calendar item
 export async function PUT(
@@ -25,9 +29,6 @@ export async function PUT(
   const { id } = await params;
   const calendarId = parseConvexId(id, "contentCalendar");
   if (!calendarId) return NextResponse.json({ error: "Invalid calendar item id" }, { status: 400 });
-
-  const VALID_STATUSES = ["scheduled", "in_progress", "completed", "skipped"] as const;
-  type CalendarStatus = (typeof VALID_STATUSES)[number];
 
   let body: { scheduledDate?: number; priority?: number; status?: unknown };
   try { body = await request.json(); } catch {
@@ -54,27 +55,19 @@ export async function PUT(
   try {
     const convex = await getAuthedConvexClient();
 
-    if (body.scheduledDate !== undefined || body.priority !== undefined) {
-      await convex.mutation(api.contentCalendar.reschedule, {
-        calendarId,
-        scheduledDate: body.scheduledDate,
-        priority: body.priority,
-      });
-    }
-
-    if (body.status !== undefined) {
-      await convex.mutation(api.contentCalendar.updateStatus, {
-        calendarId,
-        status: body.status as CalendarStatus,
-      });
-    }
+    await convex.mutation(api.contentCalendar.update, {
+      calendarId,
+      scheduledDate: body.scheduledDate,
+      priority: body.priority,
+      status: body.status as CalendarStatus | undefined,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof Error && err.message.includes("Calendar item not found")) {
       return NextResponse.json({ error: "Calendar item not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[calendar/[id]/PUT] error:", err);

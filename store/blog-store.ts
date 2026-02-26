@@ -54,7 +54,7 @@ interface BlogState {
   ) => Promise<string | null>;
   updateBlog: (
     id: string,
-    fields: Partial<BlogData> & { contentHtml?: string }
+    fields: Partial<BlogData>
   ) => Promise<boolean>;
 }
 

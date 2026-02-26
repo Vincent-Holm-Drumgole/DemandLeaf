@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { generateCalendar } from "@/lib/strategy/calendar-generator";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // GET /api/calendar?month=YYYY-MM&strategyId=<id>
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     return NextResponse.json({ items });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[calendar/GET] error:", err);
@@ -191,12 +192,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       items: persistedItems,
     });
 
-    return NextResponse.json({ items: calendarItems, count: calendarItems.length }, { status: 201 });
+    return NextResponse.json({
+      items: calendarItems,
+      count: calendarItems.length,
+      persistedCount: persistedItems.length,
+    }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[calendar/POST] error:", err);

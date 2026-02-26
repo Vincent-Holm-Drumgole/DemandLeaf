@@ -10,6 +10,9 @@ import {
   ERR_KEYWORD_ALREADY_BRIEFED,
   ERR_UNAUTHORIZED,
 } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
+
+export const maxDuration = 120;
 
 // POST /api/brief/generate — generate a content brief for a keyword
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -52,13 +55,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ briefId, briefData }, { status: 201 });
   } catch (err) {
     if (err instanceof Error) {
-      if (err.message.includes(ERR_KEYWORD_NOT_FOUND)) {
+      if (hasConvexErrorCode(err, ERR_KEYWORD_NOT_FOUND)) {
         return NextResponse.json({ error: "Keyword not found" }, { status: 404 });
       }
       if (err.message.includes(ERR_KEYWORD_ALREADY_BRIEFED)) {
         return NextResponse.json({ error: "A brief already exists for this keyword" }, { status: 409 });
       }
-      if (err.message.includes(ERR_UNAUTHORIZED)) {
+      if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }

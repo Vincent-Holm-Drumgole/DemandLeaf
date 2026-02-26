@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_BLOG_NOT_FOUND } from "./errors";
 
+const MAX_TREND_BLOGS = 5_000;
+
 export const approveBlog = mutation({
   args: {
     blogId: v.id("blogs"),
@@ -55,13 +57,14 @@ export const getWorkspaceTrend = query({
 
     const windowDays = Math.max(1, Math.min(args.windowDays, 365));
     const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-    const blogs = await ctx.db
+    const recentBlogs = await ctx.db
       .query("blogs")
       .withIndex("by_workspace_created", (q) =>
         q.eq("workspaceId", args.workspaceId).gte("createdAt", cutoff)
       )
-      .order("asc")
-      .collect();
+      .order("desc")
+      .take(MAX_TREND_BLOGS);
+    const blogs = [...recentBlogs].reverse();
 
     if (blogs.length === 0) {
       return {
@@ -112,4 +115,3 @@ export const getWorkspaceTrend = query({
     };
   },
 });
-

@@ -38,18 +38,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "At least one valid keyword is required" }, { status: 400 });
   }
 
-  const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
-  if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-
   try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
     const [metrics, intents] = await Promise.all([
       getKeywordData(convex, keywords),
       classifyIntents(keywords),
     ]);
 
-    const results = metrics.map((m) => {
-      const intent = intents.get(m.keyword.toLowerCase()) ?? "informational";
+    const metricsMap = new Map(metrics.map((m) => [m.keyword.toLowerCase(), m]));
+    const results = keywords.map((kw) => {
+      const m = metricsMap.get(kw.toLowerCase()) ?? { keyword: kw, searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
+      const intent = intents.get(kw.toLowerCase()) ?? "informational";
       return {
         keyword: m.keyword,
         searchVolume: m.searchVolume,

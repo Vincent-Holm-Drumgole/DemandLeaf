@@ -19,6 +19,7 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
     clusterId: "all",
   });
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [briefError, setBriefError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return keywords.filter((kw) => {
@@ -33,6 +34,7 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
   }, [keywords, filters]);
 
   const handleGenerateBrief = async (keywordId: string) => {
+    setBriefError(null);
     setIsGenerating(keywordId);
     try {
       const res = await fetch("/api/brief/generate", {
@@ -43,7 +45,11 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
       if (res.ok) {
         const data = await res.json();
         router.push(`/brief/${data.briefId}`);
+      } else {
+        setBriefError("Failed to generate brief. Please try again.");
       }
+    } catch {
+      setBriefError("Network error. Please try again.");
     } finally {
       setIsGenerating(null);
     }
@@ -51,6 +57,7 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
 
   return (
     <div>
+      {briefError && <p className="text-sm text-destructive mb-2">{briefError}</p>}
       <KeywordFiltersBar
         filters={filters}
         clusterOptions={clusterOptions}
@@ -60,8 +67,9 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
         {filtered.length} of {keywords.length} keywords
       </div>
       <KeywordTable
-        keywords={isGenerating ? filtered.map((k) => k._id === isGenerating ? { ...k, status: "briefed" } : k) : filtered}
+        keywords={filtered}
         onGenerateBrief={handleGenerateBrief}
+        generatingId={isGenerating}
       />
     </div>
   );

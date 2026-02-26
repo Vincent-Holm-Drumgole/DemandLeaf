@@ -81,12 +81,29 @@ const SYNONYM_MAP: Record<string, string> = {
   interplay: "relationship",
 };
 
+/**
+ * Build a regex that matches the banned word and common inflected forms.
+ * Words ending in 'e' (e.g. "delve"): matches delve, delves, delved, delving.
+ * Other words (e.g. "foster"): matches foster, fosters, fostered, fostering.
+ * Hyphenated compounds (e.g. "cutting-edge") match the exact form only.
+ */
+function buildWordRegex(word: string): RegExp {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (word.includes("-")) {
+    return new RegExp(`\\b${escaped}\\b`, "gi");
+  }
+  if (word.endsWith("e")) {
+    const stem = escaped.slice(0, -1);
+    return new RegExp(`\\b${stem}(?:e(?:s|d)?|ing)\\b`, "gi");
+  }
+  return new RegExp(`\\b${escaped}(?:s|ed|ing)?\\b`, "gi");
+}
+
 function replaceBannedWords(content: string): string {
   let result = content;
 
   for (const [banned, synonym] of Object.entries(SYNONYM_MAP)) {
-    const escaped = banned.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+    const regex = buildWordRegex(banned);
 
     result = result.replace(regex, (match) => {
       // Preserve ALL-CAPS emphasis (e.g. "DELVE" → "EXPLORE")

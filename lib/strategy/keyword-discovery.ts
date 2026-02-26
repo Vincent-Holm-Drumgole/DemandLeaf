@@ -21,6 +21,8 @@ export async function discoverKeywords(
   for (const result of seedResults) {
     if (result.status === "fulfilled") {
       for (const kw of result.value) discovered.add(kw.toLowerCase().trim());
+    } else {
+      console.warn("[discoverKeywords] seed expansion failed:", result.reason);
     }
   }
 
@@ -31,6 +33,8 @@ export async function discoverKeywords(
   for (const result of domainResults) {
     if (result.status === "fulfilled") {
       for (const kw of result.value) discovered.add(kw.toLowerCase().trim());
+    } else {
+      console.warn("[discoverKeywords] domain expansion failed:", result.reason);
     }
   }
 

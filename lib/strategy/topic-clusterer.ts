@@ -36,7 +36,7 @@ async function mapWithConcurrency<T, R>(
  * Groups keywords into topic clusters using OpenAI embeddings + k-means.
  *
  * k heuristic: Math.max(3, Math.ceil(Math.sqrt(n / 5)))
- *   e.g. 20 keywords → k=2 floored to 3, 50 keywords → k=3, 100 keywords → k=4
+ *   e.g. 20 keywords → k=2 floored to 3, 50 keywords → k=4, 100 keywords → k=5
  *
  * The pillar keyword for each cluster is the one with the highest opportunityScore.
  */

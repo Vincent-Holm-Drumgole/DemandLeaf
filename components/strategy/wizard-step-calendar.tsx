@@ -108,8 +108,8 @@ export function WizardStepCalendar({ onComplete }: WizardStepCalendarProps) {
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground font-medium">Clusters included:</p>
           <div className="flex flex-wrap gap-1">
-            {clusters.map((c, i) => (
-              <Badge key={i} variant="secondary">{c.pillarKeyword}</Badge>
+            {clusters.map((c) => (
+              <Badge key={c.pillarKeyword} variant="secondary">{c.pillarKeyword}</Badge>
             ))}
           </div>
         </div>

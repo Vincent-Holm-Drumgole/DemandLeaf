@@ -4,10 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search } from "lucide-react";
 
+export type KeywordIntent = "all" | "informational" | "commercial" | "transactional" | "navigational";
+export type KeywordStatus = "all" | "unassigned" | "briefed" | "written" | "published" | "ranking";
+
 export interface KeywordFilters {
   search: string;
-  intent: string;
-  status: string;
+  intent: KeywordIntent;
+  status: KeywordStatus;
   clusterId: string;
 }
 
@@ -32,7 +35,7 @@ export function KeywordFiltersBar({ filters, clusterOptions, onChange }: Keyword
         />
       </div>
 
-      <Select value={filters.intent} onValueChange={(v) => update({ intent: v })}>
+      <Select value={filters.intent} onValueChange={(v) => update({ intent: v as KeywordIntent })}>
         <SelectTrigger className="w-[160px]">
           <SelectValue placeholder="Intent" />
         </SelectTrigger>
@@ -45,7 +48,7 @@ export function KeywordFiltersBar({ filters, clusterOptions, onChange }: Keyword
         </SelectContent>
       </Select>
 
-      <Select value={filters.status} onValueChange={(v) => update({ status: v })}>
+      <Select value={filters.status} onValueChange={(v) => update({ status: v as KeywordStatus })}>
         <SelectTrigger className="w-[160px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>

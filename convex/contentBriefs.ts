@@ -1,7 +1,9 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
+import { briefDataModificationsValidator, briefDataValidator } from "./validators";
 import {
+  ERR_BRIEF_ALREADY_WRITTEN,
   ERR_BRIEF_NOT_FOUND,
   ERR_KEYWORD_ALREADY_BRIEFED,
   ERR_UNAUTHORIZED,
@@ -11,7 +13,7 @@ export const getById = query({
   args: { briefId: v.id("contentBriefs") },
   handler: async (ctx, args) => {
     const brief = await ctx.db.get(args.briefId);
-    if (!brief) throw new Error(ERR_BRIEF_NOT_FOUND);
+    if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     return brief;
   },
@@ -24,7 +26,7 @@ export const listByWorkspace = query({
     return ctx.db
       .query("contentBriefs")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(200);
   },
 });
 
@@ -32,7 +34,7 @@ export const create = mutation({
   args: {
     workspaceId: v.id("workspaces"),
     keywordId: v.id("keywords"),
-    briefData: v.any(),
+    briefData: briefDataValidator,
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
@@ -53,6 +55,7 @@ export const create = mutation({
     const now = Date.now();
     return ctx.db.insert("contentBriefs", {
       workspaceId: args.workspaceId,
+      strategyId: keyword.strategyId,
       keywordId: args.keywordId,
       briefData: args.briefData,
       status: "draft",
@@ -65,11 +68,11 @@ export const create = mutation({
 export const approve = mutation({
   args: {
     briefId: v.id("contentBriefs"),
-    modifications: v.optional(v.any()),
+    modifications: v.optional(briefDataModificationsValidator),
   },
   handler: async (ctx, args) => {
     const brief = await ctx.db.get(args.briefId);
-    if (!brief) throw new Error(ERR_BRIEF_NOT_FOUND);
+    if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const keyword = await ctx.db.get(brief.keywordId);
     if (!keyword || keyword.workspaceId !== brief.workspaceId) {
@@ -91,7 +94,8 @@ export const reject = mutation({
   },
   handler: async (ctx, args) => {
     const brief = await ctx.db.get(args.briefId);
-    if (!brief) throw new Error(ERR_BRIEF_NOT_FOUND);
+    if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
+    if (brief.status === "written") throw new ConvexError(ERR_BRIEF_ALREADY_WRITTEN);
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const keyword = await ctx.db.get(brief.keywordId);
     if (!keyword || keyword.workspaceId !== brief.workspaceId) {
@@ -112,7 +116,7 @@ export const linkBlog = mutation({
   },
   handler: async (ctx, args) => {
     const brief = await ctx.db.get(args.briefId);
-    if (!brief) throw new Error(ERR_BRIEF_NOT_FOUND);
+    if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== brief.workspaceId) {
@@ -122,6 +126,12 @@ export const linkBlog = mutation({
       blogId: args.blogId,
       status: "written",
       updatedAt: Date.now(),
+    });
+    // Update keyword status atomically — avoids stale status if the caller
+    // omits a separate assignToBlog call.
+    await ctx.db.patch(brief.keywordId, {
+      assignedBlogId: args.blogId,
+      status: "written",
     });
   },
 });

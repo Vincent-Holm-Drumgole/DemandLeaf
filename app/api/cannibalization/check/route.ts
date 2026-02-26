@@ -22,10 +22,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.keyword || typeof body.keyword !== "string" || body.keyword.trim().length === 0) {
+  const keyword = typeof body.keyword === "string" ? body.keyword.trim() : "";
+  if (keyword.length === 0) {
     return NextResponse.json({ error: "keyword is required" }, { status: 400 });
   }
-  if (body.keyword.trim().length > 120) {
+  if (keyword.length > 120) {
     return NextResponse.json({ error: "keyword must be 120 characters or fewer" }, { status: 400 });
   }
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const workspace = await convex.query(api.workspaces.getByClerkUser, {});
     if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
-    const result = await detectCannibalization(convex, workspace._id, body.keyword.trim());
+    const result = await detectCannibalization(convex, workspace._id, keyword);
     return NextResponse.json(result);
   } catch (err) {
     console.error("[cannibalization/check/POST] error:", err);

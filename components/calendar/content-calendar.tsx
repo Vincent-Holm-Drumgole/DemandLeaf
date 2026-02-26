@@ -1,21 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarItemPopover } from "./calendar-item-popover";
-
-interface CalendarEntry {
-  _id: string;
-  strategyId: string;
-  keyword: string;
-  archetype: string;
-  scheduledDate: number;
-  priority: number;
-  status: string;
-  briefId?: string;
-  keywordId: string;
-}
+import type { CalendarEntry } from "@/types/calendar";
 
 interface ContentCalendarProps {
   items: CalendarEntry[];
@@ -49,7 +38,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // Map scheduled date → items
-  const itemsByDay = (() => {
+  const itemsByDay = useMemo(() => {
     const map = new Map<number, CalendarEntry[]>();
     for (const item of localItems) {
       const d = new Date(item.scheduledDate);
@@ -60,7 +49,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
       }
     }
     return map;
-  })();
+  }, [localItems, year, month]);
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -134,6 +123,13 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
             </div>
           );
         })}
+
+        {/* Trailing empty cells to fill the last row to 7 columns */}
+        {Array.from({
+          length: (7 - ((firstDayOfMonth + daysInMonth) % 7)) % 7,
+        }).map((_, i) => (
+          <div key={`trail-${i}`} className="border-r border-b min-h-[80px] bg-muted/20" />
+        ))}
       </div>
 
       {/* Legend */}
@@ -141,7 +137,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
         {Object.entries(STATUS_COLORS).map(([status, cls]) => (
           <div key={status} className="flex items-center gap-1">
             <span className={`w-3 h-3 rounded border ${cls}`} />
-            {status.replace("_", " ")}
+            {status.replaceAll("_", " ")}
           </div>
         ))}
       </div>

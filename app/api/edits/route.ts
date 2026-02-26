@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_BLOG_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -76,14 +77,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     return NextResponse.json({ id: editId, classificationStatus: "pending" }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_BLOG_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_BLOG_NOT_FOUND)) {
       return NextResponse.json({ error: "Blog not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[edits/POST] error:", err);
     return NextResponse.json({ error: "Failed to record edit" }, { status: 500 });
   }
 }
-

@@ -19,8 +19,7 @@ interface BriefDoc {
 export default function BriefDetailPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const params = useParams();
-  const briefId = params?.id as string;
+  const { id: briefId } = useParams<{ id: string }>();
 
   const [brief, setBrief] = useState<BriefDoc | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +71,7 @@ export default function BriefDetailPage() {
   return (
     <main className="container max-w-3xl py-8">
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button variant="ghost" size="icon" onClick={() => router.push("/keywords")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>

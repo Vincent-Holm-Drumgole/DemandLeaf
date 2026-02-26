@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { strategyStatusValidator } from "./validators";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 
 export const listByWorkspace = query({
@@ -11,7 +10,7 @@ export const listByWorkspace = query({
     return ctx.db
       .query("strategies")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(100);
   },
 });
 
@@ -96,5 +95,3 @@ export const getByIdInternal = query({
   },
 });
 
-// Suppress unused import warning — strategyStatusValidator used in schema
-void strategyStatusValidator;

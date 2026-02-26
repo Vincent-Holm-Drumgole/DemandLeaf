@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { FunctionReturnType } from "convex/server";
 import { ERR_UNAUTHORIZED, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 export async function GET(): Promise<NextResponse> {
   const { userId } = await auth();
@@ -38,7 +39,7 @@ export async function GET(): Promise<NextResponse> {
     }));
     return NextResponse.json({ items });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[never-say/GET] error:", err);
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (message.includes(ERR_NEVER_SAY_DUPLICATE)) {
       return NextResponse.json({ error: "This term already exists in your never-say list." }, { status: 409 });
     }
-    if (message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[never-say/POST] error:", err);

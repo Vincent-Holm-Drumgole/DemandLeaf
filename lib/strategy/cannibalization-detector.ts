@@ -10,6 +10,9 @@ export const CANNIBALIZATION_SIMILARITY_THRESHOLD = 0.85;
 const EMBEDDING_CONCURRENCY = 20;
 
 function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(`Embedding dimension mismatch: ${a.length} vs ${b.length}`);
+  }
   let dot = 0;
   let normA = 0;
   let normB = 0;

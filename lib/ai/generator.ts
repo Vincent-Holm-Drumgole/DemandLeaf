@@ -67,13 +67,15 @@ export async function generateBlog(
     brief = {
       title: firstOutlineHeading || input.keyword,
       outline: input.briefHint.outline,
-      hookOptions: input.briefHint.hookOptions.length >= 3
-        ? input.briefHint.hookOptions.slice(0, 3)
-        : [
-            input.briefHint.hookOptions[0] ?? `Most teams overlook the fundamentals of ${input.keyword}.`,
-            `${input.keyword} gets easier once you stop following generic playbooks.`,
-            `The biggest mistake with ${input.keyword} is skipping foundational setup.`,
-          ],
+      hookOptions: (() => {
+        const provided = input.briefHint.hookOptions.filter((h) => h.trim().length > 0);
+        const defaults = [
+          `Most teams overlook the fundamentals of ${input.keyword}.`,
+          `${input.keyword} gets easier once you stop following generic playbooks.`,
+          `The biggest mistake with ${input.keyword} is skipping foundational setup.`,
+        ];
+        return [...provided, ...defaults].slice(0, 3);
+      })(),
       uniqueAngle: "",
     };
     onProgress?.({ name: "Researching your topic", status: "complete", durationMs: 0 });
@@ -110,6 +112,8 @@ export async function generateBlog(
     outline: brief.outline,
     kbContext: kbContextString,
     neverSayTerms: input.neverSayTerms,
+    hookOptions: brief.hookOptions,
+    uniqueAngle: brief.uniqueAngle || undefined,
   });
 
   const draftResult = await callSonnet(systemPrompt, userMessage, {

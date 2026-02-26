@@ -23,6 +23,7 @@ export function generateCalendar(
   postsPerMonth: number
 ): CalendarItem[] {
   if (keywordEntries.length === 0) return [];
+  if (postsPerMonth <= 0) throw new Error("postsPerMonth must be a positive integer");
 
   const entryMap = new Map(keywordEntries.map((e) => [e.keyword, e]));
 
@@ -54,17 +55,22 @@ export function generateCalendar(
     if (!seen.has(entry.keyword)) ordered.push(entry);
   }
 
-  // Assign archetypes cycling through funnel stages: Top → Mid → Bottom
+  // Assign archetypes cycling through funnel stages: Top → Top-Mid → Mid → Bottom
   const archetypesByStage = {
-    Top: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Top" || a.funnelStage === "Top-Mid"),
+    Top: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Top"),
+    TopMid: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Top-Mid"),
+    Mid: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Middle"),
     Bottom: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Bottom"),
-    Mid: ARCHETYPE_LIST.filter((a) => a.funnelStage === "Middle" || a.funnelStage === "Top-Mid"),
   };
   const archetypeCycle = [
     ...archetypesByStage.Top,
+    ...archetypesByStage.TopMid,
     ...archetypesByStage.Mid,
     ...archetypesByStage.Bottom,
   ];
+  if (archetypeCycle.length === 0) {
+    throw new Error("ARCHETYPE_LIST has no entries matching known funnel stages");
+  }
 
   const items: CalendarItem[] = [];
   const msPerMonth = 30 * 24 * 60 * 60 * 1000;

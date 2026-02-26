@@ -1,22 +1,13 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { KBList } from "@/components/knowledge-base/kb-list";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function KnowledgeBasePage() {
-  const { isLoaded, isSignedIn } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
+  const { isLoaded, isSignedIn } = useAuthGuard();
 
   if (!isLoaded) {
     return (

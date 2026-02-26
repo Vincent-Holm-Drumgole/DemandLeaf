@@ -47,7 +47,9 @@ export default function ReviewPage() {
     );
   }
 
-  // For real blog IDs, we'd fetch from the API (handled in Step 12)
+  // TODO: Fetch saved blog by ID from /api/blog/[id] and render ReviewLayout.
+  // Until implemented, non-preview blog IDs will show "Loading blog..." indefinitely
+  // because generationResult is only populated via the onboarding store (preview flow).
   if (!generationResult) {
     return (
       <div className="flex min-h-screen items-center justify-center">

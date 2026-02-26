@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { ClusterResult, SearchIntent } from "@/types";
 
+export const WIZARD_STEP = {
+  GOALS: 1,
+  SEEDS: 2,
+  DISCOVER: 3,
+  CLUSTERS: 4,
+  CALENDAR: 5,
+} as const;
+
 export interface DiscoveredKeyword {
   keyword: string;
   searchVolume: number;
@@ -110,7 +118,10 @@ export const useStrategyStore = create<StrategyState>((set, get) => ({
           isDiscovering: false,
         });
       } else {
-        set({ isDiscovering: false });
+        set({
+          isDiscovering: false,
+          error: "Discovery completed but failed to load keyword details",
+        });
       }
       void data; // acknowledge the initial response
     } catch (err) {

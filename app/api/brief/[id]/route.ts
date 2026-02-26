@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_BRIEF_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import { isBriefData } from "@/lib/brief/validate";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // GET /api/brief/[id]
 export async function GET(
@@ -36,10 +37,10 @@ export async function GET(
     }
     return NextResponse.json({ brief });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_BRIEF_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_BRIEF_NOT_FOUND)) {
       return NextResponse.json({ error: "Brief not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[brief/[id]/GET] error:", err);

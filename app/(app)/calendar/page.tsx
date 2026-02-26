@@ -1,38 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { Loader2, CalendarDays } from "lucide-react";
 import { ContentCalendar } from "@/components/calendar/content-calendar";
-
-interface CalendarEntry {
-  _id: string;
-  strategyId: string;
-  keyword: string;
-  archetype: string;
-  scheduledDate: number;
-  priority: number;
-  status: string;
-  briefId?: string;
-  keywordId: string;
-}
+import type { CalendarEntry } from "@/types/calendar";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export default function CalendarPage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const [items, setItems] = useState<CalendarEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/sign-in");
-  }, [isLoaded, isSignedIn, router]);
-
-  useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    fetch("/api/calendar")
+    const controller = new AbortController();
+
+    fetch("/api/calendar", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -41,10 +26,13 @@ export default function CalendarPage() {
         return response.json();
       })
       .then((data) => setItems(data.items ?? []))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load calendar"),
-      )
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load calendar");
+      })
       .finally(() => setIsLoading(false));
+
+    return () => controller.abort();
   }, [isLoaded, isSignedIn]);
 
   if (!isLoaded || !isSignedIn) return null;

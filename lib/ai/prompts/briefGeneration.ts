@@ -56,7 +56,7 @@ export function buildBriefGenerationPrompt(input: BriefGenerationInput): string 
 
   const neverSaySection =
     input.neverSayTerms.length > 0
-      ? `Never use these terms: ${input.neverSayTerms.join(", ")}`
+      ? `Never use these terms: ${input.neverSayTerms.map((t) => sanitizePromptInput(t)).join(", ")}`
       : "";
 
   const cannibalizationSection = input.cannibalizationNote

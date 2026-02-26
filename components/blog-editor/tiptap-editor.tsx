@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface TiptapEditorProps {
   initialHtml: string;
@@ -23,6 +23,9 @@ interface TiptapEditorProps {
 }
 
 export function TiptapEditor({ initialHtml, onChange }: TiptapEditorProps) {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
   const editor = useEditor({
     extensions: [StarterKit],
     content: initialHtml,
@@ -33,7 +36,7 @@ export function TiptapEditor({ initialHtml, onChange }: TiptapEditorProps) {
       },
     },
     onUpdate({ editor }) {
-      onChange?.(editor.getHTML());
+      onChangeRef.current?.(editor.getHTML());
     },
   });
 

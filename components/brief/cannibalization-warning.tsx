@@ -40,7 +40,7 @@ export function CannibalizationWarning({
               {overlappingBlogs.map((blog) => (
                 <li key={blog.id} className="flex items-center gap-2 text-sm">
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  <a href="/dashboard" className="underline hover:no-underline">
+                  <a href={`/blog/${blog.id}`} className="underline hover:no-underline">
                     {blog.title}
                   </a>
                   <span className="text-muted-foreground">

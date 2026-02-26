@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, ChevronDown, Crown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useStrategyStore } from "@/store/strategy-store";
+import { useStrategyStore, WIZARD_STEP } from "@/store/strategy-store";
 import type { ClusterResult } from "@/types";
 
 function ClusterNode({ cluster }: { cluster: ClusterResult }) {
@@ -74,7 +74,12 @@ export function WizardStepClusters() {
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-destructive mb-4">{error}</p>
-          <Button onClick={() => currentStrategyId && runClustering(currentStrategyId)}>
+          <Button onClick={() => {
+            if (currentStrategyId) {
+              triggeredStrategyIdRef.current = null;
+              runClustering(currentStrategyId);
+            }
+          }}>
             Retry
           </Button>
         </CardContent>
@@ -104,7 +109,7 @@ export function WizardStepClusters() {
         </div>
         <Button
           className="w-full mt-4"
-          onClick={() => setStep(5)}
+          onClick={() => setStep(WIZARD_STEP.CALENDAR)}
           disabled={clusters.length === 0}
         >
           Continue to Calendar

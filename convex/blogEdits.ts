@@ -12,6 +12,8 @@ import { internal } from "./_generated/api";
 import { classificationStatusValidator, editTypeValidator } from "./validators";
 
 const PATTERN_ANALYSIS_THRESHOLD = 10;
+const MAX_EDIT_STATS_SCAN = 5_000;
+const MAX_EDITS_PER_BLOG = 500;
 
 // ── Queries ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +32,7 @@ export const getEditStats = query({
       .withIndex("by_workspace_unclassified", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("classificationStatus", "classified"),
       )
-      .collect();
+      .take(MAX_EDIT_STATS_SCAN);
 
     const total = profile?.editCount ?? 0;
     const byType: Record<string, number> = {};
@@ -64,7 +66,7 @@ export const listByBlog = query({
       .query("blogEdits")
       .withIndex("by_blog", (q) => q.eq("blogId", args.blogId))
       .order("desc")
-      .collect();
+      .take(MAX_EDITS_PER_BLOG);
   },
 });
 

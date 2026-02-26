@@ -30,15 +30,19 @@ export function CalendarItemPopover({ item, children, onStatusChange }: Calendar
   const [isSaving, setIsSaving] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
+    const prevStatus = status;
     setStatus(newStatus);
     setIsSaving(true);
     try {
-      await fetch(`/api/calendar/${item._id}`, {
+      const res = await fetch(`/api/calendar/${item._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) throw new Error("Failed to update status");
       onStatusChange?.(item._id, newStatus);
+    } catch {
+      setStatus(prevStatus);
     } finally {
       setIsSaving(false);
     }
@@ -65,7 +69,7 @@ export function CalendarItemPopover({ item, children, onStatusChange }: Calendar
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
+                  <SelectItem key={s} value={s}>{s.replaceAll("_", " ")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

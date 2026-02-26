@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // GET /api/strategy/[id] — strategy + keywords + clusters
 export async function GET(
@@ -39,10 +40,10 @@ export async function GET(
 
     return NextResponse.json({ strategy, keywords, clusters });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[strategy/[id]/GET] error:", err);
@@ -75,8 +76,28 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.name && !body.businessOutcomes && !body.targetAudience && !body.seedKeywords) {
+  if (body.name !== undefined && typeof body.name !== "string") {
+    return NextResponse.json({ error: "name must be a string" }, { status: 400 });
+  }
+  if (body.businessOutcomes !== undefined && typeof body.businessOutcomes !== "string") {
+    return NextResponse.json({ error: "businessOutcomes must be a string" }, { status: 400 });
+  }
+  if (body.targetAudience !== undefined && typeof body.targetAudience !== "string") {
+    return NextResponse.json({ error: "targetAudience must be a string" }, { status: 400 });
+  }
+  if (body.seedKeywords !== undefined && !Array.isArray(body.seedKeywords)) {
+    return NextResponse.json({ error: "seedKeywords must be an array" }, { status: 400 });
+  }
+
+  const trimmedName = body.name?.trim();
+  const trimmedOutcomes = body.businessOutcomes?.trim();
+  const trimmedAudience = body.targetAudience?.trim();
+
+  if (!trimmedName && !trimmedOutcomes && !trimmedAudience && !body.seedKeywords) {
     return NextResponse.json({ error: "At least one field to update is required" }, { status: 400 });
+  }
+  if (trimmedName !== undefined && trimmedName.length === 0) {
+    return NextResponse.json({ error: "name cannot be empty" }, { status: 400 });
   }
   if (body.seedKeywords && body.seedKeywords.length > 20) {
     return NextResponse.json({ error: "At most 20 seed keywords per strategy" }, { status: 400 });
@@ -99,18 +120,18 @@ export async function PATCH(
 
     await convex.mutation(api.strategies.update, {
       strategyId,
-      name: body.name?.trim(),
-      businessOutcomes: body.businessOutcomes?.trim(),
-      targetAudience: body.targetAudience?.trim(),
+      name: trimmedName || undefined,
+      businessOutcomes: trimmedOutcomes || undefined,
+      targetAudience: trimmedAudience || undefined,
       seedKeywords: cleanSeedKeywords,
     });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_STRATEGY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[strategy/[id]/PATCH] error:", err);
