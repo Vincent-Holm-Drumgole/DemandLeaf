@@ -12,6 +12,7 @@ import {
   Mic,
   Settings,
   Leaf,
+  Network,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const NAV_GROUPS: { heading?: string; items: NavItem[] }[] = [
     items: [
       { label: "Strategy", href: "/strategy", icon: Target },
       { label: "Keywords", href: "/keywords", icon: Search },
+      { label: "Content Map", href: "/content-map", icon: Network },
     ],
   },
   {

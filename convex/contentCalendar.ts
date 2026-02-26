@@ -1,12 +1,14 @@
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_UNAUTHORIZED } from "./errors";
+import { ConvexError } from "convex/values";
+import { ERR_UNAUTHORIZED, ERR_CALENDAR_NOT_FOUND } from "./errors";
 import { calendarStatusValidator } from "./validators";
 import type { Id } from "./_generated/dataModel";
 
 const MAX_CALENDAR_QUERY_RESULTS = 1_000;
 const MAX_EXISTING_ITEMS_PER_STRATEGY = 2_000;
+const MAX_ITEMS_PER_BATCH = 500;
 
 async function queryByStrategy(
   ctx: QueryCtx,
@@ -99,7 +101,7 @@ export const listByWorkspace = query({
     if (args.strategyId) {
       const strategy = await ctx.db.get(args.strategyId);
       if (!strategy || strategy.workspaceId !== args.workspaceId) {
-        throw new Error(ERR_UNAUTHORIZED);
+        throw new ConvexError(ERR_UNAUTHORIZED);
       }
       return queryByStrategy(ctx, args.workspaceId, args.strategyId, args.fromDate, args.toDate);
     }
@@ -124,9 +126,12 @@ export const bulkCreate = mutation({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    if (args.items.length > MAX_ITEMS_PER_BATCH) {
+      throw new ConvexError(`Batch too large: maximum ${MAX_ITEMS_PER_BATCH} items per call`);
+    }
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy || strategy.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
 
     const now = Date.now();
@@ -168,7 +173,7 @@ export const bulkCreate = mutation({
         keyword.workspaceId !== args.workspaceId ||
         keyword.strategyId !== args.strategyId
       ) {
-        throw new Error(ERR_UNAUTHORIZED);
+        throw new ConvexError(ERR_UNAUTHORIZED);
       }
 
       const briefId = item.briefId;
@@ -179,7 +184,7 @@ export const bulkCreate = mutation({
           brief.workspaceId !== args.workspaceId ||
           brief.keywordId !== item.keywordId
         ) {
-          throw new Error(ERR_UNAUTHORIZED);
+          throw new ConvexError(ERR_UNAUTHORIZED);
         }
       }
 
@@ -225,7 +230,7 @@ export const reschedule = mutation({
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.calendarId);
     if (!item) {
-      throw new Error("Calendar item not found");
+      throw new ConvexError(ERR_CALENDAR_NOT_FOUND);
     }
     await requireWorkspaceAccess(ctx, item.workspaceId);
     const patch: Record<string, unknown> = {};
@@ -250,7 +255,7 @@ export const updateStatus = mutation({
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.calendarId);
     if (!item) {
-      throw new Error("Calendar item not found");
+      throw new ConvexError(ERR_CALENDAR_NOT_FOUND);
     }
     await requireWorkspaceAccess(ctx, item.workspaceId);
     await ctx.db.patch(args.calendarId, { status: args.status, updatedAt: Date.now() });
@@ -270,7 +275,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.calendarId);
-    if (!item) throw new Error("Calendar item not found");
+    if (!item) throw new ConvexError(ERR_CALENDAR_NOT_FOUND);
     await requireWorkspaceAccess(ctx, item.workspaceId);
 
     const patch: Record<string, unknown> = { updatedAt: Date.now() };

@@ -56,7 +56,7 @@ export default function StrategyDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/sign-in");
+    if (isLoaded && !isSignedIn) router.replace("/sign-in");
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {

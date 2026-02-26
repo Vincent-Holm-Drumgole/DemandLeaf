@@ -19,6 +19,8 @@ export const ERR_NEVER_SAY_LIMIT = "NEVER_SAY_LIMIT:";
 /** Partial token: embedded in the full never-say duplicate-term message. */
 export const ERR_NEVER_SAY_DUPLICATE = "NEVER_SAY_DUPLICATE:";
 
+export const ERR_CALENDAR_NOT_FOUND = "Calendar item not found";
+
 // Phase 3: Strategy & Keyword Intelligence
 export const ERR_STRATEGY_NOT_FOUND = "Strategy not found";
 export const ERR_KEYWORD_NOT_FOUND = "Keyword not found";

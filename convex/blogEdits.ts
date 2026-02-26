@@ -7,7 +7,7 @@ import {
 } from "./_generated/server";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_UNAUTHENTICATED, ERR_UNAUTHORIZED, ERR_BLOG_NOT_FOUND } from "./errors";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { classificationStatusValidator, editTypeValidator } from "./validators";
 
@@ -50,7 +50,7 @@ export const listByBlog = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error(ERR_UNAUTHENTICATED);
+      throw new ConvexError(ERR_UNAUTHENTICATED);
     }
 
     const blog = await ctx.db.get(args.blogId);
@@ -59,7 +59,7 @@ export const listByBlog = query({
     }
     const workspace = await ctx.db.get(blog.workspaceId);
     if (!workspace || workspace.clerkUserId !== identity.subject) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
 
     return ctx.db
@@ -109,7 +109,7 @@ export const recordEdit = mutation({
 
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_BLOG_NOT_FOUND);
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
     }
 
     const now = Date.now();

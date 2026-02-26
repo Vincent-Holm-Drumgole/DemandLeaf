@@ -13,6 +13,13 @@ import type { Archetype, BriefData, SearchIntent } from "@/types";
 import type { ConvexHttpClient } from "convex/browser";
 import { isBriefData } from "./validate";
 
+const INTENT_ARCHETYPE: Record<SearchIntent, Archetype> = {
+  informational: "how_to",
+  transactional: "how_to",
+  commercial: "comparison",
+  navigational: "thought_leadership",
+};
+
 /**
  * Generates a 17-component content brief for a keyword.
  *
@@ -57,12 +64,6 @@ export async function generateBrief(
       limit: 10,
     });
     if (kbCandidates.length > 0) {
-      const INTENT_ARCHETYPE: Record<SearchIntent, Archetype> = {
-        informational: "how_to",
-        transactional: "how_to",
-        commercial: "comparison",
-        navigational: "thought_leadership",
-      };
       const kbContext = selectKBContext(kbCandidates, INTENT_ARCHETYPE[intent]);
       kbContextTitles = kbContext.items.map(
         (item: { title: string }) => item.title

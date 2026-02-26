@@ -97,9 +97,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // 5. Update metrics in batches to avoid overwhelming Convex with concurrent mutations
     const BATCH_SIZE = 25;
+    let metricFailures = 0;
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {
       const batch = ids.slice(i, i + BATCH_SIZE);
-      await Promise.allSettled(
+      const batchResults = await Promise.allSettled(
         batch.map(async (id, j) => {
           const kw = keywordStrings[i + j].toLowerCase();
           const metric = metricsMap.get(kw) ?? { searchVolume: 0, keywordDifficulty: 0, cpc: 0 };
@@ -115,9 +116,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           });
         })
       );
+      metricFailures += batchResults.filter((r) => r.status === "rejected").length;
+    }
+    if (metricFailures > 0) {
+      console.error(`[keywords/research/POST] ${metricFailures}/${ids.length} metric update(s) failed`);
     }
 
-    return NextResponse.json({ keywords: keywordStrings, count: keywordStrings.length }, { status: 201 });
+    return NextResponse.json({
+      keywords: keywordStrings,
+      count: keywordStrings.length,
+      ...(metricFailures > 0 && { partialFailures: metricFailures }),
+    }, { status: 201 });
   } catch (err) {
     if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });

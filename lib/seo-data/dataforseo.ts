@@ -16,6 +16,8 @@
  *   DATAFORSEO_LOGIN
  *   DATAFORSEO_PASSWORD
  */
+import "server-only";
+
 import { api } from "@/convex/_generated/api";
 import type { KeywordMetric, SerpResult } from "@/types";
 import type { ConvexHttpClient } from "convex/browser";

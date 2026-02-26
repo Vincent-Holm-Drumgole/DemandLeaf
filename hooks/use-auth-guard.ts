@@ -9,7 +9,7 @@ export function useAuthGuard() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/sign-in");
+    if (isLoaded && !isSignedIn) router.replace("/sign-in");
   }, [isLoaded, isSignedIn, router]);
 
   return { isLoaded, isSignedIn };

@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_BLOG_NOT_FOUND } from "./errors";
 
@@ -15,7 +15,7 @@ export const approveBlog = mutation({
 
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_BLOG_NOT_FOUND);
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       userApproval: true,
@@ -38,7 +38,7 @@ export const setVoiceMatchScore = mutation({
     }
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_BLOG_NOT_FOUND);
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       voiceMatchScore: args.voiceMatchScore,
@@ -64,6 +64,7 @@ export const getWorkspaceTrend = query({
       )
       .order("desc")
       .take(MAX_TREND_BLOGS);
+    const truncated = recentBlogs.length === MAX_TREND_BLOGS;
     const blogs = [...recentBlogs].reverse();
 
     if (blogs.length === 0) {
@@ -74,6 +75,7 @@ export const getWorkspaceTrend = query({
           approvalRate: null,
           avgEditRatio: null,
           totalBlogs: 0,
+          truncated: false,
         },
       };
     }
@@ -111,6 +113,7 @@ export const getWorkspaceTrend = query({
         approvalRate,
         avgEditRatio,
         totalBlogs: blogs.length,
+        truncated,
       },
     };
   },

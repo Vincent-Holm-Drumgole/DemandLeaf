@@ -65,6 +65,7 @@ export function WizardStepCalendar({ onComplete }: WizardStepCalendarProps) {
         </CardTitle>
         <CardDescription>
           Set your publishing cadence to generate a content calendar across {clusters.length} clusters.
+          The calendar is saved only when you click <span className="font-medium">Generate Calendar &amp; Finish</span>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

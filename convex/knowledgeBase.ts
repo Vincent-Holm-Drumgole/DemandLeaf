@@ -9,7 +9,7 @@ import {
 import type { ActionCtx } from "./_generated/server";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND } from "./errors";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import {
@@ -127,7 +127,7 @@ export const update = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     const contentChanged = args.content !== undefined && args.content !== entry.content;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
@@ -154,7 +154,7 @@ export const remove = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     await ctx.db.delete(args.entryId);
   },

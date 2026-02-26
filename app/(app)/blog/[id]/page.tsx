@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 const td = new TurndownService({ headingStyle: "atx", bulletListMarker: "-" });
 
@@ -38,7 +38,9 @@ export default function BlogPage() {
   const currentHtmlRef = useRef<string>("");
   const [isDirty, setIsDirty] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (blogId) fetchBlog(blogId);
@@ -98,12 +100,17 @@ export default function BlogPage() {
       setSavedOk(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSavedOk(false), 2000);
+    } else {
+      setSaveError(true);
+      if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
+      saveErrorTimerRef.current = setTimeout(() => setSaveError(false), 4000);
     }
   }, [blog, blogId, title, status, meta, updateBlog]);
 
   useEffect(() => {
     return () => {
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
     };
   }, []);
 
@@ -164,6 +171,12 @@ export default function BlogPage() {
               <span className="flex items-center gap-1 text-xs text-green-600">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Saved
+              </span>
+            )}
+            {saveError && (
+              <span className="flex items-center gap-1 text-xs text-destructive">
+                <XCircle className="h-3.5 w-3.5" />
+                Save failed
               </span>
             )}
 

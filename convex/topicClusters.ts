@@ -1,10 +1,21 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 
 const MAX_EXISTING_CLUSTERS = 500;
+
+export const listByWorkspace = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    return ctx.db
+      .query("topicClusters")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(200);
+  },
+});
 
 export const listByStrategy = query({
   args: { strategyId: v.id("strategies") },
@@ -34,7 +45,7 @@ export const bulkCreate = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy || strategy.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
 
     const existingClusters = await ctx.db
@@ -85,7 +96,7 @@ export const setPillarBlog = mutation({
     await requireWorkspaceAccess(ctx, cluster.workspaceId);
     const blog = await ctx.db.get(args.pillarBlogId);
     if (!blog || blog.workspaceId !== cluster.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.clusterId, { pillarBlogId: args.pillarBlogId, updatedAt: Date.now() });
   },

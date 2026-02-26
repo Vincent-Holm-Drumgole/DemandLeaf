@@ -120,7 +120,7 @@ export async function PATCH(
 
     await convex.mutation(api.strategies.update, {
       strategyId,
-      name: trimmedName || undefined,
+      name: trimmedName,
       businessOutcomes: trimmedOutcomes || undefined,
       targetAudience: trimmedAudience || undefined,
       seedKeywords: cleanSeedKeywords,

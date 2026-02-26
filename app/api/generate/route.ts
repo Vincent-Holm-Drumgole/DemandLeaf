@@ -103,12 +103,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     try {
       const authedConvex = await getAuthedConvexClient();
       const brief = await authedConvex.query(api.contentBriefs.getById, { briefId: briefIdTyped });
-      if (!brief) {
-        return new Response(
-          JSON.stringify({ error: "Brief not found" }),
-          { status: 404, headers: { "Content-Type": "application/json" } }
-        );
-      }
       if (brief.status !== "approved") {
         return new Response(
           JSON.stringify({ error: "Brief must be approved before generating" }),

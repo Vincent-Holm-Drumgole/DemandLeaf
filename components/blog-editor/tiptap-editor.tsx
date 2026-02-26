@@ -24,6 +24,7 @@ interface TiptapEditorProps {
 
 export function TiptapEditor({ initialHtml, onChange }: TiptapEditorProps) {
   const onChangeRef = useRef(onChange);
+  const lastInitialHtmlRef = useRef<string | null>(null);
   useEffect(() => { onChangeRef.current = onChange; });
 
   const editor = useEditor({
@@ -40,10 +41,17 @@ export function TiptapEditor({ initialHtml, onChange }: TiptapEditorProps) {
     },
   });
 
-  // Sync if initialHtml changes (e.g. on first load after fetch)
+  // Sync editor content only when initialHtml prop changes externally.
+  // This avoids overriding in-progress edits on normal re-renders.
   useEffect(() => {
-    if (editor && initialHtml && editor.isEmpty) {
-      editor.commands.setContent(initialHtml);
+    if (!editor) return;
+
+    const nextHtml = initialHtml || "";
+    if (lastInitialHtmlRef.current === nextHtml) return;
+    lastInitialHtmlRef.current = nextHtml;
+
+    if (editor.getHTML() !== nextHtml) {
+      editor.commands.setContent(nextHtml, { emitUpdate: false });
     }
   }, [editor, initialHtml]);
 

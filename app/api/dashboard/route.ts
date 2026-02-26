@@ -29,9 +29,15 @@ export async function GET(request: Request): Promise<NextResponse> {
   const cursor = cursorParam ? parseInt(cursorParam, 10) : undefined;
 
   const convex = await getAuthedConvexClient();
-  const data = await convex.query(api.blogs.listByWorkspace, {
-    cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
-  });
+  let data: Awaited<ReturnType<typeof convex.query<typeof api.blogs.listByWorkspace>>>;
+  try {
+    data = await convex.query(api.blogs.listByWorkspace, {
+      cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
+    });
+  } catch (err) {
+    console.error("[dashboard/GET] Convex query error:", err);
+    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
+  }
 
   const dashboardBlogs: DashboardBlog[] = data.blogs.map((blog: (typeof data.blogs)[number]) => ({
     id: blog._id,

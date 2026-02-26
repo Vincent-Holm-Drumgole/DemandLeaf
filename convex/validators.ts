@@ -130,6 +130,9 @@ export const briefStatusValidator = v.union(
   v.literal("written")
 );
 
+export const CALENDAR_STATUSES = ["scheduled", "in_progress", "completed", "skipped"] as const;
+export type CalendarStatus = (typeof CALENDAR_STATUSES)[number];
+
 export const calendarStatusValidator = v.union(
   v.literal("scheduled"),
   v.literal("in_progress"),

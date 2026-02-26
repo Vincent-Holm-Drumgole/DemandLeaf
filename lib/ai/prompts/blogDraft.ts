@@ -233,7 +233,7 @@ UNIQUE ANGLE: ${sanitizeSingleLine(input.uniqueAngle)}
 
   if (input.hookOptions && input.hookOptions.length > 0) {
     const sanitizedHooks = input.hookOptions
-      .map((h) => sanitizePromptInput(h.trim()))
+      .map((h) => sanitizeSingleLine(h))
       .filter((h) => h.length > 0)
       .slice(0, 3);
     if (sanitizedHooks.length > 0) {

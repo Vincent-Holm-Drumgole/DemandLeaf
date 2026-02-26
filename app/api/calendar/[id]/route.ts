@@ -4,11 +4,11 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
-import { ERR_UNAUTHORIZED } from "@/convex/errors";
+import { ERR_UNAUTHORIZED, ERR_CALENDAR_NOT_FOUND } from "@/convex/errors";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { CALENDAR_STATUSES, type CalendarStatus } from "@/convex/validators";
 
-const VALID_STATUSES = ["scheduled", "in_progress", "completed", "skipped"] as const;
-type CalendarStatus = (typeof VALID_STATUSES)[number];
+const VALID_STATUSES = CALENDAR_STATUSES;
 
 // PUT /api/calendar/[id] — reschedule or update status of a calendar item
 export async function PUT(
@@ -64,7 +64,7 @@ export async function PUT(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof Error && err.message.includes("Calendar item not found")) {
+    if (hasConvexErrorCode(err, ERR_CALENDAR_NOT_FOUND)) {
       return NextResponse.json({ error: "Calendar item not found" }, { status: 404 });
     }
     if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {

@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_BRIEF_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
-import { hasConvexErrorCode, isConvexAppError } from "@/lib/convex-error";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 import { isBriefDataPatch } from "@/lib/brief/validate";
 
 // PUT /api/brief/[id]/approve — approve a brief with optional modifications
@@ -48,7 +48,7 @@ export async function PUT(
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (isConvexAppError(err, ERR_BRIEF_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_BRIEF_NOT_FOUND)) {
       return NextResponse.json({ error: "Brief not found" }, { status: 404 });
     }
     if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {

@@ -54,3 +54,10 @@ export type {
   CannibalizationResult,
   CalendarItem,
 } from "./strategy";
+export type {
+  ClusterBubble,
+  GapType,
+  GapResult,
+  Opportunity,
+  ContentMapData,
+} from "./content-map";

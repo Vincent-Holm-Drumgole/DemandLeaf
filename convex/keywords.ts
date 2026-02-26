@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
@@ -13,7 +13,7 @@ export const listByStrategy = query({
   args: { strategyId: v.id("strategies") },
   handler: async (ctx, args) => {
     const strategy = await ctx.db.get(args.strategyId);
-    if (!strategy) throw new Error(ERR_STRATEGY_NOT_FOUND);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
     return ctx.db
       .query("keywords")
@@ -32,6 +32,17 @@ export const listByCluster = query({
       .query("keywords")
       .withIndex("by_cluster", (q) => q.eq("clusterId", args.clusterId))
       .take(500);
+  },
+});
+
+export const listAllByWorkspace = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(2000);
   },
 });
 
@@ -55,7 +66,7 @@ export const getById = query({
   args: { keywordId: v.id("keywords") },
   handler: async (ctx, args) => {
     const kw = await ctx.db.get(args.keywordId);
-    if (!kw) throw new Error(ERR_KEYWORD_NOT_FOUND);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
     await requireWorkspaceAccess(ctx, kw.workspaceId);
     return kw;
   },
@@ -78,7 +89,7 @@ export const bulkCreate = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy || strategy.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
 
     const now = Date.now();
@@ -125,7 +136,7 @@ export const updateMetrics = mutation({
   },
   handler: async (ctx, args) => {
     const kw = await ctx.db.get(args.keywordId);
-    if (!kw) throw new Error(ERR_KEYWORD_NOT_FOUND);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
     await requireWorkspaceAccess(ctx, kw.workspaceId);
     await ctx.db.patch(args.keywordId, {
       searchVolume: args.searchVolume,
@@ -146,11 +157,11 @@ export const updateCluster = mutation({
   },
   handler: async (ctx, args) => {
     const kw = await ctx.db.get(args.keywordId);
-    if (!kw) throw new Error(ERR_KEYWORD_NOT_FOUND);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
     await requireWorkspaceAccess(ctx, kw.workspaceId);
     const cluster = await ctx.db.get(args.clusterId);
     if (!cluster || cluster.workspaceId !== kw.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.keywordId, { clusterId: args.clusterId });
   },
@@ -163,7 +174,7 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     const kw = await ctx.db.get(args.keywordId);
-    if (!kw) throw new Error(ERR_KEYWORD_NOT_FOUND);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
     await requireWorkspaceAccess(ctx, kw.workspaceId);
     await ctx.db.patch(args.keywordId, { status: args.status });
   },
@@ -176,11 +187,11 @@ export const assignToBlog = mutation({
   },
   handler: async (ctx, args) => {
     const kw = await ctx.db.get(args.keywordId);
-    if (!kw) throw new Error(ERR_KEYWORD_NOT_FOUND);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
     await requireWorkspaceAccess(ctx, kw.workspaceId);
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== kw.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.keywordId, {
       assignedBlogId: args.blogId,

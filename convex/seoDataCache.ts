@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { ERR_UNAUTHENTICATED } from "./errors";
 import { seoDataCacheDataValidator } from "./validators";
 
@@ -63,7 +63,7 @@ export const set = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error(ERR_UNAUTHENTICATED);
+      throw new ConvexError(ERR_UNAUTHENTICATED);
     }
 
     const existing = await ctx.db

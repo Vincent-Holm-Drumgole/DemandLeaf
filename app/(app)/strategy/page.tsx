@@ -32,7 +32,7 @@ export default function StrategyPage() {
   const { reset } = useStrategyStore();
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/sign-in");
+    if (isLoaded && !isSignedIn) router.replace("/sign-in");
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {

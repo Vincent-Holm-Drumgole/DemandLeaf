@@ -84,7 +84,10 @@ const SYNONYM_MAP: Record<string, string> = {
 /**
  * Build a regex that matches the banned word and common inflected forms.
  * Words ending in 'e' (e.g. "delve"): matches delve, delves, delved, delving.
- * Other words (e.g. "foster"): matches foster, fosters, fostered, fostering.
+ * Words ending in consonant+'y' (e.g. "synergy", "amplify"): matches synergy,
+ *   synergies, amplify, amplifies, amplified, amplifying.
+ * Words ending in vowel+'y' (e.g. "interplay") and all other words: adds
+ *   optional s/ed/ing suffix.
  * Hyphenated compounds (e.g. "cutting-edge") match the exact form only.
  */
 function buildWordRegex(word: string): RegExp {
@@ -96,7 +99,51 @@ function buildWordRegex(word: string): RegExp {
     const stem = escaped.slice(0, -1);
     return new RegExp(`\\b${stem}(?:e(?:s|d)?|ing)\\b`, "gi");
   }
+  // Consonant + 'y': y → ies (plural/3rd-person), ied (past), ying (participle)
+  if (word.endsWith("y") && !/[aeiou]y$/i.test(word)) {
+    const stem = escaped.slice(0, -1);
+    return new RegExp(`\\b${stem}(?:y|ies|ied|ying)\\b`, "gi");
+  }
   return new RegExp(`\\b${escaped}(?:s|ed|ing)?\\b`, "gi");
+}
+
+type InflectionType = "base" | "plural" | "past" | "participle";
+
+/**
+ * Detect what inflected form the regex matched.
+ * Check for exact base-word match first so adjectives ending in "ed"
+ * (e.g. "nuanced") are correctly classified as "base", not "past".
+ */
+function getInflectionType(match: string, banned: string): InflectionType {
+  if (match.toLowerCase() === banned.toLowerCase()) return "base";
+  const m = match.toLowerCase();
+  if (m.endsWith("ing")) return "participle";
+  if (m.endsWith("ied") || m.endsWith("ed")) return "past";
+  if (m.endsWith("ies") || m.endsWith("es") || m.endsWith("s")) return "plural";
+  return "base";
+}
+
+/**
+ * Apply the same inflection to the synonym so the replacement is grammatically
+ * correct (e.g. "delving" → "exploring", "fosters" → "builds").
+ * Note: irregular verbs (build/lead/handle) are a known limitation — they will
+ * produce regular forms ("builded", "leaded") which is still better than always
+ * returning the bare infinitive.
+ */
+function applyInflection(synonym: string, inflection: InflectionType): string {
+  if (inflection === "base") return synonym;
+  if (inflection === "participle") {
+    return synonym.endsWith("e") ? synonym.slice(0, -1) + "ing" : synonym + "ing";
+  }
+  if (inflection === "past") {
+    if (synonym.endsWith("e")) return synonym + "d";
+    if (/[^aeiou]y$/i.test(synonym)) return synonym.slice(0, -1) + "ied";
+    return synonym + "ed";
+  }
+  // plural / 3rd-person singular present
+  if (/[^aeiou]y$/i.test(synonym)) return synonym.slice(0, -1) + "ies";
+  if (/(?:s|sh|ch|x|z)$/i.test(synonym)) return synonym + "es";
+  return synonym + "s";
 }
 
 function replaceBannedWords(content: string): string {
@@ -106,15 +153,19 @@ function replaceBannedWords(content: string): string {
     const regex = buildWordRegex(banned);
 
     result = result.replace(regex, (match) => {
-      // Preserve ALL-CAPS emphasis (e.g. "DELVE" → "EXPLORE")
+      const inflection = getInflectionType(match, banned);
+      const inflected = applyInflection(synonym, inflection);
+
+      // Preserve ALL-CAPS emphasis (e.g. "DELVING" → "EXPLORING")
       if (match === match.toUpperCase() && match !== match.toLowerCase()) {
-        return synonym.toUpperCase();
+        return inflected.toUpperCase();
       }
+      // Preserve Title Case (e.g. "Delving" → "Exploring")
       const firstChar = match[0];
       if (firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase()) {
-        return synonym.charAt(0).toUpperCase() + synonym.slice(1);
+        return inflected.charAt(0).toUpperCase() + inflected.slice(1);
       }
-      return synonym;
+      return inflected;
     });
   }
 

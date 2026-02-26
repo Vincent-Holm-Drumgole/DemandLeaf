@@ -40,7 +40,7 @@ export const create = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const keyword = await ctx.db.get(args.keywordId);
     if (!keyword || keyword.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
 
     // Prevent generating a second brief for the same keyword
@@ -76,7 +76,7 @@ export const approve = mutation({
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const keyword = await ctx.db.get(brief.keywordId);
     if (!keyword || keyword.workspaceId !== brief.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.briefId, {
       status: "approved",
@@ -99,7 +99,7 @@ export const reject = mutation({
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const keyword = await ctx.db.get(brief.keywordId);
     if (!keyword || keyword.workspaceId !== brief.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.briefId, {
       status: "rejected",
@@ -120,7 +120,7 @@ export const linkBlog = mutation({
     await requireWorkspaceAccess(ctx, brief.workspaceId);
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== brief.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     await ctx.db.patch(args.briefId, {
       blogId: args.blogId,

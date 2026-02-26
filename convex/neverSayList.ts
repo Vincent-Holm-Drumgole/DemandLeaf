@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { termTypeValidator } from "./validators";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "./errors";
@@ -12,7 +12,7 @@ export const listByWorkspace = query({
     return ctx.db
       .query("neverSayList")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(100);
   },
 });
 
@@ -25,7 +25,7 @@ export const getAllTerms = query({
     const entries = await ctx.db
       .query("neverSayList")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(100);
     return entries.map((e) => e.term);
   },
 });
@@ -72,9 +72,8 @@ export const remove = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     await ctx.db.delete(args.entryId);
   },
 });
-

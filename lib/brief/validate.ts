@@ -78,8 +78,8 @@ export function isBriefDataPatch(value: unknown): value is Partial<BriefData> {
   if (!isObject(value)) return false;
 
   if (value.targetKeyword !== undefined && typeof value.targetKeyword !== "string") return false;
-  if (value.searchIntent !== undefined && (!VALID_INTENTS.has(value.searchIntent as SearchIntent))) return false;
-  if (value.buyerStage !== undefined && (!VALID_STAGES.has(value.buyerStage as BuyerStage))) return false;
+  if (value.searchIntent !== undefined && (typeof value.searchIntent !== "string" || !VALID_INTENTS.has(value.searchIntent as SearchIntent))) return false;
+  if (value.buyerStage !== undefined && (typeof value.buyerStage !== "string" || !VALID_STAGES.has(value.buyerStage as BuyerStage))) return false;
   if (value.keywordDifficulty !== undefined && typeof value.keywordDifficulty !== "number") return false;
   if (value.searchVolume !== undefined && typeof value.searchVolume !== "number") return false;
   if (value.cpc !== undefined && typeof value.cpc !== "number") return false;

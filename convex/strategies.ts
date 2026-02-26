@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 
@@ -18,7 +18,7 @@ export const getById = query({
   args: { strategyId: v.id("strategies") },
   handler: async (ctx, args) => {
     const strategy = await ctx.db.get(args.strategyId);
-    if (!strategy) throw new Error(ERR_STRATEGY_NOT_FOUND);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
     return strategy;
   },
@@ -58,7 +58,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const strategy = await ctx.db.get(args.strategyId);
-    if (!strategy) throw new Error(ERR_STRATEGY_NOT_FOUND);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.name !== undefined) patch.name = args.name;
@@ -73,7 +73,7 @@ export const archive = mutation({
   args: { strategyId: v.id("strategies") },
   handler: async (ctx, args) => {
     const strategy = await ctx.db.get(args.strategyId);
-    if (!strategy) throw new Error(ERR_STRATEGY_NOT_FOUND);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
     await ctx.db.patch(args.strategyId, {
       status: "archived" as const,
@@ -89,7 +89,7 @@ export const getByIdInternal = query({
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy || strategy.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_UNAUTHORIZED);
     }
     return strategy;
   },

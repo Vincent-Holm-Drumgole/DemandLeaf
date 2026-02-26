@@ -15,25 +15,72 @@ export default function KeywordsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/sign-in");
+    if (isLoaded && !isSignedIn) router.replace("/sign-in");
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    fetch("/api/keywords")
-      .then(async (response) => {
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "Failed to load keywords");
+    let cancelled = false;
+
+    async function loadAllKeywords() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const allKeywords: KeywordRow[] = [];
+        let cursor: string | null = null;
+        const seenCursors = new Set<string>();
+
+        do {
+          const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+          const response = await fetch(`/api/keywords${query}`);
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error ?? "Failed to load keywords");
+          }
+
+          const data = (await response.json()) as {
+            keywords?: KeywordRow[];
+            nextCursor?: string | null;
+          };
+          allKeywords.push(...(data.keywords ?? []));
+
+          const nextCursor =
+            typeof data.nextCursor === "string" ? data.nextCursor : null;
+          if (nextCursor && seenCursors.has(nextCursor)) {
+            throw new Error("Failed to paginate keywords");
+          }
+          if (nextCursor) {
+            seenCursors.add(nextCursor);
+          }
+          cursor = nextCursor;
+        } while (cursor);
+
+        const deduped = Array.from(
+          new Map(allKeywords.map((keyword) => [keyword._id, keyword])).values()
+        );
+
+        if (!cancelled) {
+          setKeywords(deduped);
         }
-        return response.json();
-      })
-      .then((data) => setKeywords(data.keywords ?? []))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load keywords"),
-      )
-      .finally(() => setIsLoading(false));
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load keywords",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadAllKeywords();
+    return () => {
+      cancelled = true;
+    };
   }, [isLoaded, isSignedIn]);
 
   if (!isLoaded || !isSignedIn) return null;

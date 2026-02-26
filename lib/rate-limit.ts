@@ -136,7 +136,7 @@ export async function checkRateLimit(
  * loopback address so that local development without a proxy still works.
  */
 export function getClientIp(request: Request): string {
-  const headers = request.headers as Headers;
+  const headers = request.headers;
   const candidates = [
     headers.get("cf-connecting-ip"),
     headers.get("x-real-ip"),
