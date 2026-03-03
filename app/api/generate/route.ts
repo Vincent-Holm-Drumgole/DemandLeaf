@@ -127,7 +127,12 @@ export async function POST(request: NextRequest): Promise<Response> {
       const outlineStr = briefData.outline
         .map((section) => (section.level === 2 ? `## ${section.heading}` : `### ${section.heading}`))
         .join("\n");
-      briefHint = { outline: outlineStr, hookOptions: briefData.hookOptions };
+      briefHint = {
+        outline: outlineStr,
+        hookOptions: briefData.hookOptions,
+        internalLinkOpportunities: briefData.internalLinkOpportunities,
+        citationNeeds: briefData.citationNeeds,
+      };
       resolvedBriefId = briefIdTyped;
     } catch (err) {
       if (hasConvexErrorCode(err, ERR_BRIEF_NOT_FOUND)) {
@@ -334,6 +339,17 @@ export async function POST(request: NextRequest): Promise<Response> {
               } catch (linkErr) {
                 console.warn("[generate] linkBlog failed:", linkErr);
               }
+              // Phase 5: persist AEO score if available
+              if (result.aeoScore !== undefined) {
+                try {
+                  await authedConvex.mutation(api.blogs.updatePublishingData, {
+                    blogId: workspaceBlogId,
+                    aeoScore: result.aeoScore,
+                  });
+                } catch (aeoErr) {
+                  console.warn("[generate] aeoScore persist failed:", aeoErr);
+                }
+              }
             }
           } catch (linkErr) {
             // Non-critical — blog was generated and streamed successfully
@@ -350,6 +366,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             metaTitle: result.metaTitle,
             metaDescription: result.metaDescription,
             scores: result.scores,
+            aeoScore: result.aeoScore ?? null,
             wordCount: result.wordCount,
             generationTimeMs: result.generationTimeMs,
             totalCostCents: result.totalCostCents,

@@ -9,24 +9,32 @@
  */
 
 import type * as anonymousSessions from "../anonymousSessions.js";
+import type * as authorPersonas from "../authorPersonas.js";
 import type * as blogEdits from "../blogEdits.js";
 import type * as blogs from "../blogs.js";
 import type * as calibration from "../calibration.js";
 import type * as confidenceScores from "../confidenceScores.js";
 import type * as contentBriefs from "../contentBriefs.js";
 import type * as contentCalendar from "../contentCalendar.js";
+import type * as decayAlerts from "../decayAlerts.js";
 import type * as errors from "../errors.js";
 import type * as feedback from "../feedback.js";
+import type * as googleConnections from "../googleConnections.js";
 import type * as helpers from "../helpers.js";
+import type * as internalLinks from "../internalLinks.js";
 import type * as keywords from "../keywords.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
 import type * as neverSayList from "../neverSayList.js";
+import type * as performanceMetrics from "../performanceMetrics.js";
+import type * as rankSnapshots from "../rankSnapshots.js";
+import type * as refreshHistory from "../refreshHistory.js";
 import type * as seoDataCache from "../seoDataCache.js";
 import type * as strategies from "../strategies.js";
 import type * as topicClusters from "../topicClusters.js";
 import type * as validators from "../validators.js";
 import type * as voiceProfiles from "../voiceProfiles.js";
 import type * as workspaces from "../workspaces.js";
+import type * as wpConnections from "../wpConnections.js";
 
 import type {
   ApiFromModules,
@@ -36,24 +44,32 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   anonymousSessions: typeof anonymousSessions;
+  authorPersonas: typeof authorPersonas;
   blogEdits: typeof blogEdits;
   blogs: typeof blogs;
   calibration: typeof calibration;
   confidenceScores: typeof confidenceScores;
   contentBriefs: typeof contentBriefs;
   contentCalendar: typeof contentCalendar;
+  decayAlerts: typeof decayAlerts;
   errors: typeof errors;
   feedback: typeof feedback;
+  googleConnections: typeof googleConnections;
   helpers: typeof helpers;
+  internalLinks: typeof internalLinks;
   keywords: typeof keywords;
   knowledgeBase: typeof knowledgeBase;
   neverSayList: typeof neverSayList;
+  performanceMetrics: typeof performanceMetrics;
+  rankSnapshots: typeof rankSnapshots;
+  refreshHistory: typeof refreshHistory;
   seoDataCache: typeof seoDataCache;
   strategies: typeof strategies;
   topicClusters: typeof topicClusters;
   validators: typeof validators;
   voiceProfiles: typeof voiceProfiles;
   workspaces: typeof workspaces;
+  wpConnections: typeof wpConnections;
 }>;
 
 /**

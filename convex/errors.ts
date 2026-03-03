@@ -33,3 +33,17 @@ export const ERR_BRIEF_NOT_FOUND = "Brief not found";
 export const ERR_BRIEF_ALREADY_WRITTEN = "Cannot reject a brief that has already been written";
 /** Partial token: embedded in the keyword-already-briefed message. */
 export const ERR_KEYWORD_ALREADY_BRIEFED = "KEYWORD_ALREADY_BRIEFED:";
+
+// Phase 5: AEO/GEO & Publishing
+export const ERR_WP_CONNECTION_NOT_FOUND = "WordPress connection not found";
+export const ERR_WP_CONNECTION_FAILED = "WordPress connection test failed";
+export const ERR_AUTHOR_PERSONA_NOT_FOUND = "Author persona not found";
+export const ERR_BLOG_ALREADY_PUBLISHED = "Blog is already published to WordPress";
+export const ERR_INTERNAL_LINK_NOT_FOUND = "Internal link not found";
+
+// Phase 6: Post-Publish Intelligence
+export const ERR_GOOGLE_CONNECTION_NOT_FOUND = "Google connection not found";
+export const ERR_DECAY_ALERT_NOT_FOUND = "Decay alert not found";
+export const ERR_REFRESH_NOT_FOUND = "Refresh history record not found";
+export const ERR_BLOG_NOT_PUBLISHED = "Blog must be published before tracking";
+export const ERR_NO_FOCUS_KEYWORD = "Blog has no focusKeyword set";

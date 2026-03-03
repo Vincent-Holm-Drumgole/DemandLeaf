@@ -68,6 +68,15 @@ export async function GET(
     generationCostCents: blog.generationCostCents ?? null,
     generationTimeMs: blog.generationTimeMs ?? null,
     promptVersion: blog.promptVersion ?? null,
+    // Phase 5: AEO/Publishing fields
+    aeoScore: blog.aeoScore ?? null,
+    schemaType: blog.schemaType ?? null,
+    schemaJson: blog.schemaJson ?? null,
+    wpPostId: blog.wpPostId ?? null,
+    wpPostUrl: blog.wpPostUrl ?? null,
+    wpStatus: blog.wpStatus ?? null,
+    authorPersonaId: blog.authorPersonaId ?? null,
+    publishedAt: blog.publishedAt ? new Date(blog.publishedAt).toISOString() : null,
     createdAt: new Date(blog.createdAt).toISOString(),
     updatedAt: new Date(blog.updatedAt).toISOString(),
     feedback: blog.feedback.map((f: (typeof blog.feedback)[number]) => ({

@@ -20,6 +20,10 @@ export interface BriefHint {
   outline: string;
   /** Hook options from the approved brief; first item is preferred. */
   hookOptions: string[];
+  /** Phase 5: internal link topic hints from the brief. */
+  internalLinkOpportunities?: string[];
+  /** Phase 5: citation needs description from the brief. */
+  citationNeeds?: string;
 }
 
 export interface GenerationInput {
@@ -48,6 +52,7 @@ export interface GenerationResult {
   wordCount: number;
   scores: BlogScores;
   voiceMatchScore?: number;
+  aeoScore?: number;
   generationTimeMs: number;
   totalCostCents: number;
   totalInputTokens: number;

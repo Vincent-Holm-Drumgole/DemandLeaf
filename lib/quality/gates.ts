@@ -2,6 +2,7 @@ import type { Archetype, DetectionResult, GateResult, QualityGatesResult } from 
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 import { SEO_PASS_THRESHOLD, FLESCH_MIN, FLESCH_MAX } from "@/lib/constants/seo";
 import { DETECTION_MEDIUM_MAX } from "@/lib/constants/detection";
+import { AEO_PASS_THRESHOLD } from "@/lib/aeo/scorer";
 
 export interface QualityGateInput {
   seoScore: number;
@@ -11,6 +12,7 @@ export interface QualityGateInput {
   archetype: Archetype;
   headingStructureValid: boolean;
   bannedWordsFound: number;
+  aeoScore?: number;
 }
 
 /**
@@ -112,6 +114,25 @@ export function evaluateQualityGates(input: QualityGateInput): QualityGatesResul
           ? "Revision pass will replace banned words with natural alternatives"
           : undefined,
     },
+
+    // Gate 7: AEO Score (optional — only evaluated when aeoScore is provided)
+    ...(input.aeoScore !== undefined
+      ? [
+          {
+            gate: "AEO Score",
+            passed: input.aeoScore >= AEO_PASS_THRESHOLD,
+            reason:
+              input.aeoScore < AEO_PASS_THRESHOLD
+                ? `AEO score is ${input.aeoScore}. Needs ${AEO_PASS_THRESHOLD}+.`
+                : undefined,
+            autoFixable: true,
+            suggestion:
+              input.aeoScore < AEO_PASS_THRESHOLD
+                ? "AEO optimization pass can add FAQ section and extractable passages"
+                : undefined,
+          } satisfies GateResult,
+        ]
+      : []),
   ];
 
   const passedCount = gates.filter((g) => g.passed).length;

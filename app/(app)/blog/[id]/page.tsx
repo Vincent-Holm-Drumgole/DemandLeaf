@@ -8,6 +8,10 @@ import { TiptapEditor } from "@/components/blog-editor/tiptap-editor";
 import { ExportBar } from "@/components/blog-editor/export-bar";
 import { ScoreSidebar } from "@/components/scores/score-sidebar";
 import { MetaPanel, type MetaFields } from "@/components/blog-editor/meta-panel";
+import { AeoPanel } from "@/components/publishing/aeo-panel";
+import { SchemaPanel } from "@/components/publishing/schema-panel";
+import { InternalLinksPanel } from "@/components/publishing/internal-links-panel";
+import { WpPublishPanel } from "@/components/publishing/wp-publish-panel";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -42,9 +46,29 @@ export default function BlogPage() {
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Phase 5: Publishing state
+  const [aeoScore, setAeoScore] = useState<number | null>(null);
+  const [aeoChecks, setAeoChecks] = useState<import("@/types").AeoCheckResult[]>([]);
+  const [schemaType, setSchemaType] = useState<import("@/types").SchemaType | null>(null);
+  const [schemaJson, setSchemaJson] = useState<string | null>(null);
+  const [wpConnections, setWpConnections] = useState<{ id: string; siteUrl: string; pluginDetected: string | null; status: string }[]>([]);
+  const [authorPersonas, setAuthorPersonas] = useState<{ id: string; name: string; isDefault: boolean }[]>([]);
+
   useEffect(() => {
     if (blogId) fetchBlog(blogId);
   }, [blogId, fetchBlog]);
+
+  // Fetch WP connections and personas for publishing panels
+  useEffect(() => {
+    fetch("/api/wp-connections")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setWpConnections)
+      .catch(() => {});
+    fetch("/api/author-personas")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setAuthorPersonas)
+      .catch(() => {});
+  }, []);
 
   // Initialise local state once blog loads
   useEffect(() => {
@@ -59,6 +83,10 @@ export default function BlogPage() {
         focusKeyword: blog.focusKeyword ?? "",
       });
       currentHtmlRef.current = blog.contentHtml ?? "";
+      // Phase 5 fields
+      if (blog.aeoScore !== undefined) setAeoScore(blog.aeoScore ?? null);
+      if (blog.schemaType) setSchemaType(blog.schemaType as import("@/types").SchemaType);
+      if (blog.schemaJson) setSchemaJson(blog.schemaJson);
     }
   }, [blog, isDirty]);
 
@@ -213,6 +241,24 @@ export default function BlogPage() {
               wordCount={blog.wordCount}
             />
             <MetaPanel fields={meta} onChange={handleMetaChange} />
+            <AeoPanel
+              blogId={blogId}
+              initialScore={aeoScore}
+              initialChecks={aeoChecks}
+              onOptimized={(score) => {
+                setAeoScore(score);
+                fetchBlog(blogId);
+              }}
+            />
+            <SchemaPanel schemaType={schemaType} schemaJson={schemaJson} />
+            <InternalLinksPanel blogId={blogId} suggestions={[]} />
+            <WpPublishPanel
+              blogId={blogId}
+              wpPostUrl={blog.wpPostUrl}
+              wpStatus={blog.wpStatus}
+              connections={wpConnections}
+              personas={authorPersonas}
+            />
           </div>
         </div>
       </div>

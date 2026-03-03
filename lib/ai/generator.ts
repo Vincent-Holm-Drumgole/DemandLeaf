@@ -15,6 +15,8 @@ import { checkVoiceAdherence } from "@/lib/voice/match";
 import { scoreSEO } from "@/lib/seo/scorer";
 import { detectAIContent } from "@/lib/detection/detector";
 import { evaluateQualityGates } from "@/lib/quality/gates";
+import { scoreAEO, AEO_PASS_THRESHOLD } from "@/lib/aeo/scorer";
+import { optimizeForAEO, AEO_OPTIMIZER_THRESHOLD } from "@/lib/aeo/optimizer";
 import {
   extractTitle,
   generateSlug,
@@ -114,6 +116,8 @@ export async function generateBlog(
     neverSayTerms: input.neverSayTerms,
     hookOptions: brief.hookOptions,
     uniqueAngle: brief.uniqueAngle || undefined,
+    internalLinkOpportunities: input.briefHint?.internalLinkOpportunities,
+    citationNeeds: input.briefHint?.citationNeeds,
   });
 
   const draftResult = await callSonnet(systemPrompt, userMessage, {
@@ -302,6 +306,38 @@ export async function generateBlog(
 
   onProgress?.({ name: "Running quality checks", status: "complete" });
 
+  // ── Step 9: AEO scoring (code) ────────────────────────────────────
+  onProgress?.({ name: "Scoring AEO readiness", status: "running" });
+  let aeoResult = scoreAEO({ content: blogContent, title: finalTitle });
+  let aeoScore = aeoResult.score;
+
+  // ── Step 10: AEO optimization (Sonnet, conditional) ───────────────
+  if (aeoResult.score < AEO_OPTIMIZER_THRESHOLD) {
+    onProgress?.({ name: "Optimizing for answer engines", status: "running" });
+    try {
+      const failedChecks = aeoResult.checks
+        .filter((c) => !c.passed)
+        .map((c) => c.name);
+      const aeoOpt = await optimizeForAEO(blogContent, aeoResult, failedChecks);
+      if (aeoOpt.changed) {
+        blogContent = aeoOpt.content;
+        tracker.record("aeo_optimization", {
+          content: "",
+          model: "sonnet",
+          inputTokens: 0,
+          outputTokens: 0,
+          costCents: aeoOpt.costCents,
+          durationMs: aeoOpt.durationMs,
+        });
+        aeoScore = scoreAEO({ content: blogContent, title: finalTitle }).score;
+      }
+      onProgress?.({ name: "Optimizing for answer engines", status: "complete" });
+    } catch {
+      onProgress?.({ name: "Optimizing for answer engines", status: "error" });
+    }
+  }
+  onProgress?.({ name: "Scoring AEO readiness", status: "complete" });
+
   const generationTimeMs = Date.now() - startTime;
   const summary = tracker.summary;
 
@@ -325,6 +361,7 @@ export async function generateBlog(
       readabilityScore,
     },
     voiceMatchScore,
+    aeoScore,
     generationTimeMs,
     totalCostCents: summary.totalCostCents,
     totalInputTokens: summary.totalInputTokens,

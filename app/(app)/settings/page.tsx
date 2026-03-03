@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NeverSayList } from "@/components/never-say/never-say-list";
+import { WordPressSettings } from "@/components/settings/wordpress-settings";
+import { AuthorPersonasSettings } from "@/components/settings/author-personas-settings";
+import { GoogleIntegrationsSettings } from "@/components/settings/google-integrations-settings";
 import { Wand2 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -39,6 +42,9 @@ export default function SettingsPage() {
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="voice">Voice Profile</TabsTrigger>
             <TabsTrigger value="never-say">Never-Say List</TabsTrigger>
+            <TabsTrigger value="wordpress">WordPress</TabsTrigger>
+            <TabsTrigger value="authors">Authors</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
           </TabsList>
 
           <TabsContent value="account">
@@ -92,6 +98,39 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <NeverSayList />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="wordpress">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">WordPress Integration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <WordPressSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="authors">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Author Personas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AuthorPersonasSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="integrations">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Google Analytics & Search Console</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <GoogleIntegrationsSettings />
               </CardContent>
             </Card>
           </TabsContent>

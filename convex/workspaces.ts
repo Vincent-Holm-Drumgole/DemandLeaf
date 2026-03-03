@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { requireCronAccess } from "./helpers";
 
 const VALID_ARCHETYPES = [
   "how_to",
@@ -13,6 +14,7 @@ const VALID_ARCHETYPES = [
   "news_commentary",
 ] as const;
 type Archetype = (typeof VALID_ARCHETYPES)[number];
+const MAX_WORKSPACES_PER_CRON_RUN = 500;
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -26,6 +28,22 @@ export const getByClerkUser = query({
       .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.subject))
       .order("desc")
       .first();
+  },
+});
+
+/**
+ * Admin listing used by scheduled background jobs (Inngest).
+ * Access is gated by INNGEST_CRON_KEY rather than end-user auth.
+ */
+export const listAllForCron = query({
+  args: {
+    cronKey: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const limit = Math.min(args.limit ?? MAX_WORKSPACES_PER_CRON_RUN, MAX_WORKSPACES_PER_CRON_RUN);
+    return ctx.db.query("workspaces").order("desc").take(limit);
   },
 });
 

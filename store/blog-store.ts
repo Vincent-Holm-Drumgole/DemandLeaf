@@ -20,6 +20,14 @@ interface BlogData {
   archetype: string;
   wordCount: number | null;
   status: string;
+  aeoScore: number | null;
+  schemaType: string | null;
+  schemaJson: string | null;
+  wpPostId: number | null;
+  wpPostUrl: string | null;
+  wpStatus: string | null;
+  authorPersonaId: string | null;
+  publishedAt: string | null;
   scores: {
     seoScore: number | null;
     qualityScore: number | null;
@@ -29,6 +37,7 @@ interface BlogData {
     readabilityScore: number | null;
   };
   createdAt: string;
+  updatedAt: string;
   feedback: BlogFeedback[];
 }
 

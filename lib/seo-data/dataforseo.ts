@@ -19,7 +19,7 @@
 import "server-only";
 
 import { api } from "@/convex/_generated/api";
-import type { KeywordMetric, SerpResult } from "@/types";
+import type { KeywordMetric, SerpResult, RankCheckResult } from "@/types";
 import type { ConvexHttpClient } from "convex/browser";
 
 const BASE_URL = "https://api.dataforseo.com/v3";
@@ -29,6 +29,7 @@ const TTL_MS = {
   serp: 7 * 24 * 60 * 60 * 1000,
   related: 30 * 24 * 60 * 60 * 1000,
   domain: 7 * 24 * 60 * 60 * 1000,
+  rank: 7 * 24 * 60 * 60 * 1000,
 } as const;
 
 function getAuthHeader(): string {
@@ -188,4 +189,57 @@ export async function getDomainKeywords(convex: ConvexClient, domain: string): P
 
   await setCache(convex, cacheKey, keywords, TTL_MS.domain);
   return keywords;
+}
+
+/**
+ * Check the SERP position for a specific URL and keyword.
+ * Scans top 100 results, matches by domain. Cached for 7 days.
+ */
+export async function checkRankPosition(
+  convex: ConvexClient,
+  keyword: string,
+  targetUrl: string
+): Promise<RankCheckResult> {
+  const domain = extractDomain(targetUrl);
+  const cacheKey = `rank:${domain}:${keyword.toLowerCase()}`;
+  const cached = await getCached(convex, cacheKey);
+  if (cached) return cached as unknown as RankCheckResult;
+
+  const response = await dfsFetch("/serp/google/organic/live/advanced", [
+    { keyword, location_code: 2840, language_code: "en", depth: 100 },
+  ]) as {
+    tasks?: {
+      result?: {
+        items?: { rank_absolute: number; url: string; title: string }[];
+      }[];
+    }[];
+  };
+
+  const items = response.tasks?.[0]?.result?.[0]?.items ?? [];
+  const match = items.find(
+    (item) => item.url && extractDomain(item.url) === domain
+  );
+
+  const result: RankCheckResult = {
+    keyword,
+    position: match ? match.rank_absolute : null,
+    url: match?.url ?? null,
+    checkedAt: Date.now(),
+  };
+
+  await setCache(
+    convex,
+    cacheKey,
+    result as unknown as SeoCacheData,
+    TTL_MS.rank
+  );
+  return result;
+}
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.toLowerCase();
+  }
 }

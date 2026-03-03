@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import { schemaTypeValidator, wpStatusValidator } from "./validators";
 
 const PAGE_SIZE = 20;
 const MAX_DASHBOARD_SCAN = 5_000;
@@ -62,6 +63,23 @@ export const listByWorkspaceId = query({
     return ctx.db
       .query("blogs")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .order("desc")
+      .take(MAX_CANNIBALIZATION_BLOGS);
+  },
+});
+
+export const listPublishedForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db
+      .query("blogs")
+      .withIndex("by_workspace_status", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("status", "published")
+      )
       .order("desc")
       .take(MAX_CANNIBALIZATION_BLOGS);
   },
@@ -163,6 +181,44 @@ export const update = mutation({
     focusKeyword: v.optional(v.string()),
     slug: v.optional(v.string()),
     status: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const { blogId, ...fields } = args;
+    const blog = await ctx.db.get(blogId);
+    if (!blog) throw new Error("Blog not found");
+
+    const workspace = await ctx.db.get(blog.workspaceId);
+    if (!workspace || workspace.clerkUserId !== identity.subject) {
+      throw new Error("Access denied");
+    }
+
+    const updates = Object.fromEntries(
+      Object.entries(fields).filter(([, val]) => val !== undefined)
+    );
+    if (Object.keys(updates).length === 0) return;
+    await ctx.db.patch(blogId, { ...updates, updatedAt: Date.now() });
+  },
+});
+
+// ─── Phase 5: Publishing data ─────────────────────────────────────────────────
+
+export const updatePublishingData = mutation({
+  args: {
+    blogId: v.id("blogs"),
+    aeoScore: v.optional(v.number()),
+    schemaType: v.optional(schemaTypeValidator),
+    schemaJson: v.optional(v.string()),
+    wpPostId: v.optional(v.number()),
+    wpPostUrl: v.optional(v.string()),
+    wpStatus: v.optional(wpStatusValidator),
+    wpScheduledAt: v.optional(v.number()),
+    wpConnectionId: v.optional(v.id("wpConnections")),
+    authorPersonaId: v.optional(v.id("authorPersonas")),
+    publishedAt: v.optional(v.number()),
+    internalLinksGenerated: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

@@ -24,3 +24,14 @@ export async function requireWorkspaceAccess(
 
   return workspace;
 }
+
+/**
+ * Asserts that a server-side cron/admin key matches the configured secret.
+ * Used by background jobs (Inngest) that execute without end-user identity.
+ */
+export function requireCronAccess(providedKey: string): void {
+  const expected = process.env.INNGEST_CRON_KEY;
+  if (!expected || providedKey !== expected) {
+    throw new ConvexError(ERR_UNAUTHORIZED);
+  }
+}

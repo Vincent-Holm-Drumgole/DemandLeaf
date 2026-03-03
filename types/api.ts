@@ -43,6 +43,7 @@ export interface GenerateResult {
   metaTitle: string;
   metaDescription: string;
   scores: BlogScores;
+  aeoScore?: number | null;
   wordCount: number;
   generationTimeMs: number;
   totalCostCents: number;

@@ -305,8 +305,128 @@ const keywordMetricCacheValidator = v.object({
  *   serp:    → SerpResult[]
  *   related: / domain: → string[]
  */
+const rankCheckCacheValidator = v.object({
+  keyword: v.string(),
+  position: v.union(v.number(), v.null()),
+  url: v.union(v.string(), v.null()),
+  checkedAt: v.number(),
+});
+
 export const seoDataCacheDataValidator = v.union(
   keywordMetricCacheValidator,
   v.array(serpResultValidator),
   v.array(v.string()),
+  rankCheckCacheValidator,
+);
+
+// ── Phase 5: AEO/GEO & Publishing ───────────────────────────────────────────
+
+export const wpAuthMethodValidator = v.literal("application_password");
+
+export const wpConnectionStatusValidator = v.union(
+  v.literal("connected"),
+  v.literal("error"),
+  v.literal("pending")
+);
+
+export const wpPluginValidator = v.union(
+  v.literal("rankmath"),
+  v.literal("yoast"),
+  v.literal("none")
+);
+
+export const internalLinkStatusValidator = v.union(
+  v.literal("suggested"),
+  v.literal("accepted"),
+  v.literal("rejected")
+);
+
+export const schemaTypeValidator = v.union(
+  v.literal("Article"),
+  v.literal("FAQPage"),
+  v.literal("HowTo")
+);
+
+export const wpStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("publish"),
+  v.literal("future"),
+  v.literal("private")
+);
+
+export const socialUrlsValidator = v.object({
+  twitter: v.optional(v.string()),
+  linkedin: v.optional(v.string()),
+  website: v.optional(v.string()),
+});
+
+// ── Phase 6: Post-Publish Intelligence ───────────────────────────────────────
+
+export const decayAlertTypeValidator = v.union(
+  v.literal("rank_drop"),
+  v.literal("traffic_decline"),
+  v.literal("ctr_decline"),
+  v.literal("impressions_decline")
+);
+
+export const decayAlertSeverityValidator = v.union(
+  v.literal("warning"),
+  v.literal("critical")
+);
+
+export const decayAlertStatusValidator = v.union(
+  v.literal("open"),
+  v.literal("acknowledged"),
+  v.literal("refreshing"),
+  v.literal("resolved"),
+  v.literal("escalated")
+);
+
+export const diagnosisCauseValidator = v.union(
+  v.literal("content_freshness"),
+  v.literal("serp_feature_loss"),
+  v.literal("competitor_improvement"),
+  v.literal("technical_issue"),
+  v.literal("intent_mismatch"),
+  v.literal("authority_gap")
+);
+
+export const refreshStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("in_progress"),
+  v.literal("completed"),
+  v.literal("failed")
+);
+
+const refreshSectionUpdateValidator = v.object({
+  heading: v.string(),
+  instruction: v.string(),
+});
+
+const refreshSectionAddValidator = v.object({
+  heading: v.string(),
+  rationale: v.string(),
+});
+
+export const refreshBriefDataValidator = v.object({
+  targetKeyword: v.string(),
+  diagnosisCause: v.string(),
+  diagnosisNotes: v.string(),
+  currentPosition: v.union(v.number(), v.null()),
+  targetPosition: v.number(),
+  sectionsToUpdate: v.array(refreshSectionUpdateValidator),
+  newSectionsToAdd: v.array(refreshSectionAddValidator),
+  sectionsToRemove: v.array(v.string()),
+  statisticsToRefresh: v.array(v.string()),
+  internalLinksToAdd: v.array(v.string()),
+  externalSourcesNeeded: v.array(v.string()),
+  estimatedReworkPercent: v.number(),
+  successCriteria: v.string(),
+});
+
+export const googleConnectionStatusValidator = v.union(
+  v.literal("connected"),
+  v.literal("error"),
+  v.literal("disconnected"),
+  v.literal("pending_auth")
 );
