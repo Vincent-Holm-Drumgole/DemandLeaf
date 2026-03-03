@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
+import { ERR_BATCH_TOO_LARGE, ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 import {
   buyerStageValidator,
@@ -83,7 +83,7 @@ export const bulkCreate = mutation({
     // stay well within Convex's 4,096 ops-per-transaction limit.
     const MAX_KEYWORDS_PER_BATCH = 500;
     if (args.keywords.length > MAX_KEYWORDS_PER_BATCH) {
-      throw new Error(`Batch too large: maximum ${MAX_KEYWORDS_PER_BATCH} keywords per call`);
+      throw new ConvexError(ERR_BATCH_TOO_LARGE);
     }
 
     await requireWorkspaceAccess(ctx, args.workspaceId);

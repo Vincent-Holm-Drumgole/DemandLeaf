@@ -36,6 +36,15 @@ function GapCard({ gap }: { gap: GapResult }) {
     <Card
       className="cursor-pointer select-none"
       onClick={() => setOpen((v) => !v)}
+      tabIndex={0}
+      role="button"
+      aria-expanded={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setOpen((v) => !v);
+        }
+      }}
     >
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -104,7 +113,7 @@ export function GapGrid({ gaps }: GapGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {sorted.map((gap) => (
-        <GapCard key={gap.type} gap={gap} />
+        <GapCard key={`${gap.type}-${gap.title}`} gap={gap} />
       ))}
     </div>
   );

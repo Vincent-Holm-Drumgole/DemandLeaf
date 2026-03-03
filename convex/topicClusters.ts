@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_UNAUTHORIZED } from "./errors";
+import { ERR_CLUSTER_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 
 const MAX_EXISTING_CLUSTERS = 500;
@@ -92,7 +92,7 @@ export const setPillarBlog = mutation({
   },
   handler: async (ctx, args) => {
     const cluster = await ctx.db.get(args.clusterId);
-    if (!cluster) throw new Error("Cluster not found");
+    if (!cluster) throw new ConvexError(ERR_CLUSTER_NOT_FOUND);
     await requireWorkspaceAccess(ctx, cluster.workspaceId);
     const blog = await ctx.db.get(args.pillarBlogId);
     if (!blog || blog.workspaceId !== cluster.workspaceId) {

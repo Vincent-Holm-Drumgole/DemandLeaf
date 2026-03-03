@@ -68,12 +68,16 @@ export async function GET(): Promise<NextResponse> {
 
   const workspaceId = workspace._id;
 
-  // 2. Parallel data fetch
-  const [clusters, keywords, blogs] = await Promise.all([
+  // 2. Parallel data fetch + enforce analysis limits
+  const [rawClusters, rawKeywords, rawBlogs] = await Promise.all([
     convex.query(api.topicClusters.listByWorkspace, { workspaceId }),
     convex.query(api.keywords.listAllByWorkspace, { workspaceId }),
     convex.query(api.blogs.listByWorkspaceId, { workspaceId }),
   ]);
+
+  const clusters = rawClusters.slice(0, CLUSTER_ANALYSIS_LIMIT);
+  const keywords = rawKeywords.slice(0, KEYWORD_ANALYSIS_LIMIT);
+  const blogs = rawBlogs.slice(0, BLOG_ANALYSIS_LIMIT);
 
   // 3. Build ClusterBubble array
   const COVERED_STATUSES = new Set(["written", "published", "ranking"]);
@@ -187,11 +191,11 @@ export async function GET(): Promise<NextResponse> {
       ? Math.round(allSeoScores.reduce((a, b) => a + b, 0) / allSeoScores.length)
       : 0;
 
-  const freshnessGap = gaps.find((g) => g.type === "freshness")!;
-  const freshnessScore = Math.max(0, 100 - freshnessGap.percentage);
+  const freshnessGap = gaps.find((g) => g.type === "freshness");
+  const freshnessScore = freshnessGap ? Math.max(0, 100 - freshnessGap.percentage) : 100;
 
-  const aeoGap = gaps.find((g) => g.type === "aeo")!;
-  const aeoScore = Math.max(0, 100 - aeoGap.percentage);
+  const aeoGap = gaps.find((g) => g.type === "aeo");
+  const aeoScore = aeoGap ? Math.max(0, 100 - aeoGap.percentage) : 100;
 
   const overallHealth = Math.round(
     coverageScore * 0.4 +
@@ -205,22 +209,22 @@ export async function GET(): Promise<NextResponse> {
     gaps,
     opportunities,
     summary: {
-      totalBlogs: blogs.length,
-      totalKeywords: keywords.length,
-      totalClusters: clusters.length,
+      totalBlogs: rawBlogs.length,
+      totalKeywords: rawKeywords.length,
+      totalClusters: rawClusters.length,
       coveredKeywords,
       overallHealth,
     },
     analysis: {
       blogsAnalyzed: blogs.length,
       blogLimit: BLOG_ANALYSIS_LIMIT,
-      blogsMayBeTruncated: blogs.length >= BLOG_ANALYSIS_LIMIT,
+      blogsMayBeTruncated: rawBlogs.length > BLOG_ANALYSIS_LIMIT,
       keywordsAnalyzed: keywords.length,
       keywordLimit: KEYWORD_ANALYSIS_LIMIT,
-      keywordsMayBeTruncated: keywords.length >= KEYWORD_ANALYSIS_LIMIT,
+      keywordsMayBeTruncated: rawKeywords.length > KEYWORD_ANALYSIS_LIMIT,
       clustersAnalyzed: clusters.length,
       clusterLimit: CLUSTER_ANALYSIS_LIMIT,
-      clustersMayBeTruncated: clusters.length >= CLUSTER_ANALYSIS_LIMIT,
+      clustersMayBeTruncated: rawClusters.length > CLUSTER_ANALYSIS_LIMIT,
     },
   };
 

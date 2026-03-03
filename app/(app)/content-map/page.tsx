@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Network } from "lucide-react";
 import { BubbleChart } from "@/components/content-map/bubble-chart";
@@ -29,17 +30,23 @@ function HealthBar({ value }: { value: number }) {
 }
 
 export default function ContentMapPage() {
+  const router = useRouter();
   const [data, setData] = useState<ContentMapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [colorMode, setColorMode] = useState<ColorMode>("coverage");
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   async function load() {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/content-map");
+      const res = await fetch("/api/content-map", { signal: controller.signal });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error((j as { error?: string }).error ?? "Failed to load");
@@ -48,6 +55,7 @@ export default function ContentMapPage() {
       setData(json);
       setLastRefreshed(new Date());
     } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Failed to load content map");
     } finally {
       setIsLoading(false);
@@ -56,6 +64,7 @@ export default function ContentMapPage() {
 
   useEffect(() => {
     void load();
+    return () => abortControllerRef.current?.abort();
   }, []);
 
   const isEmpty =
@@ -209,7 +218,7 @@ export default function ContentMapPage() {
                     clusters={data.clusters}
                     colorMode={colorMode}
                     onClusterClick={(c: ClusterBubble) =>
-                      window.open(`/keywords?cluster=${c.id}`, "_self")
+                      router.push(`/keywords?cluster=${c.id}`)
                     }
                   />
                   {/* Legend */}
@@ -245,6 +254,25 @@ export default function ContentMapPage() {
                           &lt;60
                         </span>
                       </>
+                    )}
+                    {colorMode === "buyerStage" && (
+                      <>
+                        <span className="flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: "#6ee7b7" }} />
+                          Awareness
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: "#93c5fd" }} />
+                          Consideration
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: "#fca5a5" }} />
+                          Decision
+                        </span>
+                      </>
+                    )}
+                    {colorMode === "archetype" && (
+                      <span>Colors represent content archetypes (how-to, listicle, guide, etc.)</span>
                     )}
                   </div>
                 </CardContent>

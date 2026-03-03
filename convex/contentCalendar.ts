@@ -288,6 +288,8 @@ export const update = mutation({
     if (args.status !== undefined) {
       patch.status = args.status;
     }
-    await ctx.db.patch(args.calendarId, patch);
+    if (Object.keys(patch).length > 1) {
+      await ctx.db.patch(args.calendarId, patch);
+    }
   },
 });

@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_BLOG_NOT_FOUND } from "./errors";
+import { ERR_BLOG_NOT_FOUND, ERR_INVALID_VOICE_MATCH_SCORE } from "./errors";
 
 const MAX_TREND_BLOGS = 5_000;
 
@@ -34,7 +34,7 @@ export const setVoiceMatchScore = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
     if (args.voiceMatchScore < 0 || args.voiceMatchScore > 100) {
-      throw new Error("voiceMatchScore must be between 0 and 100");
+      throw new ConvexError(ERR_INVALID_VOICE_MATCH_SCORE);
     }
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {

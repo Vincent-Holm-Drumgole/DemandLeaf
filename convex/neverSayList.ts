@@ -45,13 +45,13 @@ export const add = mutation({
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .take(101);
     if (existing.length >= 100) {
-      throw new Error(`${ERR_NEVER_SAY_LIMIT} 100-term limit reached`);
+      throw new ConvexError(ERR_NEVER_SAY_LIMIT);
     }
     // Check for duplicates (case-insensitive)
     const lower = args.term.toLowerCase();
     const duplicate = existing.find((e) => e.term.toLowerCase() === lower);
     if (duplicate) {
-      throw new Error(`${ERR_NEVER_SAY_DUPLICATE} term already exists: ${args.term}`);
+      throw new ConvexError(ERR_NEVER_SAY_DUPLICATE);
     }
     return ctx.db.insert("neverSayList", {
       workspaceId: args.workspaceId,

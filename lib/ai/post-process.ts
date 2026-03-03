@@ -123,12 +123,15 @@ function getInflectionType(match: string, banned: string): InflectionType {
   return "base";
 }
 
+const IRREGULAR_PAST: Record<string, string> = {
+  build: "built",
+  lead: "led",
+  drive: "drove",
+};
+
 /**
  * Apply the same inflection to the synonym so the replacement is grammatically
  * correct (e.g. "delving" → "exploring", "fosters" → "builds").
- * Note: irregular verbs (build/lead/handle) are a known limitation — they will
- * produce regular forms ("builded", "leaded") which is still better than always
- * returning the bare infinitive.
  */
 function applyInflection(synonym: string, inflection: InflectionType): string {
   if (inflection === "base") return synonym;
@@ -136,6 +139,7 @@ function applyInflection(synonym: string, inflection: InflectionType): string {
     return synonym.endsWith("e") ? synonym.slice(0, -1) + "ing" : synonym + "ing";
   }
   if (inflection === "past") {
+    if (IRREGULAR_PAST[synonym]) return IRREGULAR_PAST[synonym];
     if (synonym.endsWith("e")) return synonym + "d";
     if (/[^aeiou]y$/i.test(synonym)) return synonym.slice(0, -1) + "ied";
     return synonym + "ed";

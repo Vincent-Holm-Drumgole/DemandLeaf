@@ -246,6 +246,7 @@ export function aeoGaps(blogs: BlogInput[]): GapResult {
 // ── 7. Cannibalization gaps ───────────────────────────────────────────────────
 
 export function cannibalizationGaps(
+  // Reserved for future cross-blog phrase-overlap detection via keyword/phrase data
   _keywords: KWInput[],
   blogs: BlogInput[]
 ): GapResult {

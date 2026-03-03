@@ -1,8 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,14 +10,8 @@ import { NeverSayList } from "@/components/never-say/never-say-list";
 import { Wand2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
+  const { isLoaded, isSignedIn } = useAuthGuard();
+  const { user } = useUser();
 
   if (!isLoaded) {
     return (
@@ -56,11 +49,11 @@ export default function SettingsPage() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Email</span>
-                  <span>{user.primaryEmailAddress?.emailAddress ?? "—"}</span>
+                  <span>{user?.primaryEmailAddress?.emailAddress ?? "—"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name</span>
-                  <span>{user.fullName ?? "—"}</span>
+                  <span>{user?.fullName ?? "—"}</span>
                 </div>
               </CardContent>
             </Card>

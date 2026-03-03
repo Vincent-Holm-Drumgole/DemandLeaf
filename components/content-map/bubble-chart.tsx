@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { ClusterBubble } from "@/types/content-map";
 import type { ColorMode } from "./view-toggle";
+import { ARCHETYPE_LIST } from "@/lib/constants/archetypes";
 
 interface BubbleNode extends ClusterBubble, d3.SimulationNodeDatum {
   r: number;
@@ -48,17 +49,8 @@ function getColor(node: ClusterBubble, mode: ColorMode): string {
     case "buyerStage":
       return BUYER_STAGE_COLORS[node.dominantBuyerStage ?? ""] ?? "#d1d5db";
     case "archetype": {
-      const archetypes = [
-        "how_to",
-        "listicle",
-        "definitive_guide",
-        "thought_leadership",
-        "comparison",
-        "data_study",
-        "case_study",
-        "news_commentary",
-      ];
-      const idx = archetypes.indexOf(node.dominantArchetype ?? "");
+      const archetypes = ARCHETYPE_LIST.map((a) => a.id);
+      const idx = archetypes.findIndex((id) => id === node.dominantArchetype);
       return idx >= 0 ? ARCHETYPE_COLORS[idx % ARCHETYPE_COLORS.length] : "#d1d5db";
     }
   }
@@ -128,7 +120,9 @@ export function BubbleChart({ clusters, colorMode, onClusterClick }: BubbleChart
         .attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
         .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
-          const rect = svgRef.current!.getBoundingClientRect();
+          const svg = svgRef.current;
+          if (!svg) return;
+          const rect = svg.getBoundingClientRect();
           setTooltip({
             x: event.clientX - rect.left + 12,
             y: event.clientY - rect.top - 8,

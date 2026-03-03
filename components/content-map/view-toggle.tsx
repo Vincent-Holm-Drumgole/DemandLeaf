@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 export type ColorMode = "coverage" | "seo" | "buyerStage" | "archetype";
 
 interface ViewToggleProps {
@@ -22,12 +24,12 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={[
+          className={cn(
             "px-3 py-1 rounded-sm transition-colors",
             value === opt.value
               ? "bg-background text-foreground shadow-sm font-medium"
-              : "text-muted-foreground hover:text-foreground",
-          ].join(" ")}
+              : "text-muted-foreground hover:text-foreground"
+          )}
         >
           {opt.label}
         </button>
