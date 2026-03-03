@@ -112,8 +112,8 @@ export function GapGrid({ gaps }: GapGridProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {sorted.map((gap) => (
-        <GapCard key={`${gap.type}-${gap.title}`} gap={gap} />
+      {sorted.map((gap, index) => (
+        <GapCard key={`${gap.type}-${gap.title}-${index}`} gap={gap} />
       ))}
     </div>
   );

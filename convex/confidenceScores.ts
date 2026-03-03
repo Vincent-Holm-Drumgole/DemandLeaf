@@ -63,9 +63,10 @@ export const getWorkspaceTrend = query({
         q.eq("workspaceId", args.workspaceId).gte("createdAt", cutoff)
       )
       .order("desc")
-      .take(MAX_TREND_BLOGS);
-    const truncated = recentBlogs.length === MAX_TREND_BLOGS;
-    const blogs = [...recentBlogs].reverse();
+      .take(MAX_TREND_BLOGS + 1);
+    const truncated = recentBlogs.length > MAX_TREND_BLOGS;
+    const bounded = truncated ? recentBlogs.slice(0, MAX_TREND_BLOGS) : recentBlogs;
+    const blogs = [...bounded].reverse();
 
     if (blogs.length === 0) {
       return {
