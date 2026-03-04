@@ -94,7 +94,8 @@ export async function refreshAccessToken(
   });
 
   if (!res.ok) {
-    throw new Error(`Google token refresh failed: ${res.status}`);
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Google token refresh failed: ${res.status}: ${text}`);
   }
 
   const data = (await res.json()) as {

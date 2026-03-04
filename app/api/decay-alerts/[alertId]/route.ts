@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   _request: Request,
@@ -11,6 +12,17 @@ export async function GET(
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = await checkRateLimit(`decay-alert:${userId}`, {
+    limit: 60,
+    windowSec: 60,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limited" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
   }
 
   const { alertId: rawId } = await context.params;
@@ -54,15 +66,29 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = await checkRateLimit(`decay-alert:${userId}`, {
+    limit: 30,
+    windowSec: 60,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limited" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   const { alertId: rawId } = await context.params;
   const alertId = parseConvexId(rawId, "decayAlerts");
   if (!alertId) {
     return NextResponse.json({ error: "Invalid alert ID" }, { status: 400 });
   }
 
-  const body = (await request.json()) as {
-    action: "acknowledge" | "escalate" | "resolve";
-  };
+  let body: { action: "acknowledge" | "escalate" | "resolve" };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   const statusMap = {
     acknowledge: "acknowledged" as const,

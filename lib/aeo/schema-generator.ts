@@ -158,7 +158,11 @@ function extractFaqPairs(
         if (lines[j].trim()) answerLines.push(lines[j].trim());
       }
       if (answerLines.length > 0) {
-        pairs.push({ question, answer: answerLines.slice(0, 3).join(" ") });
+        let answer = answerLines.slice(0, 3).join(" ");
+        if (answer.length > 300) {
+          answer = answer.slice(0, 300).replace(/\s\S*$/, "") + "\u2026";
+        }
+        pairs.push({ question, answer });
       }
     }
   }
@@ -173,7 +177,13 @@ function extractHowToSteps(
   const ordered = content.match(/^\d+\.\s+(.+)$/gm) ?? [];
   for (const step of ordered) {
     const match = step.match(/^\d+\.\s+(.+)$/);
-    if (match) steps.push({ name: match[1], text: match[1] });
+    if (match) {
+      const fullText = match[1];
+      const shortName = fullText.length > 50
+        ? fullText.slice(0, 50).trim() + "\u2026"
+        : fullText;
+      steps.push({ name: shortName, text: fullText });
+    }
   }
   return steps;
 }

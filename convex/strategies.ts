@@ -1,12 +1,26 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 
 export const listByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    return ctx.db
+      .query("strategies")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(100);
+  },
+});
+
+export const listByWorkspaceForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
     return ctx.db
       .query("strategies")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
@@ -82,6 +96,19 @@ export const archive = mutation({
   },
 });
 
+export const updateDriftCheckedAt = mutation({
+  args: { strategyId: v.id("strategies") },
+  handler: async (ctx, args) => {
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, strategy.workspaceId);
+    await ctx.db.patch(args.strategyId, {
+      driftCheckedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 // Internal query used by API routes that need workspace validation separately
 export const getByIdInternal = query({
   args: { strategyId: v.id("strategies"), workspaceId: v.id("workspaces") },
@@ -94,4 +121,3 @@ export const getByIdInternal = query({
     return strategy;
   },
 });
-

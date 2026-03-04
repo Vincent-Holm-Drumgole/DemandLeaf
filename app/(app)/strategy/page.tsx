@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StrategyWizard } from "@/components/strategy/strategy-wizard";
 import { useStrategyStore } from "@/store/strategy-store";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 interface Strategy {
   _id: string;
@@ -69,89 +70,91 @@ export default function StrategyPage() {
   if (!isLoaded || !isSignedIn) return null;
 
   return (
-    <main className="container max-w-5xl py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" /> Content Strategies
-          </h1>
-          <p className="text-muted-foreground">Keyword-driven content plans for your workspace.</p>
+    <PaywallGate>
+      <main className="container max-w-5xl py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <TrendingUp className="h-6 w-6" /> Content Strategies
+            </h1>
+            <p className="text-muted-foreground">Keyword-driven content plans for your workspace.</p>
+          </div>
+          <Button onClick={handleOpenWizard}>
+            <Plus className="h-4 w-4 mr-1" /> New Strategy
+          </Button>
         </div>
-        <Button onClick={handleOpenWizard}>
-          <Plus className="h-4 w-4 mr-1" /> New Strategy
-        </Button>
-      </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : loadError ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-            <p className="text-destructive">{loadError}</p>
-            <Button variant="outline" onClick={() => setFetchKey((k) => k + 1)}>
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      ) : strategies.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-            <TrendingUp className="h-12 w-12 text-muted-foreground/30" />
-            <div className="text-center">
-              <p className="font-medium">No strategies yet</p>
-              <p className="text-sm text-muted-foreground">
-                Create your first strategy to discover keywords and plan your content.
-              </p>
-            </div>
-            <Button onClick={handleOpenWizard}>
-              <Plus className="h-4 w-4 mr-1" /> Create Strategy
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {strategies.map((strategy) => (
-            <Link key={strategy._id} href={`/strategy/${strategy._id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{strategy.name}</CardTitle>
-                    <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
-                      {strategy.status}
-                    </Badge>
-                  </div>
-                  <CardDescription className="line-clamp-2">
-                    {strategy.businessOutcomes}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-1">
-                    {strategy.seedKeywords.slice(0, 5).map((kw, i) => (
-                      <Badge key={`${kw}-${i}`} variant="outline" className="text-xs">{kw}</Badge>
-                    ))}
-                    {strategy.seedKeywords.length > 5 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{strategy.seedKeywords.length - 5} more
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : loadError ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+              <p className="text-destructive">{loadError}</p>
+              <Button variant="outline" onClick={() => setFetchKey((k) => k + 1)}>
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        ) : strategies.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+              <TrendingUp className="h-12 w-12 text-muted-foreground/30" />
+              <div className="text-center">
+                <p className="font-medium">No strategies yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Create your first strategy to discover keywords and plan your content.
+                </p>
+              </div>
+              <Button onClick={handleOpenWizard}>
+                <Plus className="h-4 w-4 mr-1" /> Create Strategy
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {strategies.map((strategy) => (
+              <Link key={strategy._id} href={`/strategy/${strategy._id}`}>
+                <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{strategy.name}</CardTitle>
+                      <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
+                        {strategy.status}
                       </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {strategy.businessOutcomes}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-1">
+                      {strategy.seedKeywords.slice(0, 5).map((kw, i) => (
+                        <Badge key={`${kw}-${i}`} variant="outline" className="text-xs">{kw}</Badge>
+                      ))}
+                      {strategy.seedKeywords.length > 5 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{strategy.seedKeywords.length - 5} more
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
 
-      <Dialog open={showWizard} onOpenChange={setShowWizard}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Strategy</DialogTitle>
-          </DialogHeader>
-          <StrategyWizard onComplete={handleWizardComplete} />
-        </DialogContent>
-      </Dialog>
-    </main>
+        <Dialog open={showWizard} onOpenChange={setShowWizard}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Strategy</DialogTitle>
+            </DialogHeader>
+            <StrategyWizard onComplete={handleWizardComplete} />
+          </DialogContent>
+        </Dialog>
+      </main>
+    </PaywallGate>
   );
 }

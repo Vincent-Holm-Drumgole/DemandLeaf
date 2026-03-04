@@ -2,7 +2,7 @@ import { callSonnet, parseJsonResponse } from "@/lib/ai/client";
 import { buildRefreshBriefPrompt, buildRefreshDraftPrompt } from "@/lib/ai/prompts/refreshGeneration";
 import { getSerpResults } from "@/lib/seo-data/dataforseo";
 import { extractHeadings } from "@/lib/text-utils";
-import type { RefreshBriefData } from "@/types";
+import type { DiagnosisCause, RefreshBriefData } from "@/types";
 import type { ConvexHttpClient } from "convex/browser";
 
 /**
@@ -19,7 +19,7 @@ export async function generateRefreshBrief(
     publishedAt?: number;
   },
   diagnosis: {
-    cause: string;
+    cause: DiagnosisCause;
     notes: string;
   },
   currentPosition: number | null,
@@ -57,7 +57,8 @@ export async function generateRefreshBrief(
 
   try {
     return parseJsonResponse<RefreshBriefData>(result.content);
-  } catch {
+  } catch (err) {
+    console.warn("[generateRefreshBrief] JSON parse failed, using fallback:", err);
     return {
       targetKeyword: blog.focusKeyword,
       diagnosisCause: diagnosis.cause,

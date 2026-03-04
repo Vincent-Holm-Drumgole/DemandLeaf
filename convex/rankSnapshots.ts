@@ -35,7 +35,8 @@ export const insertSnapshotForCron = mutation({
   },
   handler: async (ctx, args) => {
     requireCronAccess(args.cronKey);
-    const { cronKey: _cronKey, ...fields } = args;
+    const { cronKey, ...fields } = args;
+    void cronKey;
     return ctx.db.insert("rankSnapshots", {
       ...fields,
       checkedAt: Date.now(),

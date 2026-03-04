@@ -108,6 +108,17 @@ export const getById = query({
   },
 });
 
+export const getByIdForCron = query({
+  args: {
+    blogId: v.id("blogs"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db.get(args.blogId);
+  },
+});
+
 export const getExportData = query({
   args: { blogId: v.id("blogs") },
   handler: async (ctx, args) => {
@@ -167,6 +178,48 @@ export const create = mutation({
 
     const now = Date.now();
     return ctx.db.insert("blogs", { ...args, createdAt: now, updatedAt: now });
+  },
+});
+
+export const createForCron = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    title: v.string(),
+    slug: v.optional(v.string()),
+    content: v.string(),
+    contentHtml: v.optional(v.string()),
+    metaTitle: v.optional(v.string()),
+    metaDescription: v.optional(v.string()),
+    focusKeyword: v.optional(v.string()),
+    archetype: v.string(),
+    wordCount: v.optional(v.number()),
+    status: v.string(),
+    seoScore: v.optional(v.number()),
+    qualityScore: v.optional(v.number()),
+    detectionRisk: v.optional(v.string()),
+    detectionRiskScore: v.optional(v.number()),
+    burstinessScore: v.optional(v.number()),
+    readabilityScore: v.optional(v.number()),
+    modelUsed: v.optional(v.string()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    generationCostCents: v.optional(v.number()),
+    generationTimeMs: v.optional(v.number()),
+    promptVersion: v.optional(v.string()),
+    aeoScore: v.optional(v.number()),
+    publishedAt: v.optional(v.number()),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) {
+      throw new Error("Workspace not found");
+    }
+    const now = Date.now();
+    const { cronKey, ...fields } = args;
+    void cronKey;
+    return ctx.db.insert("blogs", { ...fields, createdAt: now, updatedAt: now });
   },
 });
 

@@ -59,10 +59,14 @@ export async function POST(
       pluginDetected,
     });
   } catch (err) {
-    await convex.mutation(api.wpConnections.updateStatus, {
-      connectionId,
-      status: "error",
-    });
+    try {
+      await convex.mutation(api.wpConnections.updateStatus, {
+        connectionId,
+        status: "error",
+      });
+    } catch (mutationErr) {
+      console.error("[wp-test] Failed to update connection status:", mutationErr);
+    }
     return NextResponse.json(
       {
         status: "error",

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Hash } from "lucide-react";
 import { KeywordExplorer } from "@/components/keywords/keyword-explorer";
 import type { KeywordRow } from "@/components/keywords/keyword-table";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 export default function KeywordsPage() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -86,25 +87,27 @@ export default function KeywordsPage() {
   if (!isLoaded || !isSignedIn) return null;
 
   return (
-    <main className="container max-w-5xl py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Hash className="h-6 w-6" /> All Keywords
-        </h1>
-        <p className="text-muted-foreground">
-          All discovered keywords across your strategies.
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <PaywallGate>
+      <main className="container max-w-5xl py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Hash className="h-6 w-6" /> All Keywords
+          </h1>
+          <p className="text-muted-foreground">
+            All discovered keywords across your strategies.
+          </p>
         </div>
-      ) : error ? (
-        <p className="text-destructive">{error}</p>
-      ) : (
-        <KeywordExplorer keywords={keywords} />
-      )}
-    </main>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <p className="text-destructive">{error}</p>
+        ) : (
+          <KeywordExplorer keywords={keywords} />
+        )}
+      </main>
+    </PaywallGate>
   );
 }

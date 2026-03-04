@@ -92,8 +92,9 @@ export const dailyMetricsSync = inngest.createFunction(
       const published = blogs.filter((blog) => blog.wpPostUrl);
       if (published.length === 0) continue;
 
-      const workspaceSynced = await step.run(`sync-metrics-${workspace._id}`, async () => {
+      const workspaceResult = await step.run(`sync-metrics-${workspace._id}`, async () => {
         let count = 0;
+        let stepErrors = 0;
         for (const blog of published) {
           try {
             const ga4 = connection.ga4PropertyId
@@ -134,14 +135,15 @@ export const dailyMetricsSync = inngest.createFunction(
             });
             count += 1;
           } catch (err) {
-            errors += 1;
+            stepErrors += 1;
             console.error(`[daily-metrics] Failed for blog ${blog._id}:`, err);
           }
         }
-        return count;
+        return { count, stepErrors };
       });
 
-      synced += workspaceSynced;
+      synced += workspaceResult.count;
+      errors += workspaceResult.stepErrors;
     }
 
     return { synced, workspaces: workspaces.length, errors };

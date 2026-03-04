@@ -42,61 +42,38 @@ export async function GET(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  // Check Google connection status for FM-5
-  const googleConn = await convex.query(api.googleConnections.getByWorkspace, {
-    workspaceId: workspace._id,
-  });
-
-  const metrics = await convex.query(api.performanceMetrics.getMetricsForBlog, {
-    blogId,
-    limit: 12,
-  });
-
-  const alerts = await convex.query(api.decayAlerts.listByBlog, { blogId });
+  const [googleConn, metrics, alerts] = await Promise.all([
+    convex.query(api.googleConnections.getByWorkspace, {
+      workspaceId: workspace._id,
+    }),
+    convex.query(api.performanceMetrics.getMetricsForBlog, {
+      blogId,
+      limit: 12,
+    }),
+    convex.query(api.decayAlerts.listByBlog, { blogId }),
+  ]);
 
   return NextResponse.json({
     googleConnected: googleConn?.status === "connected",
-    metrics: metrics.map(
-      (m: {
-        _id: string;
-        sessions?: number | null;
-        pageviews?: number | null;
-        clicks?: number | null;
-        impressions?: number | null;
-        ctr?: number | null;
-        avgPosition?: number | null;
-        periodStart: number;
-        periodEnd: number;
-      }) => ({
-        id: m._id,
-        sessions: m.sessions ?? null,
-        pageviews: m.pageviews ?? null,
-        clicks: m.clicks ?? null,
-        impressions: m.impressions ?? null,
-        ctr: m.ctr ?? null,
-        avgPosition: m.avgPosition ?? null,
-        periodStart: m.periodStart,
-        periodEnd: m.periodEnd,
-      })
-    ),
-    alerts: alerts.map(
-      (a: {
-        _id: string;
-        alertType: string;
-        severity: string;
-        triggeredAt: number;
-        status: string;
-        deltaPercent: number;
-        diagnosisCause?: string;
-      }) => ({
-        id: a._id,
-        alertType: a.alertType,
-        severity: a.severity,
-        triggeredAt: a.triggeredAt,
-        status: a.status,
-        deltaPercent: a.deltaPercent,
-        diagnosisCause: a.diagnosisCause ?? null,
-      })
-    ),
+    metrics: metrics.map((m) => ({
+      id: m._id,
+      sessions: m.sessions ?? null,
+      pageviews: m.pageviews ?? null,
+      clicks: m.clicks ?? null,
+      impressions: m.impressions ?? null,
+      ctr: m.ctr ?? null,
+      avgPosition: m.avgPosition ?? null,
+      periodStart: m.periodStart,
+      periodEnd: m.periodEnd,
+    })),
+    alerts: alerts.map((a) => ({
+      id: a._id,
+      alertType: a.alertType,
+      severity: a.severity,
+      triggeredAt: a.triggeredAt,
+      status: a.status,
+      deltaPercent: a.deltaPercent,
+      diagnosisCause: a.diagnosisCause ?? null,
+    })),
   });
 }

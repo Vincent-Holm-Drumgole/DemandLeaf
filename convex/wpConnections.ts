@@ -59,13 +59,14 @@ export const updateStatus = mutation({
     const conn = await ctx.db.get(args.connectionId);
     if (!conn) throw new ConvexError(ERR_WP_CONNECTION_NOT_FOUND);
     await requireWorkspaceAccess(ctx, conn.workspaceId);
+    const now = Date.now();
     await ctx.db.patch(args.connectionId, {
       status: args.status,
       ...(args.pluginDetected !== undefined && {
         pluginDetected: args.pluginDetected,
       }),
-      lastTestedAt: Date.now(),
-      updatedAt: Date.now(),
+      lastTestedAt: now,
+      updatedAt: now,
     });
   },
 });

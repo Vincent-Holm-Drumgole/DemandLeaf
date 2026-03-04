@@ -47,3 +47,19 @@ export const ERR_DECAY_ALERT_NOT_FOUND = "Decay alert not found";
 export const ERR_REFRESH_NOT_FOUND = "Refresh history record not found";
 export const ERR_BLOG_NOT_PUBLISHED = "Blog must be published before tracking";
 export const ERR_NO_FOCUS_KEYWORD = "Blog has no focusKeyword set";
+
+// Phase 7: Agentic Operations
+export const ERR_AGENT_ACTION_NOT_FOUND = "Agent action not found";
+export const ERR_AGENT_ACTION_NOT_PENDING = "Agent action is not in pending state";
+export const ERR_INVALID_AGENT_PAYLOAD = "Invalid agent payload";
+export const ERR_NOTIFICATION_NOT_FOUND = "Notification not found";
+
+// Phase 8: Agentic Operations v2
+export const ERR_COMPETITOR_TRACKING_NOT_FOUND = "Competitor tracking not found";
+export const ERR_PUBLISHING_AGENT_NOT_ACTIVE = "Publishing agent is paused or not activated";
+export const ERR_TRUST_GATE_NOT_MET = "Trust gate requirements not met";
+export const ERR_PUBLISHING_CONFIG_NOT_FOUND = "Publishing agent config not found";
+
+// Billing
+export const ERR_SUBSCRIPTION_REQUIRED = "Subscription required";
+export const ERR_WORKSPACE_NOT_FOUND = "Workspace not found";

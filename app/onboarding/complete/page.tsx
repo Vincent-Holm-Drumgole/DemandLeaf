@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboarding-store";
 
 export default function OnboardingCompletePage() {
   const router = useRouter();
-  const sessionId = useOnboardingStore((s) => s.sessionId);
+  const searchParams = useSearchParams();
+  const storeSessionId = useOnboardingStore((s) => s.sessionId);
+  const sessionId = storeSessionId ?? searchParams.get("sessionId");
   const reset = useOnboardingStore((s) => s.reset);
   const called = useRef(false);
   const [error, setError] = useState<string | null>(null);

@@ -37,9 +37,11 @@ export async function GET(
     limit: 52,
   });
 
-  // Compute trend summary
+  // Compute trend summary scoped to the focus keyword
+  const blog = await convex.query(api.blogs.getById, { blogId });
+  const focusKeyword = blog?.focusKeyword ?? null;
   const withPosition = snapshots.filter(
-    (s: { position?: number | null }) => s.position != null
+    (s) => s.position != null && (!focusKeyword || s.keyword === focusKeyword)
   );
   const latestPosition = withPosition[0]?.position ?? null;
   const oldestPosition =
@@ -52,21 +54,13 @@ export async function GET(
       : null;
 
   return NextResponse.json({
-    snapshots: snapshots.map(
-      (s: {
-        _id: string;
-        keyword: string;
-        position?: number | null;
-        url?: string | null;
-        checkedAt: number;
-      }) => ({
-        id: s._id,
-        keyword: s.keyword,
-        position: s.position ?? null,
-        url: s.url ?? null,
-        checkedAt: s.checkedAt,
-      })
-    ),
+    snapshots: snapshots.map((s) => ({
+      id: s._id,
+      keyword: s.keyword,
+      position: s.position ?? null,
+      url: s.url ?? null,
+      checkedAt: s.checkedAt,
+    })),
     summary: {
       latestPosition,
       positionChange,

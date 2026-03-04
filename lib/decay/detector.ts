@@ -25,7 +25,8 @@ export function detectRankDecay(
     keyword: string;
     checkedAt: number;
   }>,
-  keyword: string
+  keyword: string,
+  blogId: string
 ): DecaySignal | null {
   const now = Date.now();
   const filtered = snapshots.filter((s) => s.keyword === keyword && s.position !== null);
@@ -59,7 +60,7 @@ export function detectRankDecay(
   if (drop < RANK_WARNING_THRESHOLD) return null;
 
   return {
-    blogId: "",
+    blogId,
     keyword,
     alertType: "rank_drop",
     severity: drop >= RANK_CRITICAL_THRESHOLD ? "critical" : "warning",

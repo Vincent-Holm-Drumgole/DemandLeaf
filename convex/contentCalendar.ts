@@ -1,6 +1,6 @@
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ConvexError } from "convex/values";
 import { ERR_UNAUTHORIZED, ERR_CALENDAR_NOT_FOUND } from "./errors";
 import { calendarStatusValidator } from "./validators";
@@ -97,6 +97,29 @@ export const listByWorkspace = query({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    if (args.strategyId) {
+      const strategy = await ctx.db.get(args.strategyId);
+      if (!strategy || strategy.workspaceId !== args.workspaceId) {
+        throw new ConvexError(ERR_UNAUTHORIZED);
+      }
+      return queryByStrategy(ctx, args.workspaceId, args.strategyId, args.fromDate, args.toDate);
+    }
+
+    return queryByWorkspace(ctx, args.workspaceId, args.fromDate, args.toDate);
+  },
+});
+
+export const listByWorkspaceForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.optional(v.id("strategies")),
+    fromDate: v.optional(v.number()),
+    toDate: v.optional(v.number()),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
 
     if (args.strategyId) {
       const strategy = await ctx.db.get(args.strategyId);
@@ -258,6 +281,22 @@ export const updateStatus = mutation({
       throw new ConvexError(ERR_CALENDAR_NOT_FOUND);
     }
     await requireWorkspaceAccess(ctx, item.workspaceId);
+    await ctx.db.patch(args.calendarId, { status: args.status, updatedAt: Date.now() });
+  },
+});
+
+export const updateStatusForCron = mutation({
+  args: {
+    calendarId: v.id("contentCalendar"),
+    status: calendarStatusValidator,
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const item = await ctx.db.get(args.calendarId);
+    if (!item) {
+      throw new ConvexError(ERR_CALENDAR_NOT_FOUND);
+    }
     await ctx.db.patch(args.calendarId, { status: args.status, updatedAt: Date.now() });
   },
 });

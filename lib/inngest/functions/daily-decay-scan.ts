@@ -82,9 +82,8 @@ export const dailyDecayScan = inngest.createFunction(
             checkedAt: snapshot.checkedAt,
             position: snapshot.position ?? null,
           }));
-        const rankSignal = detectRankDecay(blogSnapshots, blog.focusKeyword);
+        const rankSignal = detectRankDecay(blogSnapshots, blog.focusKeyword, blog._id);
         if (rankSignal) {
-          rankSignal.blogId = blog._id;
           allSignals.push(rankSignal);
         }
 
@@ -104,39 +103,40 @@ export const dailyDecayScan = inngest.createFunction(
       const newSignals = filterNewAlerts(allSignals, existingAlerts);
       if (newSignals.length > 0) {
         const created = await step.run(`create-alerts-${workspace._id}`, async () => {
-          let count = 0;
-          for (const signal of newSignals) {
-            await convex.mutation(api.decayAlerts.createForCron, {
-              workspaceId: workspace._id,
-              blogId: signal.blogId as Id<"blogs">,
-              alertType: signal.alertType,
-              severity: signal.severity,
-              baselineValue: signal.baselineValue,
-              currentValue: signal.currentValue,
-              deltaPercent: signal.deltaPercent,
-              cronKey,
-            });
-            count += 1;
-          }
-          return count;
+          await Promise.all(
+            newSignals.map((signal) =>
+              convex.mutation(api.decayAlerts.createForCron, {
+                workspaceId: workspace._id,
+                blogId: signal.blogId as Id<"blogs">,
+                alertType: signal.alertType,
+                severity: signal.severity,
+                baselineValue: signal.baselineValue,
+                currentValue: signal.currentValue,
+                deltaPercent: signal.deltaPercent,
+                cronKey,
+              })
+            )
+          );
+          return newSignals.length;
         });
         alertsCreated += created;
       }
 
       const workspaceEscalated = await step.run(`escalate-${workspace._id}`, async () => {
         const now = Date.now();
-        let count = 0;
-        for (const alert of existingAlerts) {
-          if (alert.status === "refreshing" && now - alert.triggeredAt > ESCALATION_THRESHOLD_MS) {
-            await convex.mutation(api.decayAlerts.updateStatusForCron, {
+        const toEscalate = existingAlerts.filter(
+          (a) => a.status === "refreshing" && now - a.triggeredAt > ESCALATION_THRESHOLD_MS
+        );
+        await Promise.all(
+          toEscalate.map((alert) =>
+            convex.mutation(api.decayAlerts.updateStatusForCron, {
               alertId: alert._id,
               status: "escalated",
               cronKey,
-            });
-            count += 1;
-          }
-        }
-        return count;
+            })
+          )
+        );
+        return toEscalate.length;
       });
 
       escalated += workspaceEscalated;

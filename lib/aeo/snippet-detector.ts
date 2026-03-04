@@ -13,7 +13,6 @@ export function detectSnippetOpportunities(
 
   headings.forEach((h, idx) => {
     const text = h.text.trim();
-    const lower = text.toLowerCase();
 
     if (text.endsWith("?")) {
       opportunities.push({
@@ -22,14 +21,14 @@ export function detectSnippetOpportunities(
         headingIndex: idx,
         snippetType: "Featured snippet (direct answer)",
       });
-    } else if (/^(what is|what are|define|definition of)\b/i.test(lower)) {
+    } else if (/^(what is|what are|define|definition of)\b/i.test(text)) {
       opportunities.push({
         type: "definition",
         headingText: text,
         headingIndex: idx,
         snippetType: "Definition snippet",
       });
-    } else if (/^(how to|steps to|guide to|ways to)\b/i.test(lower)) {
+    } else if (/^(how to|steps to|guide to|ways to)\b/i.test(text)) {
       opportunities.push({
         type: "steps",
         headingText: text,

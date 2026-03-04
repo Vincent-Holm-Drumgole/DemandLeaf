@@ -1,6 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +11,14 @@ import { NeverSayList } from "@/components/never-say/never-say-list";
 import { WordPressSettings } from "@/components/settings/wordpress-settings";
 import { AuthorPersonasSettings } from "@/components/settings/author-personas-settings";
 import { GoogleIntegrationsSettings } from "@/components/settings/google-integrations-settings";
+import { BillingSettings } from "@/components/settings/billing-settings";
 import { Wand2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { isLoaded, isSignedIn } = useAuthGuard();
   const { user } = useUser();
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") ?? "account";
 
   if (!isLoaded) {
     return (
@@ -37,8 +41,9 @@ export default function SettingsPage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <Tabs defaultValue="account">
+        <Tabs defaultValue={defaultTab}>
           <TabsList className="mb-6">
+            <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="voice">Voice Profile</TabsTrigger>
             <TabsTrigger value="never-say">Never-Say List</TabsTrigger>
@@ -131,6 +136,17 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <GoogleIntegrationsSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Billing & Subscription</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BillingSettings />
               </CardContent>
             </Card>
           </TabsContent>

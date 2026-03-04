@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,10 +28,16 @@ export function InternalLinksPanel({
   onStatusChange,
 }: InternalLinksPanelProps) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [links, setLinks] = useState<LinkSuggestion[]>(suggestions);
+
+  useEffect(() => {
+    setLinks(suggestions);
+  }, [suggestions]);
 
   async function handleFindLinks() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/blog/${blogId}/internal-links`, {
         method: "POST",
@@ -44,7 +50,11 @@ export function InternalLinksPanel({
             status: "suggested",
           }))
         );
+      } else {
+        setError("Failed to find links. Please try again.");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -85,6 +95,9 @@ export function InternalLinksPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {error && (
+          <p className="text-xs text-red-600">{error}</p>
+        )}
         {links.length === 0 ? (
           <Button
             size="sm"

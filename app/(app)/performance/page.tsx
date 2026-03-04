@@ -12,10 +12,12 @@ import { ROISummaryCards } from "@/components/performance/roi-summary-cards";
 import { DecayAlertCard } from "@/components/performance/decay-alert-card";
 import { GoogleConnectBanner } from "@/components/performance/google-connect-banner";
 import type { ROIData } from "@/types";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 interface AlertData {
   id: string;
   blogId: string;
+  blogTitle: string;
   alertType: string;
   severity: string;
   triggeredAt: number;
@@ -30,17 +32,22 @@ export default function PerformancePage() {
   const [roi, setRoi] = useState<ROIData | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const [roiRes, alertsRes] = await Promise.all([
           fetch("/api/roi"),
           fetch("/api/decay-alerts"),
         ]);
         if (roiRes.ok) setRoi(await roiRes.json());
+        else setError("Failed to load performance data");
         if (alertsRes.ok) setAlerts(await alertsRes.json());
+      } catch {
+        setError("Failed to load performance data");
       } finally {
         setLoading(false);
       }
@@ -95,78 +102,83 @@ export default function PerformancePage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Performance</h1>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open("/api/report", "_blank")}
-          >
-            <FileText className="mr-1 h-3.5 w-3.5" />
-            Monthly Report
-          </Button>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {loading ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
-              ))}
+    <PaywallGate>
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-card">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+              <h1 className="text-xl font-semibold">Performance</h1>
             </div>
-            <Skeleton className="h-48 rounded-lg" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("/api/report", "_blank")}
+            >
+              <FileText className="mr-1 h-3.5 w-3.5" />
+              Monthly Report
+            </Button>
           </div>
-        ) : (
-          <>
-            {roi && !roi.available && (
-              <GoogleConnectBanner
+        </div>
+
+        <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          {loading ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))}
+              </div>
+              <Skeleton className="h-48 rounded-lg" />
+            </div>
+          ) : (
+            <>
+              {roi && !roi.available && (
+                <GoogleConnectBanner
+                  onConnect={() => router.push("/api/google-auth")}
+                />
+              )}
+
+              <ROISummaryCards
+                trafficValue={roi?.estimatedTrafficValue ?? null}
+                totalGenerationCostCents={roi?.totalGenerationCostCents ?? 0}
+                postsRanking={roi?.postsRanking ?? 0}
+                avgPosition={roi?.avgPosition ?? null}
+                googleConnected={roi?.available ?? false}
                 onConnect={() => router.push("/api/google-auth")}
               />
-            )}
 
-            <ROISummaryCards
-              trafficValue={roi?.estimatedTrafficValue ?? null}
-              totalGenerationCostCents={roi?.totalGenerationCostCents ?? 0}
-              postsRanking={roi?.postsRanking ?? 0}
-              avgPosition={roi?.avgPosition ?? null}
-              googleConnected={roi?.available ?? false}
-              onConnect={() => router.push("/api/google-auth")}
-            />
-
-            {openAlerts.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Decay Alerts</CardTitle>
-                    <Badge variant="destructive" className="text-[10px]">
-                      {openAlerts.length}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {openAlerts.slice(0, 10).map((alert) => (
-                    <DecayAlertCard
-                      key={alert.id}
-                      alert={alert}
-                      blogTitle={alert.blogId}
-                      onAcknowledge={handleAcknowledge}
-                      onDiagnose={handleDiagnose}
-                      onRefresh={handleRefresh}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+              {openAlerts.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm">Decay Alerts</CardTitle>
+                      <Badge variant="destructive" className="text-[10px]">
+                        {openAlerts.length}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {openAlerts.slice(0, 10).map((alert) => (
+                      <DecayAlertCard
+                        key={alert.id}
+                        alert={alert}
+                        blogTitle={alert.blogTitle}
+                        onAcknowledge={handleAcknowledge}
+                        onDiagnose={handleDiagnose}
+                        onRefresh={handleRefresh}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </PaywallGate>
   );
 }

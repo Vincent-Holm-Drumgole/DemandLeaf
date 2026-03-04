@@ -10,7 +10,7 @@ export interface AeoScorerInput {
 }
 
 export function scoreAEO(input: AeoScorerInput): AeoScore {
-  const { content, title } = input;
+  const { content } = input;
   const plain = stripMarkdown(content);
   const headings = extractHeadings(content);
 

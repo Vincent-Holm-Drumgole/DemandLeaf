@@ -59,6 +59,7 @@ export async function POST(
   // Score AEO
   let aeoResult = scoreAEO({ content: blog.content, title: blog.title });
   let optimized = false;
+  let optimizationError: string | null = null;
   let updatedContent = blog.content;
 
   // Conditionally optimize
@@ -88,6 +89,7 @@ export async function POST(
       }
     } catch (err) {
       console.error("[aeo/optimize]", err);
+      optimizationError = err instanceof Error ? err.message : "Optimization failed";
     }
   }
 
@@ -129,5 +131,6 @@ export async function POST(
     aeoScore: aeoResult,
     schemaMarkup,
     optimized,
+    ...(optimizationError && { optimizationError }),
   });
 }

@@ -21,43 +21,51 @@ export async function GET() {
     );
   }
 
-  const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
-  if (!workspace) {
-    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    }
+
+    const alerts = await convex.query(api.decayAlerts.listByWorkspace, {
+      workspaceId: workspace._id,
+    });
+
+    const uniqueBlogIds = Array.from(new Set(alerts.map((alert) => alert.blogId)));
+    const blogDocs = await Promise.all(
+      uniqueBlogIds.map((blogId) =>
+        convex.query(api.blogs.getById, { blogId }).catch(() => null)
+      )
+    );
+    const blogTitleMap = new Map(
+      uniqueBlogIds.map((blogId, index) => [
+        blogId,
+        blogDocs[index]?.title ?? "Untitled",
+      ])
+    );
+
+    return NextResponse.json(
+      alerts.map((alert) => ({
+        id: alert._id,
+        blogId: alert.blogId,
+        blogTitle: blogTitleMap.get(alert.blogId) ?? "Untitled",
+        alertType: alert.alertType,
+        severity: alert.severity,
+        triggeredAt: alert.triggeredAt,
+        status: alert.status,
+        baselineValue: alert.baselineValue,
+        currentValue: alert.currentValue,
+        deltaPercent: alert.deltaPercent,
+        diagnosisCause: alert.diagnosisCause ?? null,
+        diagnosisNotes: alert.diagnosisNotes ?? null,
+      }))
+    );
+  } catch (err) {
+    console.error("[decay-alerts/GET]", err);
+    return NextResponse.json(
+      { error: "Failed to fetch alerts" },
+      { status: 500 }
+    );
   }
-
-  const alerts = await convex.query(api.decayAlerts.listByWorkspace, {
-    workspaceId: workspace._id,
-  });
-
-  return NextResponse.json(
-    alerts.map(
-      (a: {
-        _id: string;
-        blogId: string;
-        alertType: string;
-        severity: string;
-        triggeredAt: number;
-        status: string;
-        baselineValue: number;
-        currentValue: number;
-        deltaPercent: number;
-        diagnosisCause?: string;
-        diagnosisNotes?: string;
-      }) => ({
-        id: a._id,
-        blogId: a.blogId,
-        alertType: a.alertType,
-        severity: a.severity,
-        triggeredAt: a.triggeredAt,
-        status: a.status,
-        baselineValue: a.baselineValue,
-        currentValue: a.currentValue,
-        deltaPercent: a.deltaPercent,
-        diagnosisCause: a.diagnosisCause ?? null,
-        diagnosisNotes: a.diagnosisNotes ?? null,
-      })
-    )
-  );
 }

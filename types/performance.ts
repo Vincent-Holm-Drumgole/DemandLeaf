@@ -74,7 +74,7 @@ export interface DiagnosisResult {
 
 export interface RefreshBriefData {
   targetKeyword: string;
-  diagnosisCause: string;
+  diagnosisCause: DiagnosisCause;
   diagnosisNotes: string;
   currentPosition: number | null;
   targetPosition: number;

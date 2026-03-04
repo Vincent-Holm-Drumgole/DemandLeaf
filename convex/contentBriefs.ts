@@ -1,11 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { briefDataModificationsValidator, briefDataValidator } from "./validators";
 import {
   ERR_BRIEF_ALREADY_WRITTEN,
   ERR_BRIEF_NOT_FOUND,
   ERR_KEYWORD_ALREADY_BRIEFED,
+  ERR_STRATEGY_NOT_FOUND,
   ERR_UNAUTHORIZED,
 } from "./errors";
 
@@ -27,6 +28,56 @@ export const listByWorkspace = query({
       .query("contentBriefs")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .take(200);
+  },
+});
+
+export const listByStrategy = query({
+  args: { strategyId: v.id("strategies") },
+  handler: async (ctx, args) => {
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, strategy.workspaceId);
+    return ctx.db
+      .query("contentBriefs")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(200);
+  },
+});
+
+export const listByStrategyForCron = query({
+  args: {
+    strategyId: v.id("strategies"),
+    workspaceId: v.optional(v.id("workspaces")),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    if (args.workspaceId && strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    return ctx.db
+      .query("contentBriefs")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(200);
+  },
+});
+
+export const getByIdForCron = query({
+  args: {
+    briefId: v.id("contentBriefs"),
+    workspaceId: v.optional(v.id("workspaces")),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const brief = await ctx.db.get(args.briefId);
+    if (!brief) return null;
+    if (args.workspaceId && brief.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    return brief;
   },
 });
 
@@ -129,6 +180,37 @@ export const linkBlog = mutation({
     });
     // Update keyword status atomically — avoids stale status if the caller
     // omits a separate assignToBlog call.
+    await ctx.db.patch(brief.keywordId, {
+      assignedBlogId: args.blogId,
+      status: "written",
+    });
+  },
+});
+
+export const linkBlogForCron = mutation({
+  args: {
+    briefId: v.id("contentBriefs"),
+    blogId: v.id("blogs"),
+    workspaceId: v.optional(v.id("workspaces")),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const brief = await ctx.db.get(args.briefId);
+    if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog) throw new ConvexError(ERR_UNAUTHORIZED);
+    if (brief.workspaceId !== blog.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    if (args.workspaceId && brief.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    await ctx.db.patch(args.briefId, {
+      blogId: args.blogId,
+      status: "written",
+      updatedAt: Date.now(),
+    });
     await ctx.db.patch(brief.keywordId, {
       assignedBlogId: args.blogId,
       status: "written",

@@ -23,6 +23,7 @@ export function WordPressSettings() {
   const [username, setUsername] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadConnections() {
     setLoading(true);
@@ -41,6 +42,7 @@ export function WordPressSettings() {
   async function handleAdd() {
     if (!siteUrl || !username || !appPassword) return;
     setAdding(true);
+    setError(null);
     try {
       const res = await fetch("/api/wp-connections", {
         method: "POST",
@@ -53,7 +55,12 @@ export function WordPressSettings() {
         setAppPassword("");
         setShowForm(false);
         await loadConnections();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to add connection");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setAdding(false);
     }
@@ -70,8 +77,17 @@ export function WordPressSettings() {
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/wp-connections/${id}`, { method: "DELETE" });
-    await loadConnections();
+    if (!window.confirm("Remove this WordPress connection?")) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/wp-connections/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Failed to remove connection");
+      }
+      await loadConnections();
+    } catch {
+      setError("Network error. Please try again.");
+    }
   }
 
   if (loading) {
@@ -85,7 +101,10 @@ export function WordPressSettings() {
 
   return (
     <div className="space-y-4">
-      {connections.length === 0 && !showForm && (
+      {error && !showForm && (
+        <p className="text-xs text-red-600">{error}</p>
+      )}
+      {connections.length === 0 && !showForm && !error && (
         <p className="text-sm text-muted-foreground">
           No WordPress sites connected yet.
         </p>
@@ -158,6 +177,9 @@ export function WordPressSettings() {
             value={appPassword}
             onChange={(e) => setAppPassword(e.target.value)}
           />
+          {error && (
+            <p className="text-xs text-red-600">{error}</p>
+          )}
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={adding}>
               {adding && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}

@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_BATCH_TOO_LARGE, ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -15,6 +15,26 @@ export const listByStrategy = query({
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(500);
+  },
+});
+
+export const listByStrategyForCron = query({
+  args: {
+    strategyId: v.id("strategies"),
+    workspaceId: v.optional(v.id("workspaces")),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    if (args.workspaceId && strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
     return ctx.db
       .query("keywords")
       .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
@@ -121,6 +141,46 @@ export const bulkCreate = mutation({
       ids.push(id);
     }
     return ids;
+  },
+});
+
+export const createForCron = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keyword: v.string(),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    if (strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+
+    const normalizedKeyword = args.keyword.trim();
+    if (!normalizedKeyword) {
+      throw new ConvexError("Keyword is required");
+    }
+
+    const existing = await ctx.db
+      .query("keywords")
+      .withIndex("by_strategy_keyword", (q) =>
+        q.eq("strategyId", args.strategyId).eq("keyword", normalizedKeyword),
+      )
+      .first();
+    if (existing) {
+      return existing._id;
+    }
+
+    return ctx.db.insert("keywords", {
+      workspaceId: args.workspaceId,
+      strategyId: args.strategyId,
+      keyword: normalizedKeyword,
+      status: "unassigned",
+      createdAt: Date.now(),
+    });
   },
 });
 

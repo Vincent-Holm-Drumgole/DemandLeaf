@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ContentMapData, ClusterBubble } from "@/types/content-map";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 function HealthBar({ value }: { value: number }) {
   const color =
@@ -78,35 +79,36 @@ export default function ContentMapPage() {
     );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Network className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-xl font-semibold">Content Map</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            {lastRefreshed && (
-              <span className="text-xs text-muted-foreground hidden sm:block">
-                Refreshed {lastRefreshed.toLocaleTimeString()}
-              </span>
-            )}
-            <ViewToggle value={colorMode} onChange={setColorMode} />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={load}
-              disabled={isLoading}
-            >
-              Refresh
-            </Button>
+    <PaywallGate>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="border-b bg-card">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-muted-foreground" />
+              <h1 className="text-xl font-semibold">Content Map</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              {lastRefreshed && (
+                <span className="text-xs text-muted-foreground hidden sm:block">
+                  Refreshed {lastRefreshed.toLocaleTimeString()}
+                </span>
+              )}
+              <ViewToggle value={colorMode} onChange={setColorMode} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={load}
+                disabled={isLoading}
+              >
+                Refresh
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Body */}
-      <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        {/* Body */}
+        <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
 
         {/* Empty state */}
         {isEmpty && (
@@ -295,7 +297,8 @@ export default function ContentMapPage() {
             </div>
           </>
         )}
+        </div>
       </div>
-    </div>
+    </PaywallGate>
   );
 }

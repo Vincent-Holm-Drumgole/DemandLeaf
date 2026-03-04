@@ -30,11 +30,17 @@ export async function findInternalLinks(
   convex: ConvexHttpClient,
   workspaceId: Id<"workspaces">,
   sourceBlogId: Id<"blogs">,
-  sourceFocusKeyword: string
+  sourceFocusKeyword: string,
+  options?: { cronKey?: string }
 ): Promise<InternalLinkSuggestion[]> {
   const [sourceEmbedding, allBlogs] = await Promise.all([
     generateEmbedding(sourceFocusKeyword),
-    convex.query(api.blogs.listByWorkspaceId, { workspaceId }),
+    options?.cronKey
+      ? convex.query(api.blogs.listPublishedForCron, {
+          workspaceId,
+          cronKey: options.cronKey,
+        })
+      : convex.query(api.blogs.listByWorkspaceId, { workspaceId }),
   ]);
 
   const candidates = allBlogs
@@ -78,7 +84,13 @@ export async function findInternalLinks(
   return scored
     .sort((a, b) => b._sim - a._sim)
     .slice(0, MAX_SUGGESTIONS)
-    .map(({ _sim: _, ...s }) => s);
+    .map((item) => ({
+      targetBlogId: item.targetBlogId,
+      targetTitle: item.targetTitle,
+      targetSlug: item.targetSlug,
+      anchorText: item.anchorText,
+      similarity: item.similarity,
+    }));
 }
 
 function deriveAnchorText(focusKeyword: string, title: string): string {

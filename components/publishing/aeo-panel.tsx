@@ -23,9 +23,11 @@ export function AeoPanel({
   const [checks, setChecks] = useState(initialChecks);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleScore() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/blog/${blogId}/aeo`, { method: "POST" });
       if (res.ok) {
@@ -33,7 +35,11 @@ export function AeoPanel({
         setScore(data.aeoScore.score);
         setChecks(data.aeoScore.checks);
         onOptimized?.(data.aeoScore.score);
+      } else {
+        setError("Scoring failed. Please try again.");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -41,6 +47,7 @@ export function AeoPanel({
 
   async function handleOptimize() {
     setOptimizing(true);
+    setError(null);
     try {
       const res = await fetch(`/api/blog/${blogId}/aeo`, {
         method: "POST",
@@ -51,8 +58,15 @@ export function AeoPanel({
         const data = await res.json();
         setScore(data.aeoScore.score);
         setChecks(data.aeoScore.checks);
+        if (data.optimizationError) {
+          setError(data.optimizationError);
+        }
         onOptimized?.(data.aeoScore.score);
+      } else {
+        setError("Optimization failed. Please try again.");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setOptimizing(false);
     }
@@ -78,6 +92,9 @@ export function AeoPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {error && (
+          <p className="text-xs text-red-600">{error}</p>
+        )}
         {score === null ? (
           <Button
             size="sm"

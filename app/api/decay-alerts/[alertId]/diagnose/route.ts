@@ -44,63 +44,71 @@ export async function POST(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
-  const snapshots = await convex.query(api.rankSnapshots.getSnapshotsForBlog, {
-    blogId: alert.blogId,
-    limit: 8,
-  });
+  try {
+    const [snapshots, metrics, serpResults] = await Promise.all([
+      convex.query(api.rankSnapshots.getSnapshotsForBlog, {
+        blogId: alert.blogId,
+        limit: 8,
+      }),
+      convex.query(api.performanceMetrics.getMetricsForBlog, {
+        blogId: alert.blogId,
+        limit: 8,
+      }),
+      blog.focusKeyword
+        ? getSerpResults(convex, blog.focusKeyword)
+        : Promise.resolve([] as { position: number; title: string; snippet: string }[]),
+    ]);
 
-  const metrics = await convex.query(api.performanceMetrics.getMetricsForBlog, {
-    blogId: alert.blogId,
-    limit: 8,
-  });
+    const blogAgeDays = blog.publishedAt
+      ? Math.floor((Date.now() - blog.publishedAt) / (24 * 60 * 60 * 1000))
+      : Math.floor((Date.now() - blog.createdAt) / (24 * 60 * 60 * 1000));
 
-  const serpResults = blog.focusKeyword
-    ? await getSerpResults(convex, blog.focusKeyword)
-    : [];
+    const diagnosis = await diagnoseCause({
+      alertType: alert.alertType,
+      severity: alert.severity,
+      deltaPercent: alert.deltaPercent,
+      blogTitle: blog.title,
+      keyword: blog.focusKeyword ?? "",
+      blogAgeDays,
+      wordCount: blog.wordCount ?? 0,
+      rankHistory: snapshots.map((s: { checkedAt: number; position?: number | null }) => ({
+        date: new Date(s.checkedAt).toISOString().split("T")[0],
+        position: s.position ?? null,
+      })),
+      performanceHistory: metrics.map(
+        (m: {
+          periodStart: number;
+          clicks?: number | null;
+          impressions?: number | null;
+          ctr?: number | null;
+        }) => ({
+          date: new Date(m.periodStart).toISOString().split("T")[0],
+          clicks: m.clicks ?? null,
+          impressions: m.impressions ?? null,
+          ctr: m.ctr ?? null,
+        })
+      ),
+      serpTop5: serpResults.slice(0, 5).map((s) => ({
+        position: s.position,
+        title: s.title,
+        snippet: s.snippet,
+      })),
+    });
 
-  const blogAgeDays = blog.publishedAt
-    ? Math.floor((Date.now() - blog.publishedAt) / (24 * 60 * 60 * 1000))
-    : Math.floor((Date.now() - blog.createdAt) / (24 * 60 * 60 * 1000));
+    // Persist diagnosis to the alert
+    await convex.mutation(api.decayAlerts.updateStatus, {
+      alertId,
+      status: alert.status === "open" ? "acknowledged" : alert.status,
+      diagnosisCause: diagnosis.cause,
+      diagnosisNotes: diagnosis.notes,
+    });
 
-  const diagnosis = await diagnoseCause({
-    alertType: alert.alertType,
-    severity: alert.severity,
-    deltaPercent: alert.deltaPercent,
-    blogTitle: blog.title,
-    keyword: blog.focusKeyword ?? "",
-    blogAgeDays,
-    wordCount: blog.wordCount ?? 0,
-    rankHistory: snapshots.map((s: { checkedAt: number; position?: number | null }) => ({
-      date: new Date(s.checkedAt).toISOString().split("T")[0],
-      position: s.position ?? null,
-    })),
-    performanceHistory: metrics.map(
-      (m: {
-        periodStart: number;
-        clicks?: number | null;
-        impressions?: number | null;
-        ctr?: number | null;
-      }) => ({
-        date: new Date(m.periodStart).toISOString().split("T")[0],
-        clicks: m.clicks ?? null,
-        impressions: m.impressions ?? null,
-        ctr: m.ctr ?? null,
-      })
-    ),
-    serpTop5: serpResults.slice(0, 5).map((s) => ({
-      position: s.position,
-      title: s.title,
-      snippet: s.snippet,
-    })),
-  });
-
-  // Persist diagnosis to the alert
-  await convex.mutation(api.decayAlerts.updateStatus, {
-    alertId,
-    status: alert.status === "open" ? "acknowledged" : alert.status,
-    diagnosisCause: diagnosis.cause,
-    diagnosisNotes: diagnosis.notes,
-  });
-
-  return NextResponse.json(diagnosis);
+    return NextResponse.json(diagnosis);
+  } catch (err) {
+    console.error("[diagnose/POST]", err);
+    return NextResponse.json(
+      { error: "Diagnosis failed" },
+      { status: 500 }
+    );
+  }
 }

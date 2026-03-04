@@ -31,8 +31,13 @@ Return a JSON array with exactly ${placements.length} alt text strings.`;
 
   try {
     const parsed = parseJsonResponse<string[]>(result.content);
-    if (Array.isArray(parsed)) {
-      return parsed.slice(0, placements.length);
+    if (Array.isArray(parsed) && parsed.every((s) => typeof s === "string")) {
+      const trimmed = parsed.slice(0, placements.length);
+      if (trimmed.length < placements.length) {
+        const fallback = fallbackAlts(title, focusKeyword, placements.length);
+        return trimmed.concat(fallback.slice(trimmed.length));
+      }
+      return trimmed;
     }
     return fallbackAlts(title, focusKeyword, placements.length);
   } catch {

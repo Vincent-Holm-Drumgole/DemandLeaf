@@ -18,9 +18,13 @@ export function SchemaPanel({ schemaType, schemaJson }: SchemaPanelProps) {
 
   async function handleCopy() {
     if (!schemaJson) return;
-    await navigator.clipboard.writeText(schemaJson);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(schemaJson);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access denied or unavailable
+    }
   }
 
   if (!schemaType || !schemaJson) {
@@ -52,6 +56,7 @@ export function SchemaPanel({ schemaType, schemaJson }: SchemaPanelProps) {
         <button
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
         >
           {expanded ? (
             <ChevronDown className="h-3 w-3" />

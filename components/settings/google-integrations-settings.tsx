@@ -19,6 +19,7 @@ export function GoogleIntegrationsSettings() {
   const router = useRouter();
   const [conn, setConn] = useState<GoogleConnection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadConnection() {
     setLoading(true);
@@ -35,7 +36,16 @@ export function GoogleIntegrationsSettings() {
   }, []);
 
   async function handleDisconnect() {
-    await fetch("/api/google-connections", { method: "DELETE" });
+    if (!window.confirm("Disconnect Google? Metrics syncing will stop.")) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/google-connections", { method: "DELETE" });
+      if (!res.ok) {
+        setError("Failed to disconnect. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    }
     await loadConnection();
   }
 
@@ -65,6 +75,9 @@ export function GoogleIntegrationsSettings() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <p className="text-xs text-red-600">{error}</p>
+      )}
       <div className="flex items-center justify-between rounded-md border p-3">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">

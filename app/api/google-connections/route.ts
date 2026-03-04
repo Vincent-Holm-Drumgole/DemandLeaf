@@ -39,10 +39,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as {
-    ga4PropertyId?: string;
-    gscSiteUrl?: string;
-  };
+  let body: { ga4PropertyId?: string; gscSiteUrl?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (
+    (body.ga4PropertyId !== undefined && typeof body.ga4PropertyId !== "string") ||
+    (body.gscSiteUrl !== undefined && typeof body.gscSiteUrl !== "string")
+  ) {
+    return NextResponse.json({ error: "Invalid field types" }, { status: 400 });
+  }
 
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});

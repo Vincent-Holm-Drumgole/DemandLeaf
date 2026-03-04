@@ -35,8 +35,12 @@ export async function GET(request: Request) {
   if (month && !/^\d{4}-\d{2}$/.test(month)) {
     return NextResponse.json({ error: "Invalid month format" }, { status: 400 });
   }
-  const year = month ? Number(month.slice(0, 4)) : now.getFullYear();
-  const mon = month ? Number(month.slice(5, 7)) - 1 : now.getMonth() - 1;
+  let year = month ? Number(month.slice(0, 4)) : now.getFullYear();
+  let mon = month ? Number(month.slice(5, 7)) - 1 : now.getMonth() - 1;
+  if (!month && mon < 0) {
+    mon = 11;
+    year -= 1;
+  }
   if (month && (!Number.isInteger(year) || !Number.isInteger(mon) || mon < 0 || mon > 11)) {
     return NextResponse.json({ error: "Invalid month value" }, { status: 400 });
   }
@@ -49,7 +53,10 @@ export async function GET(request: Request) {
   });
   const publishedBlogs = blogs.filter(
     (b: { status: string; publishedAt?: number }) =>
-      b.status === "published" && b.publishedAt && b.publishedAt <= periodEnd
+      b.status === "published" &&
+      b.publishedAt &&
+      b.publishedAt >= periodStart &&
+      b.publishedAt <= periodEnd
   );
 
   const snapshots = await convex.query(
@@ -175,7 +182,10 @@ export async function GET(request: Request) {
 </html>`;
 
   return new Response(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "private, max-age=300",
+    },
   });
 }
 

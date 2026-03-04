@@ -2,7 +2,11 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_INTERNAL_LINK_NOT_FOUND } from "./errors";
+import {
+  ERR_BATCH_TOO_LARGE,
+  ERR_BLOG_NOT_FOUND,
+  ERR_INTERNAL_LINK_NOT_FOUND,
+} from "./errors";
 import { internalLinkStatusValidator } from "./validators";
 
 const MAX_LINKS_PER_BLOG = 10;
@@ -36,6 +40,28 @@ export const upsertSuggestions = mutation({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    if (args.suggestions.length > MAX_LINKS_PER_BLOG) {
+      throw new ConvexError(ERR_BATCH_TOO_LARGE);
+    }
+
+    const sourceBlog = await ctx.db.get(args.sourceBlogId);
+    if (!sourceBlog || sourceBlog.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
+
+    const uniqueTargetBlogIds = [...new Set(args.suggestions.map((s) => s.targetBlogId))];
+    const targetBlogs = await Promise.all(
+      uniqueTargetBlogIds.map((targetBlogId) => ctx.db.get(targetBlogId))
+    );
+    const hasInvalidTarget = targetBlogs.some(
+      (targetBlog, index) =>
+        !targetBlog ||
+        targetBlog.workspaceId !== args.workspaceId ||
+        uniqueTargetBlogIds[index] === args.sourceBlogId
+    );
+    if (hasInvalidTarget) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
 
     const existing = await ctx.db
       .query("internalLinks")

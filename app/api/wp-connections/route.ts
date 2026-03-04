@@ -59,11 +59,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as {
+  let body: {
     siteUrl?: string;
     username?: string;
     appPassword?: string;
   };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   if (!body.siteUrl || !body.username || !body.appPassword) {
     return NextResponse.json(

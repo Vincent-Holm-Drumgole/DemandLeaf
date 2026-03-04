@@ -36,6 +36,15 @@ import {
   refreshStatusValidator,
   googleConnectionStatusValidator,
   refreshBriefDataValidator,
+  // Phase 7
+  agentTypeValidator,
+  agentActionStatusValidator,
+  notificationTypeValidator,
+  auditActorTypeValidator,
+  // Phase 8
+  publishingAgentStatusValidator,
+  // Billing
+  planStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -45,11 +54,18 @@ export default defineSchema({
     url: v.optional(v.string()),
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
+    // Billing
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    plan: v.optional(planStatusValidator),
+    trialEndsAt: v.optional(v.number()),
+    planExpiresAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_clerk_user", ["clerkUserId"])
-    .index("by_clerk_user_created", ["clerkUserId", "createdAt"]),
+    .index("by_clerk_user_created", ["clerkUserId", "createdAt"])
+    .index("by_stripe_customer", ["stripeCustomerId"]),
 
   voiceProfiles: defineTable({
     workspaceId: v.id("workspaces"),
@@ -240,6 +256,7 @@ export default defineSchema({
     targetAudience: v.optional(v.string()),
     seedKeywords: v.array(v.string()),
     status: strategyStatusValidator,
+    driftCheckedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -446,6 +463,73 @@ export default defineSchema({
     status: googleConnectionStatusValidator,
     lastSyncedAt: v.optional(v.number()),
     createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  // ── Phase 7: Agentic Operations tables ────────────────────────────────────────
+
+  agentActions: defineTable({
+    workspaceId: v.id("workspaces"),
+    agentType: agentTypeValidator,
+    status: agentActionStatusValidator,
+    payload: v.any(),
+    reasoning: v.string(),
+    suggestedAt: v.number(),
+    decidedAt: v.optional(v.number()),
+    executedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    userNote: v.optional(v.string()),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_workspace_agent", ["workspaceId", "agentType"])
+    .index("by_status_suggested", ["status", "suggestedAt"]),
+
+  notifications: defineTable({
+    workspaceId: v.id("workspaces"),
+    type: notificationTypeValidator,
+    agentType: agentTypeValidator,
+    agentActionId: v.optional(v.id("agentActions")),
+    title: v.string(),
+    body: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_read", ["workspaceId", "read"]),
+
+  agentAuditLog: defineTable({
+    workspaceId: v.id("workspaces"),
+    agentActionId: v.id("agentActions"),
+    agentType: agentTypeValidator,
+    event: v.string(),
+    actorType: auditActorTypeValidator,
+    detail: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_agent_action", ["agentActionId"])
+    .index("by_workspace_agent", ["workspaceId", "agentType"]),
+
+  // ── Phase 8: Agentic Operations v2 tables ─────────────────────────────────────
+
+  competitorTracking: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    domain: v.string(),
+    trackedKeywords: v.array(v.string()),
+    lastCheckedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"]),
+
+  publishingAgentConfig: defineTable({
+    workspaceId: v.id("workspaces"),
+    status: publishingAgentStatusValidator,
+    pauseReason: v.optional(v.string()),
+    pausedAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
 });

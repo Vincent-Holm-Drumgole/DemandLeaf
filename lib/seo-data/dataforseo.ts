@@ -58,7 +58,7 @@ async function dfsFetch(path: string, body: unknown): Promise<unknown> {
 }
 
 type ConvexClient = ConvexHttpClient;
-type SeoCacheData = KeywordMetric | SerpResult[] | string[];
+type SeoCacheData = KeywordMetric | SerpResult[] | string[] | RankCheckResult;
 
 async function getCached(convex: ConvexClient, cacheKey: string): Promise<unknown | null> {
   const cached = await convex.query(api.seoDataCache.get, { cacheKey });
@@ -66,11 +66,16 @@ async function getCached(convex: ConvexClient, cacheKey: string): Promise<unknow
 }
 
 async function setCache(convex: ConvexClient, cacheKey: string, data: SeoCacheData, ttlMs: number): Promise<void> {
-  await convex.mutation(api.seoDataCache.set, {
-    cacheKey,
-    data,
-    expiresAt: Date.now() + ttlMs,
-  });
+  try {
+    await convex.mutation(api.seoDataCache.set, {
+      cacheKey,
+      data,
+      expiresAt: Date.now() + ttlMs,
+    });
+  } catch (err) {
+    // Background/cron jobs run without end-user identity and may skip cache writes.
+    console.warn(`[seo-data] Cache write skipped for ${cacheKey}:`, err);
+  }
 }
 
 /**
@@ -203,7 +208,7 @@ export async function checkRankPosition(
   const domain = extractDomain(targetUrl);
   const cacheKey = `rank:${domain}:${keyword.toLowerCase()}`;
   const cached = await getCached(convex, cacheKey);
-  if (cached) return cached as unknown as RankCheckResult;
+  if (cached) return cached as RankCheckResult;
 
   const response = await dfsFetch("/serp/google/organic/live/advanced", [
     { keyword, location_code: 2840, language_code: "en", depth: 100 },
@@ -230,7 +235,7 @@ export async function checkRankPosition(
   await setCache(
     convex,
     cacheKey,
-    result as unknown as SeoCacheData,
+    result,
     TTL_MS.rank
   );
   return result;

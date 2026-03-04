@@ -13,6 +13,9 @@ interface ROISummaryCardsProps {
   onConnect?: () => void;
 }
 
+const formatUsd = (value: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+
 export function ROISummaryCards({
   trafficValue,
   totalGenerationCostCents,
@@ -35,7 +38,7 @@ export function ROISummaryCards({
             Traffic Value
           </div>
           {trafficValue !== null ? (
-            <p className="text-xl font-bold">${trafficValue.toLocaleString()}</p>
+            <p className="text-xl font-bold">{formatUsd(trafficValue)}</p>
           ) : (
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">—</p>
@@ -57,7 +60,7 @@ export function ROISummaryCards({
           </div>
           {costSavings !== null ? (
             <p className="text-xl font-bold text-green-600">
-              ${costSavings.toLocaleString()}
+              {formatUsd(costSavings)}
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">—</p>

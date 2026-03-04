@@ -23,7 +23,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { blogId: string };
+  let body: { blogId: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   if (!body.blogId) {
     return NextResponse.json({ error: "blogId is required" }, { status: 400 });
   }

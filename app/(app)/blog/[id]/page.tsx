@@ -48,7 +48,7 @@ export default function BlogPage() {
 
   // Phase 5: Publishing state
   const [aeoScore, setAeoScore] = useState<number | null>(null);
-  const [aeoChecks, setAeoChecks] = useState<import("@/types").AeoCheckResult[]>([]);
+  const [aeoChecks] = useState<import("@/types").AeoCheckResult[]>([]);
   const [schemaType, setSchemaType] = useState<import("@/types").SchemaType | null>(null);
   const [schemaJson, setSchemaJson] = useState<string | null>(null);
   const [wpConnections, setWpConnections] = useState<{ id: string; siteUrl: string; pluginDetected: string | null; status: string }[]>([]);
@@ -255,7 +255,6 @@ export default function BlogPage() {
             <WpPublishPanel
               blogId={blogId}
               wpPostUrl={blog.wpPostUrl}
-              wpStatus={blog.wpStatus}
               connections={wpConnections}
               personas={authorPersonas}
             />

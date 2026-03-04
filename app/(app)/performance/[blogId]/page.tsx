@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
 import { DecayAlertCard } from "@/components/performance/decay-alert-card";
 import { GoogleConnectBanner } from "@/components/performance/google-connect-banner";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 interface Snapshot {
   id: string;
@@ -50,11 +51,13 @@ export default function BlogPerformancePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [googleConnected, setGoogleConnected] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const [snapRes, perfRes] = await Promise.all([
           fetch(`/api/rank-snapshots/${blogId}`),
@@ -70,6 +73,11 @@ export default function BlogPerformancePage() {
           setAlerts(data.alerts);
           setGoogleConnected(data.googleConnected);
         }
+        if (!snapRes.ok && !perfRes.ok) {
+          setError("Failed to load performance data");
+        }
+      } catch {
+        setError("Network error loading performance data");
       } finally {
         setLoading(false);
       }
@@ -79,6 +87,7 @@ export default function BlogPerformancePage() {
 
   async function handleCheckNow() {
     setChecking(true);
+    setError(null);
     try {
       const res = await fetch("/api/rank-check", {
         method: "POST",
@@ -96,7 +105,11 @@ export default function BlogPerformancePage() {
           },
           ...prev,
         ]);
+      } else {
+        setError("Rank check failed. Please try again.");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setChecking(false);
     }
@@ -114,49 +127,53 @@ export default function BlogPerformancePage() {
   const latestPosition = snapshots[0]?.position ?? null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
+    <PaywallGate>
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-card">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => router.push("/performance")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-xl font-semibold">Blog Performance</h1>
+            </div>
             <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => router.push("/performance")}
+              size="sm"
+              variant="outline"
+              onClick={handleCheckNow}
+              disabled={checking}
             >
-              <ArrowLeft className="h-4 w-4" />
+              {checking ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              )}
+              Check Rank Now
             </Button>
-            <h1 className="text-xl font-semibold">Blog Performance</h1>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCheckNow}
-            disabled={checking}
-          >
-            {checking ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1 h-3.5 w-3.5" />
-            )}
-            Check Rank Now
-          </Button>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-48 rounded-lg" />
-            <Skeleton className="h-32 rounded-lg" />
-          </div>
-        ) : (
-          <>
-            {!googleConnected && (
-              <GoogleConnectBanner
-                onConnect={() => router.push("/api/google-auth")}
-              />
-            )}
+        <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-48 rounded-lg" />
+              <Skeleton className="h-32 rounded-lg" />
+            </div>
+          ) : (
+            <>
+              {!googleConnected && (
+                <GoogleConnectBanner
+                  onConnect={() => router.push("/api/google-auth")}
+                />
+              )}
 
             {/* Rank History */}
             <Card>
@@ -258,9 +275,10 @@ export default function BlogPerformancePage() {
                 </CardContent>
               </Card>
             )}
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </PaywallGate>
   );
 }

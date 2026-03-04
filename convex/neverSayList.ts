@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { termTypeValidator } from "./validators";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "./errors";
 
 export const listByWorkspace = query({
@@ -22,6 +22,21 @@ export const getAllTerms = query({
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
+    const entries = await ctx.db
+      .query("neverSayList")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(100);
+    return entries.map((e) => e.term);
+  },
+});
+
+export const getAllTermsForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
     const entries = await ctx.db
       .query("neverSayList")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))

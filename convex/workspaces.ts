@@ -1,7 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { ConvexError } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireCronAccess } from "./helpers";
+import { ERR_WORKSPACE_NOT_FOUND } from "./errors";
+import { planStatusValidator } from "./validators";
 
 const VALID_ARCHETYPES = [
   "how_to",
@@ -31,6 +34,17 @@ export const getByClerkUser = query({
   },
 });
 
+export const getById = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace || workspace.clerkUserId !== identity.subject) return null;
+    return workspace;
+  },
+});
+
 /**
  * Admin listing used by scheduled background jobs (Inngest).
  * Access is gated by INNGEST_CRON_KEY rather than end-user auth.
@@ -44,6 +58,17 @@ export const listAllForCron = query({
     requireCronAccess(args.cronKey);
     const limit = Math.min(args.limit ?? MAX_WORKSPACES_PER_CRON_RUN, MAX_WORKSPACES_PER_CRON_RUN);
     return ctx.db.query("workspaces").order("desc").take(limit);
+  },
+});
+
+export const getByIdForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db.get(args.workspaceId);
   },
 });
 
@@ -76,11 +101,16 @@ export const provision = mutation({
       .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", clerkUserId))
       .first();
 
+    const TRIAL_DAYS = 14;
+    const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
     const workspaceId = existing
       ? existing._id
       : await ctx.db.insert("workspaces", {
           clerkUserId,
           name: args.name,
+          plan: "trial",
+          trialEndsAt,
           createdAt: now,
           updatedAt: now,
         });
@@ -234,6 +264,48 @@ function toArchetype(value: unknown): Archetype {
   }
   return "how_to";
 }
+
+// ── Billing ──────────────────────────────────────────────────────────────────
+
+export const updateBilling = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    plan: v.optional(planStatusValidator),
+    planExpiresAt: v.optional(v.number()),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new ConvexError(ERR_WORKSPACE_NOT_FOUND);
+
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (args.stripeCustomerId !== undefined) patch.stripeCustomerId = args.stripeCustomerId;
+    if (args.stripeSubscriptionId !== undefined) patch.stripeSubscriptionId = args.stripeSubscriptionId;
+    if (args.plan !== undefined) patch.plan = args.plan;
+    if (args.planExpiresAt !== undefined) patch.planExpiresAt = args.planExpiresAt;
+
+    await ctx.db.patch(args.workspaceId, patch);
+  },
+});
+
+export const getByStripeCustomer = query({
+  args: {
+    stripeCustomerId: v.string(),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db
+      .query("workspaces")
+      .withIndex("by_stripe_customer", (q) =>
+        q.eq("stripeCustomerId", args.stripeCustomerId)
+      )
+      .first();
+  },
+});
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;

@@ -5,10 +5,17 @@ const ALGO = "aes-256-gcm";
 
 function getKey(): Buffer {
   const raw = process.env.WP_CREDENTIALS_KEY;
-  if (!raw || raw.length < 32) {
-    throw new Error("WP_CREDENTIALS_KEY env var must be set (32+ chars)");
+  if (!raw) {
+    throw new Error("WP_CREDENTIALS_KEY env var must be set");
   }
-  return Buffer.from(raw.slice(0, 32), "utf8");
+  if (raw.length === 64 && /^[0-9a-fA-F]+$/.test(raw)) {
+    return Buffer.from(raw, "hex");
+  }
+  const buf = Buffer.from(raw, "utf8");
+  if (buf.length < 32) {
+    throw new Error("WP_CREDENTIALS_KEY must be at least 32 bytes");
+  }
+  return buf.subarray(0, 32);
 }
 
 export function encryptCredentials(plain: string): {

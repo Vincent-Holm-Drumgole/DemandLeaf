@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Loader2, ExternalLink, Download, Copy, Check } from "lucide-react";
 
 interface WpConnection {
@@ -29,7 +30,6 @@ interface AuthorPersona {
 interface WpPublishPanelProps {
   blogId: string;
   wpPostUrl?: string | null;
-  wpStatus?: string | null;
   connections: WpConnection[];
   personas: AuthorPersona[];
 }
@@ -37,7 +37,6 @@ interface WpPublishPanelProps {
 export function WpPublishPanel({
   blogId,
   wpPostUrl,
-  wpStatus,
   connections,
   personas,
 }: WpPublishPanelProps) {
@@ -50,6 +49,7 @@ export function WpPublishPanel({
   const [publishStatus, setPublishStatus] = useState<
     "draft" | "publish" | "future"
   >("draft");
+  const [scheduledAt, setScheduledAt] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -69,6 +69,9 @@ export function WpPublishPanel({
         body: JSON.stringify({
           wpConnectionId: connectionId,
           status: publishStatus,
+          ...(publishStatus === "future" && scheduledAt
+            ? { scheduledAt: new Date(scheduledAt).getTime() }
+            : {}),
           authorPersonaId: personaId || undefined,
         }),
       });
@@ -190,11 +193,30 @@ export function WpPublishPanel({
               </Select>
             </div>
 
+            {publishStatus === "future" && (
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">
+                  Schedule Date & Time
+                </label>
+                <Input
+                  type="datetime-local"
+                  className="h-8 text-xs"
+                  value={scheduledAt}
+                  min={new Date().toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                />
+              </div>
+            )}
+
             <Button
               size="sm"
               className="w-full"
               onClick={handlePublish}
-              disabled={publishing || !connectionId}
+              disabled={
+                publishing ||
+                !connectionId ||
+                (publishStatus === "future" && !scheduledAt)
+              }
             >
               {publishing && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
               {publishStatus === "draft"

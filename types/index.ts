@@ -97,3 +97,18 @@ export type {
   GA4PostMetrics,
   GSCPostMetrics,
 } from "./performance";
+export type {
+  AgentType,
+  AgentActionStatus,
+  NotificationType,
+  AgentAction,
+  CalendarAgentPayload,
+  RefreshAgentPayload,
+  InternalLinksAgentPayload,
+  CompetitiveResponsePayload,
+  StrategyDriftPayload,
+  PublishingAgentPayload,
+  TrustTier,
+  TrustScore,
+  Notification,
+} from "./agents";

@@ -79,6 +79,34 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
+  // Billing gate: authenticated workspaces with expired trial/past-due/canceled
+  // plans cannot generate new content.
+  const { userId } = await auth();
+  let authedConvexClient: Awaited<ReturnType<typeof getAuthedConvexClient>> | null = null;
+  let authedWorkspace:
+    | {
+        _id: Id<"workspaces">;
+        plan?: string;
+        trialEndsAt?: number;
+      }
+    | null = null;
+  if (userId) {
+    authedConvexClient = await getAuthedConvexClient();
+    const workspace = await authedConvexClient.query(api.workspaces.getByClerkUser, {});
+    if (workspace) {
+      authedWorkspace = workspace;
+      if (workspaceNeedsUpgrade(workspace)) {
+        return new Response(
+          JSON.stringify({
+            error: "Subscription required to continue generating content.",
+            code: "SUBSCRIPTION_REQUIRED",
+          }),
+          { status: 402, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
+
   // ── Brief-mode: load approved Phase 3 brief and override keyword/archetype ──
   let briefHint: BriefHint | undefined;
   let resolvedBriefId: Id<"contentBriefs"> | undefined;
@@ -92,7 +120,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const { userId } = await auth();
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "Authentication is required to generate from a brief" }),
@@ -101,7 +128,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     try {
-      const authedConvex = await getAuthedConvexClient();
+      const authedConvex = authedConvexClient ?? await getAuthedConvexClient();
+      authedConvexClient = authedConvex;
       const brief = await authedConvex.query(api.contentBriefs.getById, { briefId: briefIdTyped });
       if (brief.status !== "approved") {
         return new Response(
@@ -187,10 +215,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   let neverSayTerms: string[] | undefined;
 
   try {
-    const { userId } = await auth();
     if (userId) {
-      const authedConvex = await getAuthedConvexClient();
-      const workspace = await authedConvex.query(api.workspaces.getByClerkUser, {});
+      const authedConvex = authedConvexClient ?? await getAuthedConvexClient();
+      authedConvexClient = authedConvex;
+      const workspace =
+        authedWorkspace ?? await authedConvex.query(api.workspaces.getByClerkUser, {});
+      authedWorkspace = workspace;
       if (workspace) {
         const workspaceId = workspace._id;
 
@@ -392,6 +422,16 @@ export async function POST(request: NextRequest): Promise<Response> {
       Connection: "keep-alive",
     },
   });
+}
+
+function workspaceNeedsUpgrade(workspace: {
+  plan?: string;
+  trialEndsAt?: number;
+}): boolean {
+  const plan = workspace.plan ?? "trial";
+  const trialEndsAt = workspace.trialEndsAt ?? 0;
+  const trialExpired = plan === "trial" && Date.now() > trialEndsAt;
+  return plan === "canceled" || plan === "past_due" || trialExpired;
 }
 
 function buildVoiceProfileFromSession(

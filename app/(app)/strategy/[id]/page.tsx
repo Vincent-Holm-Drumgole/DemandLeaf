@@ -10,6 +10,7 @@ import { KeywordExplorer } from "@/components/keywords/keyword-explorer";
 import { ClusterTreeView } from "@/components/clusters/cluster-tree-view";
 import { ContentCalendar } from "@/components/calendar/content-calendar";
 import type { ClusterResult } from "@/types";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 interface StrategyPageData {
   strategy: {
@@ -112,49 +113,51 @@ export default function StrategyDetailPage() {
   const clusterOptions = data.clusters.map((c) => ({ id: c._id, name: c.name }));
 
   return (
-    <main className="container max-w-5xl py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/strategy")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">{data.strategy.name}</h1>
-          <p className="text-muted-foreground text-sm line-clamp-1">
-            {data.strategy.businessOutcomes}
-          </p>
+    <PaywallGate>
+      <main className="container max-w-5xl py-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/strategy")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{data.strategy.name}</h1>
+            <p className="text-muted-foreground text-sm line-clamp-1">
+              {data.strategy.businessOutcomes}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <Tabs defaultValue="keywords">
-        <TabsList>
-          <TabsTrigger value="keywords">
-            Keywords ({data.keywords.length})
-          </TabsTrigger>
-          <TabsTrigger value="clusters">
-            <GitBranch className="h-4 w-4 mr-1" />
-            Clusters ({data.clusters.length})
-          </TabsTrigger>
-          <TabsTrigger value="calendar">
-            <CalendarDays className="h-4 w-4 mr-1" />
-            Calendar
-          </TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="keywords">
+          <TabsList>
+            <TabsTrigger value="keywords">
+              Keywords ({data.keywords.length})
+            </TabsTrigger>
+            <TabsTrigger value="clusters">
+              <GitBranch className="h-4 w-4 mr-1" />
+              Clusters ({data.clusters.length})
+            </TabsTrigger>
+            <TabsTrigger value="calendar">
+              <CalendarDays className="h-4 w-4 mr-1" />
+              Calendar
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="keywords" className="mt-4">
-          <KeywordExplorer
-            keywords={data.keywords}
-            clusterOptions={clusterOptions}
-          />
-        </TabsContent>
+          <TabsContent value="keywords" className="mt-4">
+            <KeywordExplorer
+              keywords={data.keywords}
+              clusterOptions={clusterOptions}
+            />
+          </TabsContent>
 
-        <TabsContent value="clusters" className="mt-4">
-          <ClusterTreeView clusters={data.clusters} />
-        </TabsContent>
+          <TabsContent value="clusters" className="mt-4">
+            <ClusterTreeView clusters={data.clusters} />
+          </TabsContent>
 
-        <TabsContent value="calendar" className="mt-4">
-          <ContentCalendar items={calendarItems} />
-        </TabsContent>
-      </Tabs>
-    </main>
+          <TabsContent value="calendar" className="mt-4">
+            <ContentCalendar items={calendarItems} />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </PaywallGate>
   );
 }

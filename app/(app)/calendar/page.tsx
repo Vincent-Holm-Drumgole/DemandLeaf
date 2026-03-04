@@ -5,6 +5,7 @@ import { Loader2, CalendarDays } from "lucide-react";
 import { ContentCalendar } from "@/components/calendar/content-calendar";
 import type { CalendarEntry } from "@/types/calendar";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { PaywallGate } from "@/components/billing/paywall-gate";
 
 export default function CalendarPage() {
   const { isLoaded, isSignedIn } = useAuthGuard();
@@ -38,25 +39,27 @@ export default function CalendarPage() {
   if (!isLoaded || !isSignedIn) return null;
 
   return (
-    <main className="container max-w-5xl py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CalendarDays className="h-6 w-6" /> Content Calendar
-        </h1>
-        <p className="text-muted-foreground">
-          Your scheduled content across all strategies.
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <PaywallGate>
+      <main className="container max-w-5xl py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <CalendarDays className="h-6 w-6" /> Content Calendar
+          </h1>
+          <p className="text-muted-foreground">
+            Your scheduled content across all strategies.
+          </p>
         </div>
-      ) : error ? (
-        <p className="text-destructive">{error}</p>
-      ) : (
-        <ContentCalendar items={items} />
-      )}
-    </main>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <p className="text-destructive">{error}</p>
+        ) : (
+          <ContentCalendar items={items} />
+        )}
+      </main>
+    </PaywallGate>
   );
 }

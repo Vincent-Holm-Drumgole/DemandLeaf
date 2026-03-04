@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import { ERR_BLOG_NOT_FOUND } from "./errors";
 
 const MAX_METRICS_PER_BLOG = 200;
 const MAX_METRICS_PER_WORKSPACE = 500;
@@ -22,6 +23,21 @@ export const upsertMetrics = mutation({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
+
+    const existing = await ctx.db
+      .query("performanceMetrics")
+      .withIndex("by_blog_period", (q) =>
+        q.eq("blogId", args.blogId).eq("periodStart", args.periodStart)
+      )
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { ...args, measuredAt: Date.now() });
+      return existing._id;
+    }
     return ctx.db.insert("performanceMetrics", {
       ...args,
       measuredAt: Date.now(),
@@ -47,7 +63,24 @@ export const upsertMetricsForCron = mutation({
   },
   handler: async (ctx, args) => {
     requireCronAccess(args.cronKey);
-    const { cronKey: _cronKey, ...fields } = args;
+    const { cronKey, ...fields } = args;
+    void cronKey;
+
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
+
+    const existing = await ctx.db
+      .query("performanceMetrics")
+      .withIndex("by_blog_period", (q) =>
+        q.eq("blogId", args.blogId).eq("periodStart", args.periodStart)
+      )
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { ...fields, measuredAt: Date.now() });
+      return existing._id;
+    }
     return ctx.db.insert("performanceMetrics", {
       ...fields,
       measuredAt: Date.now(),
@@ -62,7 +95,7 @@ export const getMetricsForBlog = query({
   },
   handler: async (ctx, args) => {
     const blog = await ctx.db.get(args.blogId);
-    if (!blog) return [];
+    if (!blog) throw new ConvexError(ERR_BLOG_NOT_FOUND);
     await requireWorkspaceAccess(ctx, blog.workspaceId);
     return ctx.db
       .query("performanceMetrics")

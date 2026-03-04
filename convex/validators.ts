@@ -410,7 +410,7 @@ const refreshSectionAddValidator = v.object({
 
 export const refreshBriefDataValidator = v.object({
   targetKeyword: v.string(),
-  diagnosisCause: v.string(),
+  diagnosisCause: diagnosisCauseValidator,
   diagnosisNotes: v.string(),
   currentPosition: v.union(v.number(), v.null()),
   targetPosition: v.number(),
@@ -429,4 +429,49 @@ export const googleConnectionStatusValidator = v.union(
   v.literal("error"),
   v.literal("disconnected"),
   v.literal("pending_auth")
+);
+
+// ── Phase 7: Agentic Operations ──────────────────────────────────────────────
+
+export const agentTypeValidator = v.union(
+  v.literal("calendar"),
+  v.literal("refresh"),
+  v.literal("internal_links"),
+  v.literal("competitive_response"),
+  v.literal("strategy_drift"),
+  v.literal("publishing")
+);
+
+export const agentActionStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("executing"),
+  v.literal("done"),
+  v.literal("failed")
+);
+
+export const notificationTypeValidator = v.union(
+  v.literal("agent_action_ready"),
+  v.literal("agent_action_done"),
+  v.literal("agent_action_failed")
+);
+
+export const auditActorTypeValidator = v.union(
+  v.literal("agent"),
+  v.literal("user")
+);
+
+export const publishingAgentStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("paused")
+);
+
+// ── Billing ──────────────────────────────────────────────────────────────────
+
+export const planStatusValidator = v.union(
+  v.literal("trial"),
+  v.literal("active"),
+  v.literal("past_due"),
+  v.literal("canceled")
 );

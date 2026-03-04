@@ -13,9 +13,12 @@ import {
   Settings,
   Leaf,
   Network,
+  LineChart,
+  Bot,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { TrialBanner } from "@/components/billing/trial-banner";
 
 interface NavItem {
   label: string;
@@ -37,6 +40,13 @@ const NAV_GROUPS: { heading?: string; items: NavItem[] }[] = [
       { label: "Strategy", href: "/strategy", icon: Target },
       { label: "Keywords", href: "/keywords", icon: Search },
       { label: "Content Map", href: "/content-map", icon: Network },
+    ],
+  },
+  {
+    heading: "Intelligence",
+    items: [
+      { label: "Performance", href: "/performance", icon: LineChart },
+      { label: "Agents", href: "/agents", icon: Bot },
     ],
   },
   {
@@ -68,6 +78,8 @@ export function NavSidebar() {
         <Leaf className="h-5 w-5 text-green-600" />
         <span className="font-semibold text-base tracking-tight">DemandLeaf</span>
       </div>
+
+      <TrialBanner />
 
       {/* Nav groups */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">

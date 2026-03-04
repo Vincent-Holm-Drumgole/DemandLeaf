@@ -5,6 +5,8 @@ import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { generateRefreshBrief, generateRefreshedDraft } from "@/lib/refresh/generator";
+import type { DiagnosisCause } from "@/types";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -23,18 +25,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json()) as {
-    blogId: string;
-    alertId?: string;
-    mode: "brief_only" | "full_draft";
-  };
+  let body: { blogId?: string; alertId?: string; mode?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  if (!body.blogId || !body.mode) {
+  if (
+    typeof body.blogId !== "string" ||
+    (body.mode !== "brief_only" && body.mode !== "full_draft")
+  ) {
     return NextResponse.json(
-      { error: "blogId and mode are required" },
+      { error: "blogId and mode (brief_only | full_draft) are required" },
       { status: 400 }
     );
   }
+  const mode = body.mode;
 
   const blogId = parseConvexId(body.blogId, "blogs");
   if (!blogId) {
@@ -53,8 +60,8 @@ export async function POST(request: Request) {
   }
 
   // Load diagnosis from the alert if provided
-  let diagnosis = { cause: "content_freshness", notes: "General content refresh" };
-  let alertId = body.alertId ? parseConvexId(body.alertId, "decayAlerts") : null;
+  let diagnosis: { cause: DiagnosisCause; notes: string } = { cause: "content_freshness", notes: "General content refresh" };
+  const alertId = body.alertId ? parseConvexId(body.alertId, "decayAlerts") : null;
   if (alertId) {
     const alert = await convex.query(api.decayAlerts.getById, { alertId });
     if (alert?.diagnosisCause) {
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
   });
   const currentPosition = snapshots[0]?.position ?? null;
 
+  let refreshId: Id<"refreshHistory"> | undefined;
   try {
     // Generate refresh brief
     const briefData = await generateRefreshBrief(
@@ -89,16 +97,16 @@ export async function POST(request: Request) {
     );
 
     // Create refresh record once we have typed brief data
-    const refreshId = await convex.mutation(api.refreshHistory.create, {
+    refreshId = await convex.mutation(api.refreshHistory.create, {
       workspaceId: workspace._id,
       blogId,
       alertId: alertId ?? undefined,
       briefData,
-      status: body.mode === "brief_only" ? "completed" : "in_progress",
+      status: mode === "brief_only" ? "completed" : "in_progress",
     });
 
     let refreshedContent: string | undefined;
-    if (body.mode === "full_draft") {
+    if (mode === "full_draft") {
       // Load voice profile for draft generation
       const voiceProfile = await convex.query(api.voiceProfiles.getByWorkspace, {
         workspaceId: workspace._id,
@@ -122,8 +130,8 @@ export async function POST(request: Request) {
       });
     }
 
-    // Update alert status if provided
-    if (alertId) {
+    // "refreshing" should only be set when a full draft refresh is in progress.
+    if (alertId && mode === "full_draft") {
       await convex.mutation(api.decayAlerts.updateStatus, {
         alertId,
         status: "refreshing",
@@ -138,6 +146,17 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[refresh/POST]", err);
+    if (refreshId) {
+      try {
+        await convex.mutation(api.refreshHistory.updateContent, {
+          refreshId,
+          refreshedContent: "",
+          status: "failed",
+        });
+      } catch {
+        // Best-effort cleanup
+      }
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Refresh failed" },
       { status: 500 }

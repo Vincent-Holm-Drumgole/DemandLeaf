@@ -46,7 +46,8 @@ export const createForCron = mutation({
   },
   handler: async (ctx, args) => {
     requireCronAccess(args.cronKey);
-    const { cronKey: _cronKey, ...fields } = args;
+    const { cronKey, ...fields } = args;
+    void cronKey;
     return ctx.db.insert("decayAlerts", {
       ...fields,
       triggeredAt: Date.now(),
@@ -54,6 +55,24 @@ export const createForCron = mutation({
     });
   },
 });
+
+function buildStatusPatch(args: {
+  status: string;
+  diagnosisCause?: string;
+  diagnosisNotes?: string;
+  refreshHistoryId?: string;
+}): Record<string, unknown> {
+  const patch: Record<string, unknown> = { status: args.status };
+  if (args.diagnosisCause) {
+    patch.diagnosisCause = args.diagnosisCause;
+    patch.diagnosedAt = Date.now();
+  }
+  if (args.diagnosisNotes) patch.diagnosisNotes = args.diagnosisNotes;
+  if (args.refreshHistoryId) patch.refreshHistoryId = args.refreshHistoryId;
+  if (args.status === "resolved") patch.resolvedAt = Date.now();
+  if (args.status === "escalated") patch.escalatedAt = Date.now();
+  return patch;
+}
 
 export const updateStatus = mutation({
   args: {
@@ -68,17 +87,7 @@ export const updateStatus = mutation({
     if (!alert) throw new ConvexError(ERR_DECAY_ALERT_NOT_FOUND);
     await requireWorkspaceAccess(ctx, alert.workspaceId);
 
-    const patch: Record<string, unknown> = { status: args.status };
-    if (args.diagnosisCause) {
-      patch.diagnosisCause = args.diagnosisCause;
-      patch.diagnosedAt = Date.now();
-    }
-    if (args.diagnosisNotes) patch.diagnosisNotes = args.diagnosisNotes;
-    if (args.refreshHistoryId) patch.refreshHistoryId = args.refreshHistoryId;
-    if (args.status === "resolved") patch.resolvedAt = Date.now();
-    if (args.status === "escalated") patch.escalatedAt = Date.now();
-
-    await ctx.db.patch(args.alertId, patch);
+    await ctx.db.patch(args.alertId, buildStatusPatch(args));
   },
 });
 
@@ -163,16 +172,6 @@ export const updateStatusForCron = mutation({
     const alert = await ctx.db.get(args.alertId);
     if (!alert) throw new ConvexError(ERR_DECAY_ALERT_NOT_FOUND);
 
-    const patch: Record<string, unknown> = { status: args.status };
-    if (args.diagnosisCause) {
-      patch.diagnosisCause = args.diagnosisCause;
-      patch.diagnosedAt = Date.now();
-    }
-    if (args.diagnosisNotes) patch.diagnosisNotes = args.diagnosisNotes;
-    if (args.refreshHistoryId) patch.refreshHistoryId = args.refreshHistoryId;
-    if (args.status === "resolved") patch.resolvedAt = Date.now();
-    if (args.status === "escalated") patch.escalatedAt = Date.now();
-
-    await ctx.db.patch(args.alertId, patch);
+    await ctx.db.patch(args.alertId, buildStatusPatch(args));
   },
 });

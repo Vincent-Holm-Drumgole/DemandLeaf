@@ -9,6 +9,9 @@
  */
 
 import type * as anonymousSessions from "../anonymousSessions.js";
+import type * as agentActions from "../agentActions.js";
+import type * as agentAuditLog from "../agentAuditLog.js";
+import type * as agentTrust from "../agentTrust.js";
 import type * as authorPersonas from "../authorPersonas.js";
 import type * as blogEdits from "../blogEdits.js";
 import type * as blogs from "../blogs.js";
@@ -16,6 +19,7 @@ import type * as calibration from "../calibration.js";
 import type * as confidenceScores from "../confidenceScores.js";
 import type * as contentBriefs from "../contentBriefs.js";
 import type * as contentCalendar from "../contentCalendar.js";
+import type * as competitorTracking from "../competitorTracking.js";
 import type * as decayAlerts from "../decayAlerts.js";
 import type * as errors from "../errors.js";
 import type * as feedback from "../feedback.js";
@@ -25,7 +29,9 @@ import type * as internalLinks from "../internalLinks.js";
 import type * as keywords from "../keywords.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
 import type * as neverSayList from "../neverSayList.js";
+import type * as notifications from "../notifications.js";
 import type * as performanceMetrics from "../performanceMetrics.js";
+import type * as publishingAgentConfig from "../publishingAgentConfig.js";
 import type * as rankSnapshots from "../rankSnapshots.js";
 import type * as refreshHistory from "../refreshHistory.js";
 import type * as seoDataCache from "../seoDataCache.js";
@@ -44,6 +50,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   anonymousSessions: typeof anonymousSessions;
+  agentActions: typeof agentActions;
+  agentAuditLog: typeof agentAuditLog;
+  agentTrust: typeof agentTrust;
   authorPersonas: typeof authorPersonas;
   blogEdits: typeof blogEdits;
   blogs: typeof blogs;
@@ -51,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   confidenceScores: typeof confidenceScores;
   contentBriefs: typeof contentBriefs;
   contentCalendar: typeof contentCalendar;
+  competitorTracking: typeof competitorTracking;
   decayAlerts: typeof decayAlerts;
   errors: typeof errors;
   feedback: typeof feedback;
@@ -60,7 +70,9 @@ declare const fullApi: ApiFromModules<{
   keywords: typeof keywords;
   knowledgeBase: typeof knowledgeBase;
   neverSayList: typeof neverSayList;
+  notifications: typeof notifications;
   performanceMetrics: typeof performanceMetrics;
+  publishingAgentConfig: typeof publishingAgentConfig;
   rankSnapshots: typeof rankSnapshots;
   refreshHistory: typeof refreshHistory;
   seoDataCache: typeof seoDataCache;

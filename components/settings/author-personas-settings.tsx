@@ -18,8 +18,10 @@ interface Persona {
 export function AuthorPersonasSettings() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [operatingId, setOperatingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [bio, setBio] = useState("");
@@ -27,9 +29,16 @@ export function AuthorPersonasSettings() {
 
   async function loadPersonas() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/author-personas");
-      if (res.ok) setPersonas(await res.json());
+      if (res.ok) {
+        setPersonas(await res.json());
+      } else {
+        setError("Failed to load author personas");
+      }
+    } catch {
+      setError("Failed to load author personas");
     } finally {
       setLoading(false);
     }
@@ -71,17 +80,28 @@ export function AuthorPersonasSettings() {
   }
 
   async function handleSetDefault(id: string) {
-    await fetch(`/api/author-personas/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefault: true }),
-    });
-    await loadPersonas();
+    setOperatingId(id);
+    try {
+      await fetch(`/api/author-personas/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDefault: true }),
+      });
+      await loadPersonas();
+    } finally {
+      setOperatingId(null);
+    }
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/author-personas/${id}`, { method: "DELETE" });
-    await loadPersonas();
+    if (!window.confirm("Delete this author persona? This cannot be undone.")) return;
+    setOperatingId(id);
+    try {
+      await fetch(`/api/author-personas/${id}`, { method: "DELETE" });
+      await loadPersonas();
+    } finally {
+      setOperatingId(null);
+    }
   }
 
   if (loading) {
@@ -95,7 +115,10 @@ export function AuthorPersonasSettings() {
 
   return (
     <div className="space-y-4">
-      {personas.length === 0 && !showForm && (
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+      {personas.length === 0 && !showForm && !error && (
         <p className="text-sm text-muted-foreground">
           No author personas yet. Add one to include author schema on published
           posts.
@@ -140,6 +163,7 @@ export function AuthorPersonasSettings() {
                 variant="ghost"
                 className="h-8 w-8"
                 onClick={() => handleSetDefault(p.id)}
+                disabled={operatingId === p.id}
                 title="Set as default"
               >
                 <Star className="h-4 w-4" />
@@ -150,6 +174,7 @@ export function AuthorPersonasSettings() {
               variant="ghost"
               className="h-8 w-8 text-red-500"
               onClick={() => handleDelete(p.id)}
+              disabled={operatingId === p.id}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

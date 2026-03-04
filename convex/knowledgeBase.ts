@@ -7,7 +7,7 @@ import {
   internalAction,
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND } from "./errors";
 import { v, ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
@@ -70,6 +70,22 @@ export const listReadyByWorkspace = query({
       .query("knowledgeBase")
       .withIndex("by_workspace_status", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "ready")
+      )
+      .take(MAX_KB_ENTRIES_PER_QUERY);
+  },
+});
+
+export const listReadyByWorkspaceForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db
+      .query("knowledgeBase")
+      .withIndex("by_workspace_status", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "ready"),
       )
       .take(MAX_KB_ENTRIES_PER_QUERY);
   },
