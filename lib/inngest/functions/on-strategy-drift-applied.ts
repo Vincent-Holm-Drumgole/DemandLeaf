@@ -52,7 +52,6 @@ export const onStrategyDriftApplied = inngest.createFunction(
         strategyId: validStrategyId,
         calendarItems: data.calendarItems,
         keywords: data.keywords,
-        performanceMetrics: [],
       });
     });
 

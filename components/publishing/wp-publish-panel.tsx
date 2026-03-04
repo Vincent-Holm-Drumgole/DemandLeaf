@@ -202,7 +202,9 @@ export function WpPublishPanel({
                   type="datetime-local"
                   className="h-8 text-xs"
                   value={scheduledAt}
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .slice(0, 16)}
                   onChange={(e) => setScheduledAt(e.target.value)}
                 />
               </div>

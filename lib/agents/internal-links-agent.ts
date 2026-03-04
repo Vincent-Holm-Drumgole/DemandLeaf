@@ -70,8 +70,8 @@ ${suggestions.map((s, i) => `${i + 1}. "${s.anchorText}" → "${s.targetTitle}"`
     // Fallback: assign sequential paragraphs
     insertionNotes = suggestions.map((s, i) => ({
       targetBlogId: s.targetBlogId,
-      paragraphIndex: Math.min(i * 3 + 2, paragraphs.length),
-      insertionNote: `Insert near paragraph ${Math.min(i * 3 + 2, paragraphs.length)}`,
+      paragraphIndex: Math.max(1, Math.min(i * 3 + 2, paragraphs.length || 1)),
+      insertionNote: `Insert near paragraph ${Math.max(1, Math.min(i * 3 + 2, paragraphs.length || 1))}`,
     }));
   }
 
@@ -85,7 +85,7 @@ ${suggestions.map((s, i) => `${i + 1}. "${s.anchorText}" → "${s.targetTitle}"`
       similarity: s.similarity,
       insertionNote:
         insertionNotes[i]?.insertionNote ??
-        `Near paragraph ${Math.min(i + 2, paragraphs.length)}`,
+        `Near paragraph ${Math.max(1, Math.min(i + 2, paragraphs.length || 1))}`,
     })),
   };
 }

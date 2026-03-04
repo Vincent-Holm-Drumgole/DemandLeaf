@@ -43,9 +43,11 @@ export default function PerformancePage() {
           fetch("/api/roi"),
           fetch("/api/decay-alerts"),
         ]);
+        let hasError = false;
         if (roiRes.ok) setRoi(await roiRes.json());
-        else setError("Failed to load performance data");
+        else { setError("Failed to load performance data"); hasError = true; }
         if (alertsRes.ok) setAlerts(await alertsRes.json());
+        else if (!hasError) setError("Failed to load alerts");
       } catch {
         setError("Failed to load performance data");
       } finally {

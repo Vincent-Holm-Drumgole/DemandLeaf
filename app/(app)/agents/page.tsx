@@ -54,18 +54,20 @@ export default function AgentsPage() {
   }
 
   async function handleReject(actionId: string, note?: string) {
-    await fetch(`/api/agent-actions/${actionId}/reject`, {
+    const res = await fetch(`/api/agent-actions/${actionId}/reject`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note }),
     });
-    setActions((prev) =>
-      prev.map((a) =>
-        a.id === actionId
-          ? { ...a, status: "rejected" as const, userNote: note ?? null }
-          : a
-      )
-    );
+    if (res.ok) {
+      setActions((prev) =>
+        prev.map((a) =>
+          a.id === actionId
+            ? { ...a, status: "rejected" as const, userNote: note ?? null }
+            : a
+        )
+      );
+    }
   }
 
   if (!isLoaded) {

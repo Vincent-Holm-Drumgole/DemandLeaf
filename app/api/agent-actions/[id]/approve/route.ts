@@ -100,6 +100,11 @@ export async function POST(
           action.payload as PublishingAgentPayload
         );
         break;
+      default:
+        return NextResponse.json(
+          { error: `Unknown agent type: ${action.agentType}` },
+          { status: 400 }
+        );
     }
 
     try {

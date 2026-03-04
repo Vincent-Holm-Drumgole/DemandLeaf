@@ -23,6 +23,7 @@ export async function executeStrategyDrift(
     });
   } catch (err) {
     console.error("[drift-executor] Failed to update driftCheckedAt:", err);
+    return { updated: false };
   }
 
   // Fire coordination event for Calendar Agent
@@ -31,7 +32,7 @@ export async function executeStrategyDrift(
       name: "agent/strategy-drift-applied",
       data: {
         workspaceId: workspaceId as string,
-        strategyId: payload.strategyId,
+        strategyId: strategyId as string,
         pivots: payload.pivotRecommendations.map((p) => ({
           type: p.type,
           recommendation: p.recommendation,

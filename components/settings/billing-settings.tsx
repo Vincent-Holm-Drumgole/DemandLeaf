@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSubscription } from "@/hooks/use-subscription";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,28 +22,37 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
 
 export function BillingSettings() {
   const { status, isTrialing, trialDaysLeft, needsUpgrade } = useSubscription();
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubscribe() {
+    setError(null);
     try {
       const res = await fetch("/api/stripe/checkout", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         if (data.url) window.location.href = data.url;
+      } else {
+        setError("Failed to start checkout. Please try again.");
       }
     } catch (err) {
       console.error("[billing] Checkout failed:", err);
+      setError("Failed to start checkout. Please try again.");
     }
   }
 
   async function handleManageSubscription() {
+    setError(null);
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         if (data.url) window.location.href = data.url;
+      } else {
+        setError("Failed to open billing portal. Please try again.");
       }
     } catch (err) {
       console.error("[billing] Portal failed:", err);
+      setError("Failed to open billing portal. Please try again.");
     }
   }
 
@@ -88,6 +98,8 @@ export function BillingSettings() {
           )}
         </div>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {needsUpgrade || isTrialing ? (
         <Button onClick={handleSubscribe} className="w-full">

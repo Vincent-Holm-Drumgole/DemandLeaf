@@ -33,23 +33,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
-  if (agentType === "publishing") {
-    const gate = await convex.query(api.agentTrust.getPublishingGateStatus, {
-      workspaceId: workspace._id,
-    });
-    return NextResponse.json(gate);
-  }
-
-  if (agentType) {
-    if (!isAgentType(agentType)) {
-      return NextResponse.json({ error: "Invalid agentType" }, { status: 400 });
+  try {
+    if (agentType === "publishing") {
+      const gate = await convex.query(api.agentTrust.getPublishingGateStatus, {
+        workspaceId: workspace._id,
+      });
+      return NextResponse.json(gate);
     }
-    const score = await convex.query(api.agentTrust.getTrustScore, {
-      workspaceId: workspace._id,
-      agentType,
-    });
-    return NextResponse.json(score);
-  }
 
-  return NextResponse.json({ error: "agentType param required" }, { status: 400 });
+    if (agentType) {
+      if (!isAgentType(agentType)) {
+        return NextResponse.json({ error: "Invalid agentType" }, { status: 400 });
+      }
+      const score = await convex.query(api.agentTrust.getTrustScore, {
+        workspaceId: workspace._id,
+        agentType,
+      });
+      return NextResponse.json(score);
+    }
+
+    return NextResponse.json({ error: "agentType param required" }, { status: 400 });
+  } catch (err) {
+    console.error("[agent-trust/GET]", err);
+    return NextResponse.json(
+      { error: "Failed to fetch trust data" },
+      { status: 500 }
+    );
+  }
 }

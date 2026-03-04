@@ -43,7 +43,7 @@ export const getUnreadCount = query({
       .withIndex("by_workspace_read", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("read", false)
       )
-      .take(100);
+      .take(MAX_NOTIFICATIONS);
     return unread.length;
   },
 });

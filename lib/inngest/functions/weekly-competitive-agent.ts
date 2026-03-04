@@ -110,8 +110,9 @@ export const weeklyCompetitiveAgent = inngest.createFunction(
           notificationBody: `${payload.threats.length} competitor threats found`,
           cronKey,
         });
+      });
 
-        // Update lastCheckedAt on all tracked competitors
+      await step.run(`update-competitors-${workspace._id}`, async () => {
         for (const competitor of data.competitors) {
           await convex.mutation(api.competitorTracking.updateLastChecked, {
             trackingId: competitor._id,

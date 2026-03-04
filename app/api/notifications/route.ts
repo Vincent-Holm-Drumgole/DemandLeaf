@@ -56,10 +56,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as {
-    notificationId?: string;
-    markAllRead?: boolean;
-  };
+  let body: { notificationId?: string; markAllRead?: boolean };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});

@@ -82,12 +82,17 @@ export function AuthorPersonasSettings() {
   async function handleSetDefault(id: string) {
     setOperatingId(id);
     try {
-      await fetch(`/api/author-personas/${id}`, {
+      const res = await fetch(`/api/author-personas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isDefault: true }),
       });
+      if (!res.ok) {
+        setError("Failed to set default persona");
+      }
       await loadPersonas();
+    } catch {
+      setError("Failed to set default persona");
     } finally {
       setOperatingId(null);
     }
@@ -97,8 +102,13 @@ export function AuthorPersonasSettings() {
     if (!window.confirm("Delete this author persona? This cannot be undone.")) return;
     setOperatingId(id);
     try {
-      await fetch(`/api/author-personas/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/author-personas/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Failed to delete persona");
+      }
       await loadPersonas();
+    } catch {
+      setError("Failed to delete persona");
     } finally {
       setOperatingId(null);
     }

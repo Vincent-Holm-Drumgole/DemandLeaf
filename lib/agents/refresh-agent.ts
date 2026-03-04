@@ -5,6 +5,15 @@ import type { ConvexHttpClient } from "convex/browser";
 const MAX_BRIEFS_PER_WORKSPACE = 5;
 const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
 
+const VALID_CAUSES: Set<string> = new Set<DiagnosisCause>([
+  "content_freshness",
+  "serp_feature_loss",
+  "competitor_improvement",
+  "technical_issue",
+  "intent_mismatch",
+  "authority_gap",
+]);
+
 interface BlogData {
   _id: string;
   title: string;
@@ -30,7 +39,6 @@ interface AlertData {
  */
 export async function analyzeRefreshNeeds(
   convex: ConvexHttpClient,
-  workspaceId: string,
   blogs: BlogData[],
   alerts: AlertData[]
 ): Promise<RefreshAgentPayload | null> {
@@ -70,7 +78,9 @@ export async function analyzeRefreshNeeds(
           publishedAt: blog.publishedAt,
         },
         {
-          cause: (alert?.diagnosisCause as DiagnosisCause) ?? "content_freshness",
+          cause: (alert?.diagnosisCause && VALID_CAUSES.has(alert.diagnosisCause)
+            ? alert.diagnosisCause
+            : "content_freshness") as DiagnosisCause,
           notes: alert?.diagnosisNotes ?? `Flagged for: ${reason}`,
         },
         null,

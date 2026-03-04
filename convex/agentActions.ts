@@ -420,6 +420,9 @@ export const markExecuting = mutation({
     requireCronAccess(args.cronKey);
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
+    if (action.status !== "approved") {
+      throw new ConvexError("ERR_AGENT_ACTION_NOT_APPROVED");
+    }
     await ctx.db.patch(args.actionId, { status: "executing" });
   },
 });
@@ -587,7 +590,7 @@ export const listByWorkspace = query({
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
-    if (args.status) {
+    if (args.status && !args.agentType) {
       return ctx.db
         .query("agentActions")
         .withIndex("by_workspace_status", (q) =>
@@ -597,7 +600,7 @@ export const listByWorkspace = query({
         .take(MAX_ACTIONS_PER_WORKSPACE);
     }
 
-    if (args.agentType) {
+    if (args.agentType && !args.status) {
       return ctx.db
         .query("agentActions")
         .withIndex("by_workspace_agent", (q) =>
@@ -605,6 +608,17 @@ export const listByWorkspace = query({
         )
         .order("desc")
         .take(MAX_ACTIONS_PER_WORKSPACE);
+    }
+
+    if (args.status && args.agentType) {
+      const results = await ctx.db
+        .query("agentActions")
+        .withIndex("by_workspace_status", (q) =>
+          q.eq("workspaceId", args.workspaceId).eq("status", args.status!)
+        )
+        .order("desc")
+        .take(MAX_ACTIONS_PER_WORKSPACE);
+      return results.filter((a) => a.agentType === args.agentType);
     }
 
     return ctx.db

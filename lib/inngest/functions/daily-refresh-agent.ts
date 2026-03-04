@@ -54,7 +54,6 @@ export const dailyRefreshAgent = inngest.createFunction(
       const payload = await step.run(`analyze-${workspace._id}`, async () => {
         return analyzeRefreshNeeds(
           convex,
-          workspace._id,
           data.blogs.map((b: {
             _id: string;
             title: string;

@@ -17,13 +17,6 @@ interface KeywordData {
   searchVolume?: number;
 }
 
-interface PerformanceData {
-  blogId: string;
-  clicks: number | null;
-  sessions: number | null;
-  periodStart: number;
-}
-
 /**
  * Analyze the content calendar and propose reprioritization.
  * Uses Haiku for classification, pure code for momentum scoring.
@@ -32,7 +25,6 @@ export async function analyzeCalendar(input: {
   strategyId: string;
   calendarItems: CalendarItem[];
   keywords: KeywordData[];
-  performanceMetrics: PerformanceData[];
 }): Promise<CalendarAgentPayload | null> {
   const { strategyId, calendarItems, keywords } = input;
 

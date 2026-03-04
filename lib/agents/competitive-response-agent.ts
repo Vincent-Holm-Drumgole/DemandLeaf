@@ -40,6 +40,7 @@ export async function analyzeCompetitorThreats(
   let serpCallCount = 0;
 
   for (const competitor of competitors) {
+    if (serpCallCount >= MAX_SERP_CALLS_PER_RUN) break;
     for (const keyword of competitor.trackedKeywords) {
       if (serpCallCount >= MAX_SERP_CALLS_PER_RUN) break;
 

@@ -70,7 +70,6 @@ export const weeklyCalendarAgent = inngest.createFunction(
           strategyId: activeStrategy._id,
           calendarItems: data.calendarItems,
           keywords,
-          performanceMetrics: [],
         });
       });
 

@@ -46,10 +46,10 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
 
     if (newKeywords.length === 0) return { added: 0 };
 
-    // Add new keywords via batch
-    const added = await step.run("add-keywords", async () => {
-      let count = 0;
-      for (const keyword of newKeywords.slice(0, 10)) {
+    // Add new keywords — one step per keyword for idempotent retries
+    let added = 0;
+    for (const keyword of newKeywords.slice(0, 10)) {
+      const result = await step.run(`add-keyword-${keyword}`, async () => {
         try {
           await convex.mutation(api.keywords.createForCron, {
             workspaceId: validWorkspaceId,
@@ -57,13 +57,14 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
             keyword,
             cronKey,
           });
-          count++;
+          return true;
         } catch (err) {
           console.error(`[competitive-coord] Failed to add keyword "${keyword}":`, err);
+          return false;
         }
-      }
-      return count;
-    });
+      });
+      if (result) added++;
+    }
 
     return { added };
   }

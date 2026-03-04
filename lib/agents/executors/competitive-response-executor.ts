@@ -8,7 +8,7 @@ import type { Id } from "@/convex/_generated/dataModel";
  * Creates or updates briefs based on detected threats.
  */
 export async function executeCompetitiveResponse(
-  convex: ConvexHttpClient,
+  _convex: ConvexHttpClient,
   workspaceId: Id<"workspaces">,
   payload: CompetitiveResponsePayload
 ): Promise<{ created: number; updated: number; skipped: number }> {

@@ -108,7 +108,8 @@ export const getPublishingGateStatusForCron = query({
       (e) => (e.event === "approved" || e.event === "rejected") && e.actorType === "user"
     );
     const approvalCount = decisions.filter((e) => e.event === "approved").length;
-    const totalDecisions = decisions.length;
+    const rejectionCount = decisions.filter((e) => e.event === "rejected").length;
+    const totalDecisions = approvalCount + rejectionCount;
     const approvalRate = totalDecisions > 0 ? approvalCount / totalDecisions : 0;
 
     const config = await ctx.db
