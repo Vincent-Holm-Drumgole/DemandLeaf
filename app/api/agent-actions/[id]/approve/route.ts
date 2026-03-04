@@ -18,6 +18,15 @@ import type {
   PublishingAgentPayload,
 } from "@/types";
 
+function isStubbedExecutionResult(value: unknown): value is { stubbed: true } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "stubbed" in value &&
+    (value as { stubbed?: unknown }).stubbed === true
+  );
+}
+
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -105,6 +114,17 @@ export async function POST(
           { error: `Unknown agent type: ${action.agentType}` },
           { status: 400 }
         );
+    }
+
+    if (isStubbedExecutionResult(result)) {
+      await convex.mutation(api.agentActions.markFailedByUser, {
+        actionId,
+        failureReason: "Execution path is not implemented for this agent action.",
+      });
+      return NextResponse.json(
+        { error: "This agent action type is not fully implemented yet." },
+        { status: 501 }
+      );
     }
 
     try {

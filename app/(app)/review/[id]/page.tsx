@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import { BlogContent } from "@/components/blog-editor/blog-content";
@@ -9,11 +9,33 @@ import { ScoreSidebar } from "@/components/scores/score-sidebar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
+interface SavedBlogResponse {
+  id: string;
+  title: string;
+  content: string;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  wordCount: number | null;
+  generationCostCents: number | null;
+  generationTimeMs: number | null;
+  scores: {
+    seoScore: number | null;
+    qualityScore: number | null;
+    detectionRisk: string | null;
+    detectionRiskScore: number | null;
+    burstinessScore: number | null;
+    readabilityScore: number | null;
+  };
+}
+
 export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const blogId = params.id as string;
   const { generationResult, sessionId } = useOnboardingStore();
+  const [savedBlog, setSavedBlog] = useState<SavedBlogResponse | null>(null);
+  const [savedBlogError, setSavedBlogError] = useState<string | null>(null);
+  const [isLoadingSavedBlog, setIsLoadingSavedBlog] = useState(false);
 
   // If user navigates here directly without generating, redirect
   useEffect(() => {
@@ -21,6 +43,59 @@ export default function ReviewPage() {
       router.push("/");
     }
   }, [generationResult, blogId, router]);
+
+  // Load persisted blogs by ID for authenticated flows.
+  useEffect(() => {
+    if (blogId === "preview") return;
+
+    let cancelled = false;
+    setSavedBlog(null);
+    setSavedBlogError(null);
+    setIsLoadingSavedBlog(true);
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/blog/${encodeURIComponent(blogId)}`, {
+          cache: "no-store",
+        });
+
+        if (res.status === 401) {
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(`/review/${blogId}`)}`);
+          return;
+        }
+
+        const body = (await res.json().catch(() => ({}))) as
+          | SavedBlogResponse
+          | { error?: string };
+        if (!res.ok) {
+          throw new Error(
+            typeof body === "object" &&
+              body !== null &&
+              "error" in body &&
+              typeof body.error === "string"
+              ? body.error
+              : "Failed to load blog"
+          );
+        }
+
+        if (!cancelled) {
+          setSavedBlog(body as SavedBlogResponse);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSavedBlogError(err instanceof Error ? err.message : "Failed to load blog");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingSavedBlog(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [blogId, router]);
 
   // For the "preview" route (anonymous flow), use data from the store
   if (blogId === "preview" && generationResult) {
@@ -47,10 +122,7 @@ export default function ReviewPage() {
     );
   }
 
-  // TODO: Fetch saved blog by ID from /api/blog/[id] and render ReviewLayout.
-  // Until implemented, non-preview blog IDs will show "Loading blog..." indefinitely
-  // because generationResult is only populated via the onboarding store (preview flow).
-  if (!generationResult) {
+  if (blogId !== "preview" && isLoadingSavedBlog) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading blog...</p>
@@ -58,7 +130,39 @@ export default function ReviewPage() {
     );
   }
 
-  return null;
+  if (blogId !== "preview" && savedBlogError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3">
+        <p className="text-muted-foreground">{savedBlogError}</p>
+        <Button variant="outline" onClick={() => router.push("/dashboard")}>
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  if (blogId !== "preview" && savedBlog) {
+    return (
+      <ReviewLayout
+        content={savedBlog.content}
+        title={savedBlog.title}
+        metaTitle={savedBlog.metaTitle}
+        metaDescription={savedBlog.metaDescription}
+        scores={savedBlog.scores}
+        wordCount={savedBlog.wordCount}
+        generationTimeMs={savedBlog.generationTimeMs ?? undefined}
+        totalCostCents={savedBlog.generationCostCents ?? undefined}
+        blogId={savedBlog.id}
+        showSignupBanner={false}
+      />
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="text-muted-foreground">Loading blog...</p>
+    </div>
+  );
 }
 
 function ReviewLayout({
@@ -75,8 +179,8 @@ function ReviewLayout({
 }: {
   content: string;
   title: string;
-  metaTitle: string;
-  metaDescription: string;
+  metaTitle: string | null;
+  metaDescription: string | null;
   scores: {
     seoScore: number | null;
     qualityScore: number | null;
@@ -85,9 +189,9 @@ function ReviewLayout({
     burstinessScore: number | null;
     readabilityScore: number | null;
   };
-  wordCount: number;
-  generationTimeMs: number;
-  totalCostCents: number;
+  wordCount: number | null;
+  generationTimeMs?: number;
+  totalCostCents?: number;
   blogId: string;
   showSignupBanner: boolean;
 }) {
@@ -101,7 +205,7 @@ function ReviewLayout({
           <div>
             <h1 className="text-lg font-semibold">{title}</h1>
             <p className="text-xs text-muted-foreground">
-              Meta: {metaTitle} | {metaDescription}
+              Meta: {metaTitle ?? "—"} | {metaDescription ?? "—"}
             </p>
           </div>
           <ExportBar blogId={blogId} />
@@ -139,7 +243,7 @@ function ReviewLayout({
               and generate unlimited content.
             </p>
             <Button
-              onClick={() => router.push("/signup")}
+              onClick={() => router.push("/sign-up")}
               size="lg"
               className="mt-4"
             >

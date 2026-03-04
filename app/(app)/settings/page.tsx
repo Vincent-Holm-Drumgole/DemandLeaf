@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
@@ -14,7 +15,7 @@ import { GoogleIntegrationsSettings } from "@/components/settings/google-integra
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { Wand2 } from "lucide-react";
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { isLoaded, isSignedIn } = useAuthGuard();
   const { user } = useUser();
   const searchParams = useSearchParams();
@@ -153,5 +154,19 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <SettingsPageContent />
+    </Suspense>
   );
 }

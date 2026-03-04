@@ -82,6 +82,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Billing gate: authenticated workspaces with expired trial/past-due/canceled
   // plans cannot generate new content.
   const { userId } = await auth();
+  const sessionCookie = request.cookies.get("dl_session")?.value?.trim();
+  if (!userId && sessionCookie !== sessionId) {
+    return new Response(
+      JSON.stringify({
+        error: "Session mismatch. Please crawl your website again before generating.",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   let authedConvexClient: Awaited<ReturnType<typeof getAuthedConvexClient>> | null = null;
   let authedWorkspace:
     | {

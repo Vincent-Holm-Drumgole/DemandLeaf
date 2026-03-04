@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
-import { exchangeCodeForTokens } from "@/lib/google/oauth";
+import { exchangeCodeForTokens, parseOAuthState } from "@/lib/google/oauth";
 import { encryptTokens } from "@/lib/google/credentials";
 
 export async function GET(request: Request) {
@@ -22,7 +22,14 @@ export async function GET(request: Request) {
     );
   }
 
-  const workspaceId = parseConvexId(state, "workspaces");
+  const parsedState = parseOAuthState(state);
+  if (!parsedState || parsedState.userId !== userId) {
+    return NextResponse.redirect(
+      new URL("/settings?tab=integrations&error=invalid_state", request.url)
+    );
+  }
+
+  const workspaceId = parseConvexId(parsedState.workspaceId, "workspaces");
   if (!workspaceId) {
     return NextResponse.redirect(
       new URL("/settings?tab=integrations&error=invalid_state", request.url)

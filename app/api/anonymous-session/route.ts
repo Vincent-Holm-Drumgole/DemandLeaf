@@ -42,6 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ? Math.min(Math.max(Math.floor(body.expiresInHours), 1), MAX_TTL_HOURS)
       : DEFAULT_TTL_HOURS;
   const expiresAt = Date.now() + expiresInHours * 60 * 60 * 1000;
+  const maxAge = Math.floor((expiresAt - Date.now()) / 1000);
 
   try {
     const convex = getConvexClient();
@@ -54,7 +55,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(
       { sessionId: sessionToken, expiresAt: new Date(expiresAt).toISOString() },
-      { status: 201 }
+      {
+        status: 201,
+        headers: {
+          "Set-Cookie": `dl_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}; Max-Age=${maxAge}`,
+        },
+      }
     );
   } catch (err) {
     console.error("[anonymous-session] mutation error:", err);

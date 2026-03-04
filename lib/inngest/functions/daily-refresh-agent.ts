@@ -99,8 +99,8 @@ ${payload.alerts.map((a) => `- **${a.blogTitle}** (${a.alertType}, ${a.severity}
               alertId: alert._id,
               status: "acknowledged",
               cronKey,
-            }).catch(() => {
-              // Non-critical
+            }).catch((err) => {
+              console.warn(`[refresh-agent] Failed to ack alert ${alert._id}:`, err);
             })
           )
         );

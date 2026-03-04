@@ -16,6 +16,6 @@ export async function GET() {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
-  const authUrl = buildAuthUrl(workspace._id);
+  const authUrl = buildAuthUrl(workspace._id, userId);
   return NextResponse.redirect(authUrl);
 }

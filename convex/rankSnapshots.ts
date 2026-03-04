@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import { ERR_BLOG_NOT_FOUND } from "./errors";
 
 const MAX_SNAPSHOTS_PER_QUERY = 100;
 const MAX_WORKSPACE_SNAPSHOTS = 500;
@@ -16,6 +17,10 @@ export const insertSnapshot = mutation({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
     return ctx.db.insert("rankSnapshots", {
       ...args,
       checkedAt: Date.now(),
@@ -37,6 +42,10 @@ export const insertSnapshotForCron = mutation({
     requireCronAccess(args.cronKey);
     const { cronKey, ...fields } = args;
     void cronKey;
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
+    }
     return ctx.db.insert("rankSnapshots", {
       ...fields,
       checkedAt: Date.now(),

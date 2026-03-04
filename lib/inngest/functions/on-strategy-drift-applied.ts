@@ -31,7 +31,10 @@ export const onStrategyDriftApplied = inngest.createFunction(
 
     const validWorkspaceId = parseConvexId(workspaceIdRaw, "workspaces");
     const validStrategyId = parseConvexId(strategyIdRaw, "strategies");
-    if (!validWorkspaceId || !validStrategyId) return { coordinated: false };
+    if (!validWorkspaceId || !validStrategyId) {
+      console.warn("[drift-coord] Invalid Convex ID format. workspaceId valid:", !!validWorkspaceId, "strategyId valid:", !!validStrategyId);
+      return { coordinated: false };
+    }
 
     const now = Date.now();
     const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;

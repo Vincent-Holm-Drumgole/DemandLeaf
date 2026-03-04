@@ -31,14 +31,17 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
       ? data.newBriefKeywords.filter(
           (keyword): keyword is string =>
             typeof keyword === "string" && keyword.trim().length > 0
-        )
+        ).map((kw) => kw.trim())
       : [];
 
     if (newBriefKeywords.length === 0) return { added: 0 };
 
     const validWorkspaceId = parseConvexId(workspaceIdRaw, "workspaces");
     const validStrategyId = parseConvexId(strategyIdRaw, "strategies");
-    if (!validWorkspaceId || !validStrategyId) return { added: 0 };
+    if (!validWorkspaceId || !validStrategyId) {
+      console.warn("[competitive-coord] Invalid Convex ID format. workspaceId valid:", !!validWorkspaceId, "strategyId valid:", !!validStrategyId);
+      return { added: 0 };
+    }
 
     // Check which keywords already exist
     const existingKeywords = await step.run("check-existing", async () => {
@@ -58,6 +61,10 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
     );
 
     if (newKeywords.length === 0) return { added: 0 };
+
+    if (newKeywords.length > 10) {
+      console.warn(`[competitive-coord] Truncating ${newKeywords.length} keywords to 10 for workspace=${workspaceIdRaw}`);
+    }
 
     // Add new keywords — one step per keyword for idempotent retries
     let added = 0;
