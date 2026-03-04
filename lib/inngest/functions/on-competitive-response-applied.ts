@@ -24,7 +24,7 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
     const strategyIdRaw =
       typeof data?.strategyId === "string" ? data.strategyId : null;
     if (!workspaceIdRaw || !strategyIdRaw) {
-      console.warn("[competitive-coord] Missing required event data:", data);
+      console.warn("[competitive-coord] Missing required event data. workspaceId:", typeof data?.workspaceId, "strategyId:", typeof data?.strategyId);
       return { added: 0 };
     }
     const newBriefKeywords = Array.isArray(data?.newBriefKeywords)

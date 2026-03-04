@@ -25,7 +25,7 @@ export const onStrategyDriftApplied = inngest.createFunction(
     const strategyIdRaw =
       typeof data?.strategyId === "string" ? data.strategyId : null;
     if (!workspaceIdRaw || !strategyIdRaw) {
-      console.warn("[drift-coord] Missing required event data:", data);
+      console.warn("[drift-coord] Missing required event data. workspaceId:", typeof data?.workspaceId, "strategyId:", typeof data?.strategyId);
       return { coordinated: false };
     }
 

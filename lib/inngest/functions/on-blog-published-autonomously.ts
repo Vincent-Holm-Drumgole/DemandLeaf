@@ -27,7 +27,7 @@ export const onBlogPublishedAutonomously = inngest.createFunction(
       typeof data?.calendarItemId === "string" ? data.calendarItemId : "";
 
     if (!workspaceId || !blogId) {
-      console.warn("[auto-publish-coord] Missing required event data:", data);
+      console.warn("[auto-publish-coord] Missing required event data. workspaceId:", typeof data?.workspaceId, "blogId:", typeof data?.blogId);
       return { coordinated: false };
     }
 
