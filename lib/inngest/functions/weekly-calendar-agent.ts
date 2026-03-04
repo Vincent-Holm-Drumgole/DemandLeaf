@@ -97,7 +97,9 @@ export const weeklyCalendarAgent = inngest.createFunction(
             digest: payload.digest,
             actionId,
             appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.demandleaf.com",
-          }).catch(() => {});
+          }).catch((err) => {
+            console.warn("[calendar-agent] Email delivery failed:", err);
+          });
         }
 
         return actionId;

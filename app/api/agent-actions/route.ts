@@ -65,10 +65,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid agentType filter" }, { status: 400 });
   }
 
-  const status =
-    statusParam && isAgentActionStatus(statusParam) ? statusParam : undefined;
-  const agentType =
-    agentTypeParam && isAgentType(agentTypeParam) ? agentTypeParam : undefined;
+  const status = (statusParam as AgentActionStatus) || undefined;
+  const agentType = (agentTypeParam as AgentType) || undefined;
 
   const convex = await getAuthedConvexClient();
   const workspace = await convex.query(api.workspaces.getByClerkUser, {});

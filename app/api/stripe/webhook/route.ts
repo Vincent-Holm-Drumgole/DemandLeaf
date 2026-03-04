@@ -61,10 +61,16 @@ export async function POST(request: Request) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const workspaceId = session.metadata?.workspaceId;
-        if (!workspaceId) break;
+        if (!workspaceId) {
+          console.warn("[stripe/webhook] checkout.session.completed missing workspaceId metadata");
+          break;
+        }
 
         const validId = parseConvexId(workspaceId, "workspaces");
-        if (!validId) break;
+        if (!validId) {
+          console.warn("[stripe/webhook] checkout.session.completed invalid workspaceId:", workspaceId);
+          break;
+        }
 
         await convex.mutation(api.workspaces.updateBilling, {
           workspaceId: validId,
@@ -86,13 +92,19 @@ export async function POST(request: Request) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId =
           typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
-        if (!customerId) break;
+        if (!customerId) {
+          console.warn("[stripe/webhook] subscription.updated missing customerId");
+          break;
+        }
 
         const workspace = await convex.query(
           api.workspaces.getByStripeCustomer,
           { stripeCustomerId: customerId, cronKey }
         );
-        if (!workspace) break;
+        if (!workspace) {
+          console.warn("[stripe/webhook] subscription.updated no workspace for customer:", customerId);
+          break;
+        }
 
         await convex.mutation(api.workspaces.updateBilling, {
           workspaceId: workspace._id,
@@ -106,13 +118,19 @@ export async function POST(request: Request) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId =
           typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
-        if (!customerId) break;
+        if (!customerId) {
+          console.warn("[stripe/webhook] subscription.deleted missing customerId");
+          break;
+        }
 
         const workspace = await convex.query(
           api.workspaces.getByStripeCustomer,
           { stripeCustomerId: customerId, cronKey }
         );
-        if (!workspace) break;
+        if (!workspace) {
+          console.warn("[stripe/webhook] subscription.deleted no workspace for customer:", customerId);
+          break;
+        }
         const planExpiresAtSec =
           sub.cancel_at ?? sub.ended_at ?? sub.canceled_at ?? Math.floor(Date.now() / 1000);
 
@@ -131,13 +149,19 @@ export async function POST(request: Request) {
           typeof invoice.customer === "string"
             ? invoice.customer
             : invoice.customer?.id;
-        if (!customerId) break;
+        if (!customerId) {
+          console.warn("[stripe/webhook] invoice.payment_failed missing customerId");
+          break;
+        }
 
         const workspace = await convex.query(
           api.workspaces.getByStripeCustomer,
           { stripeCustomerId: customerId, cronKey }
         );
-        if (!workspace) break;
+        if (!workspace) {
+          console.warn("[stripe/webhook] invoice.payment_failed no workspace for customer:", customerId);
+          break;
+        }
 
         await convex.mutation(api.workspaces.updateBilling, {
           workspaceId: workspace._id,

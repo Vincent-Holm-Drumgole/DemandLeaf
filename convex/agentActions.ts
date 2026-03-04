@@ -4,6 +4,7 @@ import { ConvexError } from "convex/values";
 import { requireWorkspaceAccess, requireCronAccess } from "./helpers";
 import {
   ERR_AGENT_ACTION_NOT_FOUND,
+  ERR_AGENT_ACTION_NOT_APPROVED,
   ERR_AGENT_ACTION_NOT_PENDING,
   ERR_INVALID_AGENT_PAYLOAD,
   ERR_PUBLISHING_AGENT_NOT_ACTIVE,
@@ -16,9 +17,11 @@ import {
 
 const MAX_ACTIONS_PER_WORKSPACE = 100;
 const MAX_APPROVED_ACTIONS_PER_RUN = 50;
-const MAX_TRUST_AUDIT_ENTRIES = 500;
-const TRUSTED_MIN_DECISIONS = 20;
-const TRUSTED_MIN_RATE = 0.9;
+import {
+  MAX_TRUST_AUDIT_ENTRIES,
+  TRUSTED_MIN_DECISIONS,
+  TRUSTED_MIN_RATE,
+} from "./agentTrust";
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -421,7 +424,7 @@ export const markExecuting = mutation({
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
     if (action.status !== "approved") {
-      throw new ConvexError("ERR_AGENT_ACTION_NOT_APPROVED");
+      throw new ConvexError(ERR_AGENT_ACTION_NOT_APPROVED);
     }
     await ctx.db.patch(args.actionId, { status: "executing" });
   },
@@ -436,6 +439,7 @@ export const markDone = mutation({
     requireCronAccess(args.cronKey);
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
+    if (action.status !== "approved") throw new ConvexError(ERR_AGENT_ACTION_NOT_APPROVED);
     const now = Date.now();
     await ctx.db.patch(args.actionId, {
       status: "done",
@@ -472,6 +476,7 @@ export const markDoneByUser = mutation({
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
     await requireWorkspaceAccess(ctx, action.workspaceId);
+    if (action.status !== "approved") throw new ConvexError(ERR_AGENT_ACTION_NOT_APPROVED);
 
     const now = Date.now();
     await ctx.db.patch(args.actionId, {
@@ -511,6 +516,7 @@ export const markFailed = mutation({
     requireCronAccess(args.cronKey);
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
+    if (action.status !== "approved") throw new ConvexError(ERR_AGENT_ACTION_NOT_APPROVED);
     const now = Date.now();
     await ctx.db.patch(args.actionId, {
       status: "failed",
@@ -550,6 +556,7 @@ export const markFailedByUser = mutation({
     const action = await ctx.db.get(args.actionId);
     if (!action) throw new ConvexError(ERR_AGENT_ACTION_NOT_FOUND);
     await requireWorkspaceAccess(ctx, action.workspaceId);
+    if (action.status !== "approved") throw new ConvexError(ERR_AGENT_ACTION_NOT_APPROVED);
 
     const now = Date.now();
     await ctx.db.patch(args.actionId, {

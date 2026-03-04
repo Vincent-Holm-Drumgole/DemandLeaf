@@ -10,8 +10,8 @@ export function UpgradeCTA() {
       <Lock className="mb-4 h-10 w-10 text-muted-foreground" />
       <h2 className="mb-2 text-lg font-semibold">Subscription Required</h2>
       <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-        Your free trial has ended. Subscribe to continue using all DemandLeaf
-        features. Your existing content is safe and accessible.
+        Subscribe to access all DemandLeaf features. Your existing content is
+        safe and accessible.
       </p>
       <Button asChild>
         <Link href="/settings?tab=billing">Subscribe Now</Link>

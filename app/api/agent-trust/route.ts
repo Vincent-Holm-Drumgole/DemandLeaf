@@ -27,13 +27,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const agentType = searchParams.get("agentType");
 
-  const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
-  if (!workspace) {
-    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-  }
-
   try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    }
+
     if (agentType === "publishing") {
       const gate = await convex.query(api.agentTrust.getPublishingGateStatus, {
         workspaceId: workspace._id,

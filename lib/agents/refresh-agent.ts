@@ -5,7 +5,7 @@ import type { ConvexHttpClient } from "convex/browser";
 const MAX_BRIEFS_PER_WORKSPACE = 5;
 const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
 
-const VALID_CAUSES: Set<string> = new Set<DiagnosisCause>([
+const VALID_CAUSES = new Set<DiagnosisCause>([
   "content_freshness",
   "serp_feature_loss",
   "competitor_improvement",
@@ -78,9 +78,9 @@ export async function analyzeRefreshNeeds(
           publishedAt: blog.publishedAt,
         },
         {
-          cause: (alert?.diagnosisCause && VALID_CAUSES.has(alert.diagnosisCause)
-            ? alert.diagnosisCause
-            : "content_freshness") as DiagnosisCause,
+          cause: (alert?.diagnosisCause && VALID_CAUSES.has(alert.diagnosisCause as DiagnosisCause)
+            ? (alert.diagnosisCause as DiagnosisCause)
+            : "content_freshness"),
           notes: alert?.diagnosisNotes ?? `Flagged for: ${reason}`,
         },
         null,
@@ -88,7 +88,7 @@ export async function analyzeRefreshNeeds(
       );
 
       payloadAlerts.push({
-        alertId: alert?._id ?? "",
+        alertId: alert?._id ?? null,
         blogId: blog._id,
         blogTitle: blog.title,
         alertType: alert?.alertType ?? "stale_content",

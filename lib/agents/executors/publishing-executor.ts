@@ -399,15 +399,9 @@ export async function executePublishing(
         generationCostCents: generated.totalCostCents,
         generationTimeMs: generated.generationTimeMs,
         promptVersion: generated.promptVersion,
+        aeoScore: generated.aeoScore,
+        publishedAt: qualityPasses ? now : undefined,
       });
-
-  if (!hasCronAccess && generated.aeoScore !== undefined) {
-    await convex.mutation(api.blogs.updatePublishingData, {
-      blogId,
-      aeoScore: generated.aeoScore,
-      publishedAt: qualityPasses ? now : undefined,
-    });
-  }
 
   if (hasCronAccess && cronKey) {
     await convex.mutation(api.contentBriefs.linkBlogForCron, {

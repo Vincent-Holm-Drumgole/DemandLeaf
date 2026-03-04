@@ -14,21 +14,29 @@ export const onStrategyDriftApplied = inngest.createFunction(
   async ({ event, step }) => {
     const convex = getConvexClient();
     const cronKey = process.env.INNGEST_CRON_KEY;
-    if (!cronKey) return { coordinated: false };
+    if (!cronKey) {
+      console.error("[drift-coord] INNGEST_CRON_KEY not configured");
+      return { coordinated: false };
+    }
 
-    const { workspaceId, strategyId } = event.data as {
-      workspaceId: string;
-      strategyId: string;
-    };
+    const data = event.data as Record<string, unknown> | undefined;
+    const workspaceIdRaw =
+      typeof data?.workspaceId === "string" ? data.workspaceId : null;
+    const strategyIdRaw =
+      typeof data?.strategyId === "string" ? data.strategyId : null;
+    if (!workspaceIdRaw || !strategyIdRaw) {
+      console.warn("[drift-coord] Missing required event data:", data);
+      return { coordinated: false };
+    }
 
-    const validWorkspaceId = parseConvexId(workspaceId, "workspaces");
-    const validStrategyId = parseConvexId(strategyId, "strategies");
+    const validWorkspaceId = parseConvexId(workspaceIdRaw, "workspaces");
+    const validStrategyId = parseConvexId(strategyIdRaw, "strategies");
     if (!validWorkspaceId || !validStrategyId) return { coordinated: false };
 
     const now = Date.now();
     const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
 
-    const data = await step.run("load-calendar-data", async () => {
+    const calendarData = await step.run("load-calendar-data", async () => {
       const [calendarItems, keywords] = await Promise.all([
         convex.query(api.contentCalendar.listByWorkspaceForCron, {
           workspaceId: validWorkspaceId,
@@ -45,13 +53,13 @@ export const onStrategyDriftApplied = inngest.createFunction(
       return { calendarItems, keywords };
     });
 
-    if (data.calendarItems.length === 0) return { coordinated: false };
+    if (calendarData.calendarItems.length === 0) return { coordinated: false };
 
     const payload = await step.run("analyze-calendar", async () => {
       return analyzeCalendar({
         strategyId: validStrategyId,
-        calendarItems: data.calendarItems,
-        keywords: data.keywords,
+        calendarItems: calendarData.calendarItems,
+        keywords: calendarData.keywords,
       });
     });
 

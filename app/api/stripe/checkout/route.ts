@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limited" },
-      { status: 429, headers: { "Retry-After": "60" } }
+      { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))) } }
     );
   }
 

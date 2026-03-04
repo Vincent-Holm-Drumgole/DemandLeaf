@@ -128,7 +128,8 @@ export async function POST(request: Request) {
   const normalizedExpertiseAreas = Array.isArray(expertiseAreas)
     ? expertiseAreas.filter((area): area is string => typeof area === "string")
     : [];
-  const normalizedJobTitle = typeof jobTitle === "string" ? jobTitle : undefined;
+  const normalizedJobTitle =
+    typeof jobTitle === "string" ? jobTitle : undefined;
   const normalizedBio = typeof bio === "string" ? bio : undefined;
   const normalizedWpAuthorId =
     typeof wpAuthorId === "number" ? wpAuthorId : undefined;

@@ -66,10 +66,12 @@ export const weeklyCompetitiveAgent = inngest.createFunction(
         return { briefs, blogs };
       });
 
-      const existingCoverage = data.competitors
-        .flatMap((c: { trackedKeywords: string[] }) => c.trackedKeywords)
-        .filter((kw: string, i: number, arr: string[]) => arr.indexOf(kw) === i)
-        .map((keyword: string) => {
+      const uniqueKeywords = [
+        ...new Set(
+          data.competitors.flatMap((c: { trackedKeywords: string[] }) => c.trackedKeywords)
+        ),
+      ];
+      const existingCoverage = uniqueKeywords.map((keyword: string) => {
           const brief = coverage.briefs.find(
             (b: { briefData: { targetKeyword: string }; _id: string }) =>
               b.briefData.targetKeyword.toLowerCase() === keyword.toLowerCase()

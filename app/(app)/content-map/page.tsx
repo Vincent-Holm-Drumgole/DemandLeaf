@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ContentMapData, ClusterBubble } from "@/types/content-map";
 import { PaywallGate } from "@/components/billing/paywall-gate";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 function HealthBar({ value }: { value: number }) {
   const color =
@@ -31,6 +32,7 @@ function HealthBar({ value }: { value: number }) {
 }
 
 export default function ContentMapPage() {
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const [data, setData] = useState<ContentMapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,9 +66,19 @@ export default function ContentMapPage() {
   }
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     void load();
     return () => abortControllerRef.current?.abort();
-  }, []);
+  }, [isLoaded, isSignedIn]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+  if (!isSignedIn) return null;
 
   const isEmpty =
     !isLoading && data && data.summary.totalClusters === 0;

@@ -83,6 +83,7 @@ export function WordPressSettings() {
       const res = await fetch(`/api/wp-connections/${id}`, { method: "DELETE" });
       if (!res.ok) {
         setError("Failed to remove connection");
+        return;
       }
       await loadConnections();
     } catch {

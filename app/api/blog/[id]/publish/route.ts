@@ -246,7 +246,7 @@ export async function POST(
             focusKeyword: blog.focusKeyword,
           },
         })
-        .catch((err) => console.warn("[publish] inngest.send failed:", err));
+        .catch((err) => console.warn("[publish] inngest.send failed:", { blogId, err }));
     }
 
     return NextResponse.json({

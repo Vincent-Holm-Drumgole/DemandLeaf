@@ -123,6 +123,11 @@ export const quarterlyDriftAgent = inngest.createFunction(
       actions++;
     }
 
+    if (workspaces.length >= MAX_WORKSPACES_PER_RUN) {
+      // TODO: Add cursor-based pagination to listAllForCron to process remaining workspaces
+      console.warn(`[drift-agent] Hit workspace limit (${MAX_WORKSPACES_PER_RUN}), some workspaces may be skipped`);
+    }
+
     return { processed: workspaces.length, actions };
   }
 );

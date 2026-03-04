@@ -93,17 +93,17 @@ ${payload.alerts.map((a) => `- **${a.blogTitle}** (${a.alertType}, ${a.severity}
 
       // Mark processed alerts as acknowledged
       await step.run(`ack-alerts-${workspace._id}`, async () => {
-        for (const alert of openCriticalAlerts) {
-          try {
-            await convex.mutation(api.decayAlerts.updateStatusForCron, {
+        await Promise.all(
+          openCriticalAlerts.map((alert) =>
+            convex.mutation(api.decayAlerts.updateStatusForCron, {
               alertId: alert._id,
               status: "acknowledged",
               cronKey,
-            });
-          } catch {
-            // Non-critical
-          }
-        }
+            }).catch(() => {
+              // Non-critical
+            })
+          )
+        );
       });
 
       actions++;

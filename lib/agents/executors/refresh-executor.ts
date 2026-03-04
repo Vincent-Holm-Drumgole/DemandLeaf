@@ -25,26 +25,25 @@ export async function executeRefresh(
     }
 
     try {
+      const parsedAlertId = item.alertId
+        ? parseConvexId(item.alertId, "decayAlerts")
+        : undefined;
+
       const refreshId = await convex.mutation(api.refreshHistory.create, {
         workspaceId,
         blogId,
-        alertId: item.alertId
-          ? (parseConvexId(item.alertId, "decayAlerts") ?? undefined)
-          : undefined,
+        alertId: parsedAlertId ?? undefined,
         briefData: item.briefData,
         status: "pending",
       });
 
       // Update alert status to "refreshing" if there's a linked alert
-      if (item.alertId) {
-        const alertId = parseConvexId(item.alertId, "decayAlerts");
-        if (alertId) {
-          await convex.mutation(api.decayAlerts.updateStatus, {
-            alertId,
-            status: "refreshing",
-            refreshHistoryId: refreshId,
-          });
-        }
+      if (parsedAlertId) {
+        await convex.mutation(api.decayAlerts.updateStatus, {
+          alertId: parsedAlertId,
+          status: "refreshing",
+          refreshHistoryId: refreshId,
+        });
       }
 
       created++;

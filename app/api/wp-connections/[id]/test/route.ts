@@ -65,7 +65,7 @@ export async function POST(
         status: "error",
       });
     } catch (mutationErr) {
-      console.error("[wp-test] Failed to update connection status:", mutationErr);
+      console.error("[wp-test] Failed to update connection status:", mutationErr, "Original error:", err);
     }
     return NextResponse.json(
       {

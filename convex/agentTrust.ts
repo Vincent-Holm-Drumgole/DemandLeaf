@@ -1,12 +1,36 @@
-import { query } from "./_generated/server";
+import { query, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { agentTypeValidator } from "./validators";
-import type { TrustTier } from "../types/agents";
+import type { AgentType, TrustTier } from "../types/agents";
 
-const MAX_AUDIT_ENTRIES = 500;
-const TRUSTED_MIN_DECISIONS = 20;
-const TRUSTED_MIN_RATE = 0.9;
+export const MAX_TRUST_AUDIT_ENTRIES = 500;
+export const TRUSTED_MIN_DECISIONS = 20;
+export const TRUSTED_MIN_RATE = 0.9;
+
+async function computeTrustMetrics(
+  ctx: QueryCtx,
+  workspaceId: Id<"workspaces">,
+  agentType: AgentType,
+) {
+  const entries = await ctx.db
+    .query("agentAuditLog")
+    .withIndex("by_workspace_agent", (q) =>
+      q.eq("workspaceId", workspaceId).eq("agentType", agentType)
+    )
+    .take(MAX_TRUST_AUDIT_ENTRIES);
+
+  const decisions = entries.filter(
+    (e) => (e.event === "approved" || e.event === "rejected") && e.actorType === "user"
+  );
+  const approvalCount = decisions.filter((e) => e.event === "approved").length;
+  const rejectionCount = decisions.filter((e) => e.event === "rejected").length;
+  const totalDecisions = approvalCount + rejectionCount;
+  const approvalRate = totalDecisions > 0 ? approvalCount / totalDecisions : 0;
+
+  return { approvalCount, rejectionCount, totalDecisions, approvalRate };
+}
 
 export const getTrustScore = query({
   args: {
@@ -16,20 +40,8 @@ export const getTrustScore = query({
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
-    const entries = await ctx.db
-      .query("agentAuditLog")
-      .withIndex("by_workspace_agent", (q) =>
-        q.eq("workspaceId", args.workspaceId).eq("agentType", args.agentType)
-      )
-      .take(MAX_AUDIT_ENTRIES);
-
-    const decisions = entries.filter(
-      (e) => (e.event === "approved" || e.event === "rejected") && e.actorType === "user"
-    );
-    const approvalCount = decisions.filter((e) => e.event === "approved").length;
-    const rejectionCount = decisions.filter((e) => e.event === "rejected").length;
-    const totalDecisions = approvalCount + rejectionCount;
-    const approvalRate = totalDecisions > 0 ? approvalCount / totalDecisions : 0;
+    const { approvalCount, rejectionCount, totalDecisions, approvalRate } =
+      await computeTrustMetrics(ctx, args.workspaceId, args.agentType);
 
     let trustTier: TrustTier = "learning";
     if (totalDecisions >= TRUSTED_MIN_DECISIONS && approvalRate >= TRUSTED_MIN_RATE) {
@@ -53,22 +65,9 @@ export const getPublishingGateStatus = query({
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
-    // Get trust score for publishing agent type
-    const entries = await ctx.db
-      .query("agentAuditLog")
-      .withIndex("by_workspace_agent", (q) =>
-        q.eq("workspaceId", args.workspaceId).eq("agentType", "publishing")
-      )
-      .take(MAX_AUDIT_ENTRIES);
+    const { approvalCount, approvalRate } =
+      await computeTrustMetrics(ctx, args.workspaceId, "publishing");
 
-    const decisions = entries.filter(
-      (e) => (e.event === "approved" || e.event === "rejected") && e.actorType === "user"
-    );
-    const approvalCount = decisions.filter((e) => e.event === "approved").length;
-    const totalDecisions = approvalCount + decisions.filter((e) => e.event === "rejected").length;
-    const approvalRate = totalDecisions > 0 ? approvalCount / totalDecisions : 0;
-
-    // Check config
     const config = await ctx.db
       .query("publishingAgentConfig")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
@@ -97,20 +96,8 @@ export const getPublishingGateStatusForCron = query({
   handler: async (ctx, args) => {
     requireCronAccess(args.cronKey);
 
-    const entries = await ctx.db
-      .query("agentAuditLog")
-      .withIndex("by_workspace_agent", (q) =>
-        q.eq("workspaceId", args.workspaceId).eq("agentType", "publishing")
-      )
-      .take(MAX_AUDIT_ENTRIES);
-
-    const decisions = entries.filter(
-      (e) => (e.event === "approved" || e.event === "rejected") && e.actorType === "user"
-    );
-    const approvalCount = decisions.filter((e) => e.event === "approved").length;
-    const rejectionCount = decisions.filter((e) => e.event === "rejected").length;
-    const totalDecisions = approvalCount + rejectionCount;
-    const approvalRate = totalDecisions > 0 ? approvalCount / totalDecisions : 0;
+    const { approvalCount, approvalRate } =
+      await computeTrustMetrics(ctx, args.workspaceId, "publishing");
 
     const config = await ctx.db
       .query("publishingAgentConfig")

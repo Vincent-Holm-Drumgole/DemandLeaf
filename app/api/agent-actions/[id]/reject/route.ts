@@ -3,6 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
+import {
+  ERR_AGENT_ACTION_NOT_FOUND,
+  ERR_AGENT_ACTION_NOT_PENDING,
+} from "@/convex/errors";
 
 export async function POST(
   request: Request,
@@ -32,9 +36,12 @@ export async function POST(
     });
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to reject" },
-      { status: 400 }
-    );
+    const message = err instanceof Error ? err.message : "Failed to reject";
+    const status = message.includes(ERR_AGENT_ACTION_NOT_FOUND)
+      ? 404
+      : message.includes(ERR_AGENT_ACTION_NOT_PENDING)
+        ? 409
+        : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

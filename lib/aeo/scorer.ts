@@ -6,7 +6,6 @@ export const AEO_PASS_THRESHOLD = 60;
 
 export interface AeoScorerInput {
   content: string; // markdown
-  title: string;
 }
 
 export function scoreAEO(input: AeoScorerInput): AeoScore {

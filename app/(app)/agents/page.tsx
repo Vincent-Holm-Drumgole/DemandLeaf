@@ -25,12 +25,20 @@ export default function AgentsPage() {
   const { isLoaded, isSignedIn } = useAuthGuard();
   const [actions, setActions] = useState<ActionData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadActions() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/agent-actions");
-      if (res.ok) setActions(await res.json());
+      if (res.ok) {
+        setActions(await res.json());
+      } else {
+        setError("Failed to load agent actions");
+      }
+    } catch {
+      setError("Failed to load agent actions");
     } finally {
       setLoading(false);
     }
@@ -44,13 +52,16 @@ export default function AgentsPage() {
     const res = await fetch(`/api/agent-actions/${actionId}/approve`, {
       method: "POST",
     });
-    if (res.ok) {
-      setActions((prev) =>
-        prev.map((a) =>
-          a.id === actionId ? { ...a, status: "done" as const } : a
-        )
-      );
+    if (!res.ok) {
+      setError("Failed to approve action");
+      return;
     }
+    setError(null);
+    setActions((prev) =>
+      prev.map((a) =>
+        a.id === actionId ? { ...a, status: "done" as const } : a
+      )
+    );
   }
 
   async function handleReject(actionId: string, note?: string) {
@@ -59,15 +70,18 @@ export default function AgentsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note }),
     });
-    if (res.ok) {
-      setActions((prev) =>
-        prev.map((a) =>
-          a.id === actionId
-            ? { ...a, status: "rejected" as const, userNote: note ?? null }
-            : a
-        )
-      );
+    if (!res.ok) {
+      setError("Failed to reject action");
+      return;
     }
+    setError(null);
+    setActions((prev) =>
+      prev.map((a) =>
+        a.id === actionId
+          ? { ...a, status: "rejected" as const, userNote: note ?? null }
+          : a
+      )
+    );
   }
 
   if (!isLoaded) {
@@ -102,6 +116,9 @@ export default function AgentsPage() {
         </div>
 
         <div className="mx-auto max-w-6xl px-4 py-6">
+          {error && (
+            <p className="mb-4 text-sm text-red-600">{error}</p>
+          )}
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (

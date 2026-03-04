@@ -14,14 +14,22 @@ export const onBlogPublishedAutonomously = inngest.createFunction(
   async ({ event, step }) => {
     const convex = getConvexClient();
     const cronKey = process.env.INNGEST_CRON_KEY;
-    if (!cronKey) return { coordinated: false };
+    if (!cronKey) {
+      console.error("[auto-publish-coord] INNGEST_CRON_KEY not configured");
+      return { coordinated: false };
+    }
 
-    const { workspaceId, blogId, keyword, calendarItemId } = event.data as {
-      workspaceId: string;
-      blogId: string;
-      keyword: string;
-      calendarItemId: string;
-    };
+    const data = event.data as Record<string, unknown> | undefined;
+    const workspaceId = typeof data?.workspaceId === "string" ? data.workspaceId : null;
+    const blogId = typeof data?.blogId === "string" ? data.blogId : null;
+    const keyword = typeof data?.keyword === "string" ? data.keyword : "";
+    const calendarItemId =
+      typeof data?.calendarItemId === "string" ? data.calendarItemId : "";
+
+    if (!workspaceId || !blogId) {
+      console.warn("[auto-publish-coord] Missing required event data:", data);
+      return { coordinated: false };
+    }
 
     // Mark calendar item as completed
     if (calendarItemId) {

@@ -46,7 +46,7 @@ export interface CalendarAgentPayload {
 
 export interface RefreshAgentPayload {
   alerts: Array<{
-    alertId: string;
+    alertId: string | null;
     blogId: string;
     blogTitle: string;
     alertType: string;

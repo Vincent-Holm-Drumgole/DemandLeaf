@@ -308,7 +308,7 @@ export async function generateBlog(
 
   // ── Step 9: AEO scoring (code) ────────────────────────────────────
   onProgress?.({ name: "Scoring AEO readiness", status: "running" });
-  const aeoResult = scoreAEO({ content: blogContent, title: finalTitle });
+  const aeoResult = scoreAEO({ content: blogContent });
   let aeoScore = aeoResult.score;
   onProgress?.({ name: "Scoring AEO readiness", status: "complete" });
 
@@ -330,7 +330,7 @@ export async function generateBlog(
           costCents: aeoOpt.costCents,
           durationMs: aeoOpt.durationMs,
         });
-        aeoScore = scoreAEO({ content: blogContent, title: finalTitle }).score;
+        aeoScore = scoreAEO({ content: blogContent }).score;
       }
       onProgress?.({ name: "Optimizing for answer engines", status: "complete" });
     } catch {

@@ -1,7 +1,9 @@
 import "server-only";
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from "node:crypto";
 
 const ALGO = "aes-256-gcm";
+const KDF_SALT = "demandleaf-wp-credentials";
+const KDF_ITERATIONS = 100_000;
 
 function getKey(): Buffer {
   const raw = process.env.WP_CREDENTIALS_KEY;
@@ -11,11 +13,7 @@ function getKey(): Buffer {
   if (raw.length === 64 && /^[0-9a-fA-F]+$/.test(raw)) {
     return Buffer.from(raw, "hex");
   }
-  const buf = Buffer.from(raw, "utf8");
-  if (buf.length < 32) {
-    throw new Error("WP_CREDENTIALS_KEY must be at least 32 bytes");
-  }
-  return buf.subarray(0, 32);
+  return pbkdf2Sync(raw, KDF_SALT, KDF_ITERATIONS, 32, "sha256");
 }
 
 export function encryptCredentials(plain: string): {

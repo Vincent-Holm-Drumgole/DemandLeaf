@@ -5,13 +5,16 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 /**
  * Execute an approved competitive response action.
- * Creates or updates briefs based on detected threats.
+ *
+ * STUB: Counts intended operations and fires coordination events,
+ * but does not yet perform Convex mutations for brief creation/updates.
+ * TODO: Wire up contentBriefs.create and contentBriefs.updateStatus mutations.
  */
 export async function executeCompetitiveResponse(
   _convex: ConvexHttpClient,
   workspaceId: Id<"workspaces">,
   payload: CompetitiveResponsePayload
-): Promise<{ created: number; updated: number; skipped: number }> {
+): Promise<{ created: number; updated: number; skipped: number; stubbed: true }> {
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -20,15 +23,9 @@ export async function executeCompetitiveResponse(
   for (const threat of payload.threats) {
     try {
       if (threat.action === "create_brief") {
-        // Note: brief creation requires a keyword ID and strategy ID.
-        // For now, log the gap — full brief creation needs the keyword
-        // to exist in the keywords table first.
         newKeywords.push(threat.keyword);
         created++;
       } else if (threat.action === "update_brief" && threat.targetBriefId) {
-        // Mark brief back to draft for re-review
-        // This is a simplified executor — full implementation would
-        // call contentBriefs mutation to update status
         updated++;
       } else {
         skipped++;
@@ -53,5 +50,5 @@ export async function executeCompetitiveResponse(
       .catch((err) => console.warn("[competitive-executor] inngest.send failed:", err));
   }
 
-  return { created, updated, skipped };
+  return { created, updated, skipped, stubbed: true };
 }

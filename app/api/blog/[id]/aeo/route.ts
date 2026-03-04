@@ -57,7 +57,7 @@ export async function POST(
   }
 
   // Score AEO
-  let aeoResult = scoreAEO({ content: blog.content, title: blog.title });
+  let aeoResult = scoreAEO({ content: blog.content });
   let optimized = false;
   let optimizationError: string | null = null;
   let updatedContent = blog.content;
@@ -75,10 +75,7 @@ export async function POST(
       );
       if (optResult.changed) {
         updatedContent = optResult.content;
-        aeoResult = scoreAEO({
-          content: updatedContent,
-          title: blog.title,
-        });
+        aeoResult = scoreAEO({ content: updatedContent });
         optimized = true;
 
         // Persist updated content

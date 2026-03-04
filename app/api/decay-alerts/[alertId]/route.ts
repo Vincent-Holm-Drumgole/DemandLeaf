@@ -14,14 +14,14 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rl = await checkRateLimit(`decay-alert:${userId}`, {
+  const rl = await checkRateLimit(`decay-alert:get:${userId}`, {
     limit: 60,
     windowSec: 60,
   });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limited" },
-      { status: 429, headers: { "Retry-After": "60" } }
+      { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))) } }
     );
   }
 
@@ -66,14 +66,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rl = await checkRateLimit(`decay-alert:${userId}`, {
+  const rl = await checkRateLimit(`decay-alert:patch:${userId}`, {
     limit: 30,
     windowSec: 60,
   });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limited" },
-      { status: 429, headers: { "Retry-After": "60" } }
+      { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))) } }
     );
   }
 

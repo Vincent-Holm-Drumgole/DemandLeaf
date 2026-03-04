@@ -67,11 +67,16 @@ export default function PerformancePage() {
   if (!isSignedIn) return null;
 
   async function handleAcknowledge(alertId: string) {
-    await fetch(`/api/decay-alerts/${alertId}`, {
+    const res = await fetch(`/api/decay-alerts/${alertId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "acknowledge" }),
     });
+    if (!res.ok) {
+      setError("Failed to acknowledge alert");
+      return;
+    }
+    setError(null);
     setAlerts((prev) =>
       prev.map((a) =>
         a.id === alertId ? { ...a, status: "acknowledged" } : a
@@ -83,16 +88,19 @@ export default function PerformancePage() {
     const res = await fetch(`/api/decay-alerts/${alertId}/diagnose`, {
       method: "POST",
     });
-    if (res.ok) {
-      const diagnosis = await res.json();
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === alertId
-            ? { ...a, diagnosisCause: diagnosis.cause, status: "acknowledged" }
-            : a
-        )
-      );
+    if (!res.ok) {
+      setError("Failed to diagnose alert");
+      return;
     }
+    setError(null);
+    const diagnosis = await res.json();
+    setAlerts((prev) =>
+      prev.map((a) =>
+        a.id === alertId
+          ? { ...a, diagnosisCause: diagnosis.cause, status: "acknowledged" }
+          : a
+      )
+    );
   }
 
   function handleRefresh(alertId: string, blogId: string) {

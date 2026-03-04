@@ -166,6 +166,8 @@ export const create = mutation({
     generationCostCents: v.optional(v.number()),
     generationTimeMs: v.optional(v.number()),
     promptVersion: v.optional(v.string()),
+    aeoScore: v.optional(v.number()),
+    publishedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

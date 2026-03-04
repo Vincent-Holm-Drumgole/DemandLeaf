@@ -30,7 +30,11 @@ export function BillingSettings() {
       const res = await fetch("/api/stripe/checkout", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        if (data.url) window.location.href = data.url;
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          setError("Failed to start checkout. Please try again.");
+        }
       } else {
         setError("Failed to start checkout. Please try again.");
       }
@@ -46,7 +50,11 @@ export function BillingSettings() {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        if (data.url) window.location.href = data.url;
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          setError("Failed to open billing portal. Please try again.");
+        }
       } else {
         setError("Failed to open billing portal. Please try again.");
       }

@@ -13,18 +13,31 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
   async ({ event, step }) => {
     const convex = getConvexClient();
     const cronKey = process.env.INNGEST_CRON_KEY;
-    if (!cronKey) return { added: 0 };
+    if (!cronKey) {
+      console.error("[competitive-coord] INNGEST_CRON_KEY not configured");
+      return { added: 0 };
+    }
 
-    const { workspaceId, strategyId, newBriefKeywords } = event.data as {
-      workspaceId: string;
-      strategyId: string;
-      newBriefKeywords: string[];
-    };
+    const data = event.data as Record<string, unknown> | undefined;
+    const workspaceIdRaw =
+      typeof data?.workspaceId === "string" ? data.workspaceId : null;
+    const strategyIdRaw =
+      typeof data?.strategyId === "string" ? data.strategyId : null;
+    if (!workspaceIdRaw || !strategyIdRaw) {
+      console.warn("[competitive-coord] Missing required event data:", data);
+      return { added: 0 };
+    }
+    const newBriefKeywords = Array.isArray(data?.newBriefKeywords)
+      ? data.newBriefKeywords.filter(
+          (keyword): keyword is string =>
+            typeof keyword === "string" && keyword.trim().length > 0
+        )
+      : [];
 
-    if (!newBriefKeywords || newBriefKeywords.length === 0) return { added: 0 };
+    if (newBriefKeywords.length === 0) return { added: 0 };
 
-    const validWorkspaceId = parseConvexId(workspaceId, "workspaces");
-    const validStrategyId = parseConvexId(strategyId, "strategies");
+    const validWorkspaceId = parseConvexId(workspaceIdRaw, "workspaces");
+    const validStrategyId = parseConvexId(strategyIdRaw, "strategies");
     if (!validWorkspaceId || !validStrategyId) return { added: 0 };
 
     // Check which keywords already exist
@@ -59,7 +72,10 @@ export const onCompetitiveResponseApplied = inngest.createFunction(
           });
           return true;
         } catch (err) {
-          console.error(`[competitive-coord] Failed to add keyword "${keyword}":`, err);
+          console.error(
+            `[competitive-coord] Failed to add keyword "${keyword}" for workspace=${workspaceIdRaw} strategy=${strategyIdRaw}:`,
+            err
+          );
           return false;
         }
       });

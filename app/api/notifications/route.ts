@@ -16,13 +16,14 @@ export async function GET() {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
-  const notifications = await convex.query(api.notifications.listByWorkspace, {
-    workspaceId: workspace._id,
-  });
-
-  const unreadCount = await convex.query(api.notifications.getUnreadCount, {
-    workspaceId: workspace._id,
-  });
+  const [notifications, unreadCount] = await Promise.all([
+    convex.query(api.notifications.listByWorkspace, {
+      workspaceId: workspace._id,
+    }),
+    convex.query(api.notifications.getUnreadCount, {
+      workspaceId: workspace._id,
+    }),
+  ]);
 
   return NextResponse.json({
     notifications: notifications.map(

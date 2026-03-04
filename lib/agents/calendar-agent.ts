@@ -78,7 +78,8 @@ ${itemsWithScores.map((item, i) => `${i + 1}. "${item.keyword}" — priority ${i
   try {
     changes = parseJsonResponse<typeof changes>(result.content);
     if (!Array.isArray(changes)) return null;
-  } catch {
+  } catch (err) {
+    console.warn("[calendar-agent] Failed to parse Haiku response:", err);
     return null;
   }
 

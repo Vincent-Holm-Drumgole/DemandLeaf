@@ -3,11 +3,13 @@ import { v, ConvexError } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { briefDataModificationsValidator, briefDataValidator } from "./validators";
 import {
+  ERR_BLOG_NOT_FOUND,
   ERR_BRIEF_ALREADY_WRITTEN,
   ERR_BRIEF_NOT_FOUND,
   ERR_KEYWORD_ALREADY_BRIEFED,
   ERR_STRATEGY_NOT_FOUND,
   ERR_UNAUTHORIZED,
+  ERR_WORKSPACE_MISMATCH,
 } from "./errors";
 
 export const getById = query({
@@ -75,7 +77,7 @@ export const getByIdForCron = query({
     const brief = await ctx.db.get(args.briefId);
     if (!brief) return null;
     if (args.workspaceId && brief.workspaceId !== args.workspaceId) {
-      throw new ConvexError(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_WORKSPACE_MISMATCH);
     }
     return brief;
   },
@@ -199,12 +201,12 @@ export const linkBlogForCron = mutation({
     const brief = await ctx.db.get(args.briefId);
     if (!brief) throw new ConvexError(ERR_BRIEF_NOT_FOUND);
     const blog = await ctx.db.get(args.blogId);
-    if (!blog) throw new ConvexError(ERR_UNAUTHORIZED);
+    if (!blog) throw new ConvexError(ERR_BLOG_NOT_FOUND);
     if (brief.workspaceId !== blog.workspaceId) {
-      throw new ConvexError(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_WORKSPACE_MISMATCH);
     }
     if (args.workspaceId && brief.workspaceId !== args.workspaceId) {
-      throw new ConvexError(ERR_UNAUTHORIZED);
+      throw new ConvexError(ERR_WORKSPACE_MISMATCH);
     }
     await ctx.db.patch(args.briefId, {
       blogId: args.blogId,

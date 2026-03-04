@@ -51,6 +51,7 @@ export function AuthorPersonasSettings() {
   async function handleAdd() {
     if (!name) return;
     setAdding(true);
+    setError(null);
     try {
       const res = await fetch("/api/author-personas", {
         method: "POST",
@@ -73,7 +74,11 @@ export function AuthorPersonasSettings() {
         setExpertise("");
         setShowForm(false);
         await loadPersonas();
+      } else {
+        setError("Failed to create author persona");
       }
+    } catch {
+      setError("Failed to create author persona");
     } finally {
       setAdding(false);
     }
@@ -89,9 +94,11 @@ export function AuthorPersonasSettings() {
       });
       if (!res.ok) {
         setError("Failed to set default persona");
+        return;
       }
       await loadPersonas();
-    } catch {
+    } catch (err) {
+      console.error("Failed to set default persona:", err);
       setError("Failed to set default persona");
     } finally {
       setOperatingId(null);
@@ -105,9 +112,11 @@ export function AuthorPersonasSettings() {
       const res = await fetch(`/api/author-personas/${id}`, { method: "DELETE" });
       if (!res.ok) {
         setError("Failed to delete persona");
+        return;
       }
       await loadPersonas();
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete persona:", err);
       setError("Failed to delete persona");
     } finally {
       setOperatingId(null);

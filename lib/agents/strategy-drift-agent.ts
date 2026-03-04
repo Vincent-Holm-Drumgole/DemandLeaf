@@ -142,7 +142,8 @@ Metrics:
     if (Array.isArray(parsed.pivots)) {
       pivots = parsed.pivots.slice(0, 3);
     }
-  } catch {
+  } catch (err) {
+    console.warn("[strategy-drift-agent] Haiku call failed, using fallback:", err);
     pivots = [
       {
         type: "keyword",

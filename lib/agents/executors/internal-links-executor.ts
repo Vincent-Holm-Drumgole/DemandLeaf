@@ -33,11 +33,15 @@ export async function executeInternalLinks(
     return { applied: 0, skipped: payload.suggestions.length };
   }
 
-  await convex.mutation(api.internalLinks.upsertSuggestions, {
-    workspaceId,
-    sourceBlogId,
-    suggestions: validSuggestions,
-  });
-
-  return { applied: validSuggestions.length, skipped: payload.suggestions.length - validSuggestions.length };
+  try {
+    await convex.mutation(api.internalLinks.upsertSuggestions, {
+      workspaceId,
+      sourceBlogId,
+      suggestions: validSuggestions,
+    });
+    return { applied: validSuggestions.length, skipped: payload.suggestions.length - validSuggestions.length };
+  } catch (err) {
+    console.error("[internal-links-executor] Failed to upsert suggestions:", err);
+    return { applied: 0, skipped: payload.suggestions.length };
+  }
 }

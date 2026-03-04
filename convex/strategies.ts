@@ -102,9 +102,10 @@ export const updateDriftCheckedAt = mutation({
     const strategy = await ctx.db.get(args.strategyId);
     if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
+    const now = Date.now();
     await ctx.db.patch(args.strategyId, {
-      driftCheckedAt: Date.now(),
-      updatedAt: Date.now(),
+      driftCheckedAt: now,
+      updatedAt: now,
     });
   },
 });

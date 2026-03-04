@@ -18,7 +18,7 @@ export function buildDigestHtml(
 ): string {
   const contentHtml = marked.parse(digest, { async: false }) as string;
   const agentLabel = AGENT_LABELS[agentType] ?? agentType;
-  const reviewUrl = `${appUrl}/agents?action=${actionId}`;
+  const reviewUrl = `${appUrl}/agents?action=${encodeURIComponent(actionId)}`;
 
   return `<!DOCTYPE html>
 <html lang="en">

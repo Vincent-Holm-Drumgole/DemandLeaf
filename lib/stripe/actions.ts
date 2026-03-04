@@ -46,5 +46,9 @@ export async function createPortalSession(opts: {
     return_url: opts.returnUrl,
   });
 
+  if (!session.url) {
+    throw new Error("Stripe did not return a portal URL");
+  }
+
   return session.url;
 }

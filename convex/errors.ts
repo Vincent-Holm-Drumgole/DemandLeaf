@@ -12,6 +12,7 @@
 
 export const ERR_UNAUTHENTICATED = "Unauthenticated";
 export const ERR_UNAUTHORIZED = "Unauthorized";
+export const ERR_WORKSPACE_MISMATCH = "Workspace mismatch";
 export const ERR_BLOG_NOT_FOUND = "Blog not found";
 export const ERR_ENTRY_NOT_FOUND = "Entry not found";
 /** Partial token: embedded in the full never-say limit-reached message. */
@@ -51,6 +52,7 @@ export const ERR_NO_FOCUS_KEYWORD = "Blog has no focusKeyword set";
 // Phase 7: Agentic Operations
 export const ERR_AGENT_ACTION_NOT_FOUND = "Agent action not found";
 export const ERR_AGENT_ACTION_NOT_PENDING = "Agent action is not in pending state";
+export const ERR_AGENT_ACTION_NOT_APPROVED = "Agent action is not in approved state";
 export const ERR_INVALID_AGENT_PAYLOAD = "Invalid agent payload";
 export const ERR_NOTIFICATION_NOT_FOUND = "Notification not found";
 
