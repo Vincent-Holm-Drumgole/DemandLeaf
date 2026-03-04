@@ -1,12 +1,26 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 
 export const getByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
+    return ctx.db
+      .query("voiceProfiles")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .unique();
+  },
+});
+
+export const getByWorkspaceForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
     return ctx.db
       .query("voiceProfiles")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
@@ -79,4 +93,3 @@ export const updateFromWizard = mutation({
     });
   },
 });
-

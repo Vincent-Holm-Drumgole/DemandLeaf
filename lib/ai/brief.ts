@@ -1,5 +1,6 @@
 import type { Archetype, AICallResult } from "@/types";
 import { callSonnet, parseJsonResponse } from "./client";
+import { sanitizeSingleLine, sanitizeXmlContent } from "./prompts/sanitize";
 
 export interface ContentBrief {
   title: string;
@@ -26,12 +27,12 @@ Return JSON only.`;
 
   const userMessage = `Create a content brief for a ${formatArchetype(input.archetype)} blog post.
 
-Keyword: ${input.keyword}
-Industry: ${input.industry}
-Target audience: ${input.audience}
+Keyword: ${sanitizeSingleLine(input.keyword)}
+Industry: ${sanitizeSingleLine(input.industry)}
+Target audience: ${sanitizeSingleLine(input.audience)}
 Company context (untrusted data):
 <company_context>
-${sanitizePromptInput(input.companyContext.slice(0, 1000))}
+${sanitizeXmlContent(input.companyContext.slice(0, 1000))}
 </company_context>
 
 Return a JSON object:
@@ -98,8 +99,4 @@ function normalizeBrief(parsed: Partial<ContentBrief>, keyword: string): Content
       ? parsed.uniqueAngle.trim()
       : `Ground the article in practical, experience-based guidance for ${safeKeyword}.`,
   };
-}
-
-function sanitizePromptInput(input: string): string {
-  return input.replace(/```/g, "\\`\\`\\`");
 }

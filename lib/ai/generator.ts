@@ -15,6 +15,8 @@ import { checkVoiceAdherence } from "@/lib/voice/match";
 import { scoreSEO } from "@/lib/seo/scorer";
 import { detectAIContent } from "@/lib/detection/detector";
 import { evaluateQualityGates } from "@/lib/quality/gates";
+import { scoreAEO } from "@/lib/aeo/scorer";
+import { optimizeForAEO, AEO_OPTIMIZER_THRESHOLD } from "@/lib/aeo/optimizer";
 import {
   extractTitle,
   generateSlug,
@@ -54,17 +56,43 @@ export async function generateBlog(
   const tracker = new TokenTracker();
   const startTime = Date.now();
 
-  // ── Step 1: Generate brief ─────────────────────────────────────────
+  // ── Step 1: Generate brief (or use pre-approved hint) ──────────────
   onProgress?.({ name: "Researching your topic", status: "running" });
-  const { brief, aiResult: briefResult } = await generateBrief({
-    keyword: input.keyword,
-    archetype: input.archetype,
-    industry: input.industry,
-    audience: input.audience,
-    companyContext: input.companyContext,
-  });
-  tracker.record("brief", briefResult);
-  onProgress?.({ name: "Researching your topic", status: "complete", durationMs: briefResult.durationMs });
+  let brief: Awaited<ReturnType<typeof generateBrief>>["brief"];
+  if (input.briefHint) {
+    // Use the pre-approved Phase 3 content brief — skip Claude call for Step 1
+    const firstOutlineHeading = input.briefHint.outline
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.startsWith("## "))
+      ?.replace(/^##\s+/, "");
+    brief = {
+      title: firstOutlineHeading || input.keyword,
+      outline: input.briefHint.outline,
+      hookOptions: (() => {
+        const provided = input.briefHint.hookOptions.filter((h) => h.trim().length > 0);
+        const defaults = [
+          `Most teams overlook the fundamentals of ${input.keyword}.`,
+          `${input.keyword} gets easier once you stop following generic playbooks.`,
+          `The biggest mistake with ${input.keyword} is skipping foundational setup.`,
+        ];
+        return [...provided, ...defaults].slice(0, 3);
+      })(),
+      uniqueAngle: "",
+    };
+    onProgress?.({ name: "Researching your topic", status: "complete", durationMs: 0 });
+  } else {
+    const { brief: generatedBrief, aiResult: briefResult } = await generateBrief({
+      keyword: input.keyword,
+      archetype: input.archetype,
+      industry: input.industry,
+      audience: input.audience,
+      companyContext: input.companyContext,
+    });
+    brief = generatedBrief;
+    tracker.record("brief", briefResult);
+    onProgress?.({ name: "Researching your topic", status: "complete", durationMs: briefResult.durationMs });
+  }
 
   // ── Step 2: Generate draft (5-layer prompt) ────────────────────────
   onProgress?.({ name: "Writing in your voice", status: "running" });
@@ -86,6 +114,10 @@ export async function generateBlog(
     outline: brief.outline,
     kbContext: kbContextString,
     neverSayTerms: input.neverSayTerms,
+    hookOptions: brief.hookOptions,
+    uniqueAngle: brief.uniqueAngle || undefined,
+    internalLinkOpportunities: input.briefHint?.internalLinkOpportunities,
+    citationNeeds: input.briefHint?.citationNeeds,
   });
 
   const draftResult = await callSonnet(systemPrompt, userMessage, {
@@ -274,6 +306,38 @@ export async function generateBlog(
 
   onProgress?.({ name: "Running quality checks", status: "complete" });
 
+  // ── Step 9: AEO scoring (code) ────────────────────────────────────
+  onProgress?.({ name: "Scoring AEO readiness", status: "running" });
+  const aeoResult = scoreAEO({ content: blogContent });
+  let aeoScore = aeoResult.score;
+  onProgress?.({ name: "Scoring AEO readiness", status: "complete" });
+
+  // ── Step 10: AEO optimization (Sonnet, conditional) ───────────────
+  if (aeoResult.score < AEO_OPTIMIZER_THRESHOLD) {
+    onProgress?.({ name: "Optimizing for answer engines", status: "running" });
+    try {
+      const failedChecks = aeoResult.checks
+        .filter((c) => !c.passed)
+        .map((c) => c.name);
+      const aeoOpt = await optimizeForAEO(blogContent, aeoResult, failedChecks);
+      if (aeoOpt.changed) {
+        blogContent = aeoOpt.content;
+        tracker.record("aeo_optimization", {
+          content: "",
+          model: "sonnet",
+          inputTokens: 0,
+          outputTokens: 0,
+          costCents: aeoOpt.costCents,
+          durationMs: aeoOpt.durationMs,
+        });
+        aeoScore = scoreAEO({ content: blogContent }).score;
+      }
+      onProgress?.({ name: "Optimizing for answer engines", status: "complete" });
+    } catch {
+      onProgress?.({ name: "Optimizing for answer engines", status: "error" });
+    }
+  }
+
   const generationTimeMs = Date.now() - startTime;
   const summary = tracker.summary;
 
@@ -297,6 +361,7 @@ export async function generateBlog(
       readabilityScore,
     },
     voiceMatchScore,
+    aeoScore,
     generationTimeMs,
     totalCostCents: summary.totalCostCents,
     totalInputTokens: summary.totalInputTokens,

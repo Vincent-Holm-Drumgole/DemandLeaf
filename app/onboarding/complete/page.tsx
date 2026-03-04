@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboarding-store";
 
-export default function OnboardingCompletePage() {
+function OnboardingCompleteContent() {
   const router = useRouter();
-  const sessionId = useOnboardingStore((s) => s.sessionId);
+  const searchParams = useSearchParams();
+  const storeSessionId = useOnboardingStore((s) => s.sessionId);
+  const sessionId = storeSessionId ?? searchParams.get("sessionId");
   const reset = useOnboardingStore((s) => s.reset);
   const called = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,5 +65,19 @@ export default function OnboardingCompletePage() {
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-muted-foreground">Setting up your workspace…</p>
     </div>
+  );
+}
+
+export default function OnboardingCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-muted-foreground">Setting up your workspace…</p>
+        </div>
+      }
+    >
+      <OnboardingCompleteContent />
+    </Suspense>
   );
 }

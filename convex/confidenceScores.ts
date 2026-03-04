@@ -1,7 +1,9 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_BLOG_NOT_FOUND } from "./errors";
+import { ERR_BLOG_NOT_FOUND, ERR_INVALID_VOICE_MATCH_SCORE } from "./errors";
+
+const MAX_TREND_BLOGS = 5_000;
 
 export const approveBlog = mutation({
   args: {
@@ -13,7 +15,7 @@ export const approveBlog = mutation({
 
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_BLOG_NOT_FOUND);
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       userApproval: true,
@@ -32,11 +34,11 @@ export const setVoiceMatchScore = mutation({
     await requireWorkspaceAccess(ctx, args.workspaceId);
 
     if (args.voiceMatchScore < 0 || args.voiceMatchScore > 100) {
-      throw new Error("voiceMatchScore must be between 0 and 100");
+      throw new ConvexError(ERR_INVALID_VOICE_MATCH_SCORE);
     }
     const blog = await ctx.db.get(args.blogId);
     if (!blog || blog.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_BLOG_NOT_FOUND);
+      throw new ConvexError(ERR_BLOG_NOT_FOUND);
     }
     await ctx.db.patch(args.blogId, {
       voiceMatchScore: args.voiceMatchScore,
@@ -55,13 +57,16 @@ export const getWorkspaceTrend = query({
 
     const windowDays = Math.max(1, Math.min(args.windowDays, 365));
     const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-    const blogs = await ctx.db
+    const recentBlogs = await ctx.db
       .query("blogs")
       .withIndex("by_workspace_created", (q) =>
         q.eq("workspaceId", args.workspaceId).gte("createdAt", cutoff)
       )
-      .order("asc")
-      .collect();
+      .order("desc")
+      .take(MAX_TREND_BLOGS + 1);
+    const truncated = recentBlogs.length > MAX_TREND_BLOGS;
+    const bounded = truncated ? recentBlogs.slice(0, MAX_TREND_BLOGS) : recentBlogs;
+    const blogs = [...bounded].reverse();
 
     if (blogs.length === 0) {
       return {
@@ -71,6 +76,7 @@ export const getWorkspaceTrend = query({
           approvalRate: null,
           avgEditRatio: null,
           totalBlogs: 0,
+          truncated: false,
         },
       };
     }
@@ -108,8 +114,8 @@ export const getWorkspaceTrend = query({
         approvalRate,
         avgEditRatio,
         totalBlogs: blogs.length,
+        truncated,
       },
     };
   },
 });
-

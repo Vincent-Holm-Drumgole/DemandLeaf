@@ -11,6 +11,40 @@ import {
   embeddingStatusValidator,
   termTypeValidator,
   classificationStatusValidator,
+  strategyStatusValidator,
+  searchIntentValidator,
+  buyerStageValidator,
+  keywordStatusValidator,
+  briefStatusValidator,
+  briefDataValidator,
+  briefDataModificationsValidator,
+  calendarStatusValidator,
+  seoDataCacheDataValidator,
+  // Phase 5
+  wpAuthMethodValidator,
+  wpConnectionStatusValidator,
+  wpPluginValidator,
+  internalLinkStatusValidator,
+  schemaTypeValidator,
+  wpStatusValidator,
+  socialUrlsValidator,
+  // Phase 6
+  decayAlertTypeValidator,
+  decayAlertSeverityValidator,
+  decayAlertStatusValidator,
+  diagnosisCauseValidator,
+  refreshStatusValidator,
+  googleConnectionStatusValidator,
+  refreshBriefDataValidator,
+  // Phase 7
+  agentTypeValidator,
+  agentActionStatusValidator,
+  notificationTypeValidator,
+  auditActorTypeValidator,
+  // Phase 8
+  publishingAgentStatusValidator,
+  // Billing
+  planStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -20,11 +54,18 @@ export default defineSchema({
     url: v.optional(v.string()),
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
+    // Billing
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    plan: v.optional(planStatusValidator),
+    trialEndsAt: v.optional(v.number()),
+    planExpiresAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_clerk_user", ["clerkUserId"])
-    .index("by_clerk_user_created", ["clerkUserId", "createdAt"]),
+    .index("by_clerk_user_created", ["clerkUserId", "createdAt"])
+    .index("by_stripe_customer", ["stripeCustomerId"]),
 
   voiceProfiles: defineTable({
     workspaceId: v.id("workspaces"),
@@ -97,6 +138,18 @@ export default defineSchema({
     userApproval: v.optional(v.boolean()),
     editCount: v.optional(v.number()),
     editRatio: v.optional(v.number()),
+    // Phase 5: AEO/GEO & Publishing fields
+    aeoScore: v.optional(v.number()),
+    schemaType: v.optional(schemaTypeValidator),
+    schemaJson: v.optional(v.string()),
+    wpPostId: v.optional(v.number()),
+    wpPostUrl: v.optional(v.string()),
+    wpStatus: v.optional(wpStatusValidator),
+    wpScheduledAt: v.optional(v.number()),
+    wpConnectionId: v.optional(v.id("wpConnections")),
+    authorPersonaId: v.optional(v.id("authorPersonas")),
+    publishedAt: v.optional(v.number()),
+    internalLinksGenerated: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -193,4 +246,290 @@ export default defineSchema({
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_created", ["workspaceId", "createdAt"])
     .index("by_workspace_unclassified", ["workspaceId", "classificationStatus"]),
+
+  // ── Phase 3: Strategy & Keyword Intelligence tables ──────────────────────────
+
+  strategies: defineTable({
+    workspaceId: v.id("workspaces"),
+    name: v.string(),
+    businessOutcomes: v.string(),
+    targetAudience: v.optional(v.string()),
+    seedKeywords: v.array(v.string()),
+    status: strategyStatusValidator,
+    driftCheckedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
+
+  keywords: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keyword: v.string(),
+    searchVolume: v.optional(v.number()),
+    keywordDifficulty: v.optional(v.number()), // 0–100
+    cpc: v.optional(v.number()),
+    searchIntent: v.optional(searchIntentValidator),
+    buyerStage: v.optional(buyerStageValidator),
+    opportunityScore: v.optional(v.number()),
+    assignedBlogId: v.optional(v.id("blogs")),
+    clusterId: v.optional(v.id("topicClusters")),
+    status: keywordStatusValidator,
+    dataFetchedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"])
+    .index("by_strategy_keyword", ["strategyId", "keyword"])
+    .index("by_cluster", ["clusterId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
+
+  topicClusters: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    name: v.string(),
+    pillarKeyword: v.string(),
+    pillarBlogId: v.optional(v.id("blogs")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"]),
+
+  contentBriefs: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keywordId: v.id("keywords"),
+    briefData: briefDataValidator,
+    status: briefStatusValidator,
+    userModifications: v.optional(briefDataModificationsValidator),
+    blogId: v.optional(v.id("blogs")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_keyword", ["keywordId"])
+    .index("by_strategy", ["strategyId"]),
+
+  contentCalendar: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    briefId: v.optional(v.id("contentBriefs")),
+    keywordId: v.id("keywords"),
+    scheduledDate: v.number(), // epoch ms
+    archetype: v.string(),
+    priority: v.number(), // 1 = highest
+    status: calendarStatusValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_date", ["workspaceId", "scheduledDate"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_strategy", ["strategyId"])
+    .index("by_workspace_strategy_date", ["workspaceId", "strategyId", "scheduledDate"])
+    .index("by_strategy_keyword", ["strategyId", "keywordId"]),
+
+  seoDataCache: defineTable({
+    cacheKey: v.string(), // "keyword:{kw}", "serp:{kw}", "related:{kw}", "domain:{domain}"
+    data: seoDataCacheDataValidator,
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_cache_key", ["cacheKey"]), // Not unique in Convex; duplicates are de-duped in convex/seoDataCache.ts.
+
+  // ── Phase 5: AEO/GEO & Publishing tables ──────────────────────────────────────
+
+  wpConnections: defineTable({
+    workspaceId: v.id("workspaces"),
+    siteUrl: v.string(),
+    authMethod: wpAuthMethodValidator,
+    encryptedCredentials: v.string(),
+    credentialIv: v.string(),
+    credentialTag: v.string(),
+    pluginDetected: v.optional(wpPluginValidator),
+    status: wpConnectionStatusValidator,
+    lastTestedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  authorPersonas: defineTable({
+    workspaceId: v.id("workspaces"),
+    name: v.string(),
+    jobTitle: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    socialUrls: v.optional(socialUrlsValidator),
+    expertiseAreas: v.array(v.string()),
+    avatarUrl: v.optional(v.string()),
+    wpAuthorId: v.optional(v.number()),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_default", ["workspaceId", "isDefault"]),
+
+  internalLinks: defineTable({
+    workspaceId: v.id("workspaces"),
+    sourceBlogId: v.id("blogs"),
+    targetBlogId: v.id("blogs"),
+    anchorText: v.string(),
+    similarity: v.number(),
+    status: internalLinkStatusValidator,
+    createdAt: v.number(),
+  })
+    .index("by_source_blog", ["sourceBlogId"])
+    .index("by_workspace", ["workspaceId"]),
+
+  // ── Phase 6: Post-Publish Intelligence tables ─────────────────────────────────
+
+  rankSnapshots: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    keyword: v.string(),
+    position: v.optional(v.number()),
+    url: v.optional(v.string()),
+    searchVolume: v.optional(v.number()),
+    checkedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_blog_checked", ["blogId", "checkedAt"])
+    .index("by_workspace_checked", ["workspaceId", "checkedAt"]),
+
+  performanceMetrics: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    sessions: v.optional(v.number()),
+    pageviews: v.optional(v.number()),
+    avgEngagementTimeSec: v.optional(v.number()),
+    bounceRate: v.optional(v.number()),
+    clicks: v.optional(v.number()),
+    impressions: v.optional(v.number()),
+    ctr: v.optional(v.number()),
+    avgPosition: v.optional(v.number()),
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    measuredAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_blog_period", ["blogId", "periodStart"])
+    .index("by_workspace_period", ["workspaceId", "periodStart"]),
+
+  decayAlerts: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    alertType: decayAlertTypeValidator,
+    severity: decayAlertSeverityValidator,
+    triggeredAt: v.number(),
+    status: decayAlertStatusValidator,
+    baselineValue: v.number(),
+    currentValue: v.number(),
+    deltaPercent: v.number(),
+    diagnosisCause: v.optional(diagnosisCauseValidator),
+    diagnosisNotes: v.optional(v.string()),
+    diagnosedAt: v.optional(v.number()),
+    refreshHistoryId: v.optional(v.id("refreshHistory")),
+    resolvedAt: v.optional(v.number()),
+    escalatedAt: v.optional(v.number()),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_blog", ["blogId"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_workspace_triggered", ["workspaceId", "triggeredAt"]),
+
+  refreshHistory: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    alertId: v.optional(v.id("decayAlerts")),
+    briefData: refreshBriefDataValidator,
+    refreshedContent: v.optional(v.string()),
+    status: refreshStatusValidator,
+    failureReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
+
+  googleConnections: defineTable({
+    workspaceId: v.id("workspaces"),
+    ga4PropertyId: v.optional(v.string()),
+    gscSiteUrl: v.optional(v.string()),
+    encryptedTokens: v.string(),
+    tokenIv: v.string(),
+    tokenTag: v.string(),
+    scopes: v.array(v.string()),
+    status: googleConnectionStatusValidator,
+    lastSyncedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  // ── Phase 7: Agentic Operations tables ────────────────────────────────────────
+
+  agentActions: defineTable({
+    workspaceId: v.id("workspaces"),
+    agentType: agentTypeValidator,
+    status: agentActionStatusValidator,
+    payload: v.any(),
+    reasoning: v.string(),
+    suggestedAt: v.number(),
+    decidedAt: v.optional(v.number()),
+    executedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    userNote: v.optional(v.string()),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_workspace_agent", ["workspaceId", "agentType"])
+    .index("by_status_suggested", ["status", "suggestedAt"]),
+
+  notifications: defineTable({
+    workspaceId: v.id("workspaces"),
+    type: notificationTypeValidator,
+    agentType: agentTypeValidator,
+    agentActionId: v.optional(v.id("agentActions")),
+    title: v.string(),
+    body: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_read", ["workspaceId", "read"]),
+
+  agentAuditLog: defineTable({
+    workspaceId: v.id("workspaces"),
+    agentActionId: v.id("agentActions"),
+    agentType: agentTypeValidator,
+    event: v.string(),
+    actorType: auditActorTypeValidator,
+    detail: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_agent_action", ["agentActionId"])
+    .index("by_workspace_agent", ["workspaceId", "agentType"]),
+
+  // ── Phase 8: Agentic Operations v2 tables ─────────────────────────────────────
+
+  competitorTracking: defineTable({
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    domain: v.string(),
+    trackedKeywords: v.array(v.string()),
+    lastCheckedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_strategy", ["strategyId"]),
+
+  publishingAgentConfig: defineTable({
+    workspaceId: v.id("workspaces"),
+    status: publishingAgentStatusValidator,
+    pauseReason: v.optional(v.string()),
+    pausedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
 });

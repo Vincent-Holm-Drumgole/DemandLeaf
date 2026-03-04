@@ -4,6 +4,8 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_ENTRY_NOT_FOUND } from "@/convex/errors";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,6 +14,19 @@ interface RouteParams {
 export async function DELETE(_request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rateLimit = await checkRateLimit(`never-say-delete:${userId}`, { limit: 30, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
+  }
 
   const { id } = await context.params;
   const entryId = parseConvexId(id, "neverSayList");
@@ -30,11 +45,10 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
     });
     return NextResponse.json({ success: true });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_ENTRY_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_ENTRY_NOT_FOUND)) {
       return NextResponse.json({ error: "Entry not found" }, { status: 404 });
     }
     console.error("[never-say/[id]/DELETE] error:", err);
     return NextResponse.json({ error: "Failed to delete term" }, { status: 500 });
   }
 }
-

@@ -8,6 +8,7 @@ import { KB_ENTRY_TYPES } from "@/types/knowledge-base";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import type { FunctionReturnType } from "convex/server";
 import { ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 const VALID_ENTRY_TYPES = new Set<KBEntryType>(KB_ENTRY_TYPES);
 
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       entryType,
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/GET] query error:", err);
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tags: Array.isArray(tags) ? tags.filter((t): t is string => typeof t === "string") : [],
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[knowledge-base/POST] mutation error:", err);

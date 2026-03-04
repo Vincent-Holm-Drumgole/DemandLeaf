@@ -6,9 +6,21 @@ import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
 import { generateEmbedding } from "@/lib/ai/embedding";
 import { selectKBContext } from "@/lib/knowledge-base/context-selector";
-import type { GenerateRequest, GenerateSSEEvent, KBContextResult } from "@/types";
-import type { VoiceProfile, Archetype } from "@/types";
+import type {
+  Archetype,
+  BriefHint,
+  BriefData,
+  GenerateRequest,
+  GenerateSSEEvent,
+  KBContextResult,
+  VoiceProfile,
+} from "@/types";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
+import { parseConvexId } from "@/lib/convex-id";
+import { ERR_BRIEF_NOT_FOUND } from "@/convex/errors";
+import type { Id } from "@/convex/_generated/dataModel";
+import { isBriefData } from "@/lib/brief/validate";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -41,8 +53,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const sessionId = body.sessionId?.trim();
-  const keyword = body.keyword?.trim();
-  const archetype = body.archetype;
+  let keyword = body.keyword?.trim();
+  let archetype = body.archetype;
+  const rawBriefId = body.briefId?.trim();
 
   if (!sessionId) {
     return new Response(
@@ -64,6 +77,113 @@ export async function POST(request: NextRequest): Promise<Response> {
       JSON.stringify({ error: `Invalid archetype. Use one of: ${allowedArchetypes}` }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
+  }
+
+  // Billing gate: authenticated workspaces with expired trial/past-due/canceled
+  // plans cannot generate new content.
+  const { userId } = await auth();
+  const sessionCookie = request.cookies.get("dl_session")?.value?.trim();
+  if (!userId && sessionCookie !== sessionId) {
+    return new Response(
+      JSON.stringify({
+        error: "Session mismatch. Please crawl your website again before generating.",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  let authedConvexClient: Awaited<ReturnType<typeof getAuthedConvexClient>> | null = null;
+  let authedWorkspace:
+    | {
+        _id: Id<"workspaces">;
+        plan?: string;
+        trialEndsAt?: number;
+      }
+    | null = null;
+  if (userId) {
+    authedConvexClient = await getAuthedConvexClient();
+    const workspace = await authedConvexClient.query(api.workspaces.getByClerkUser, {});
+    if (workspace) {
+      authedWorkspace = workspace;
+      if (workspaceNeedsUpgrade(workspace)) {
+        return new Response(
+          JSON.stringify({
+            error: "Subscription required to continue generating content.",
+            code: "SUBSCRIPTION_REQUIRED",
+          }),
+          { status: 402, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
+
+  // ── Brief-mode: load approved Phase 3 brief and override keyword/archetype ──
+  let briefHint: BriefHint | undefined;
+  let resolvedBriefId: Id<"contentBriefs"> | undefined;
+
+  if (rawBriefId) {
+    const briefIdTyped = parseConvexId(rawBriefId, "contentBriefs");
+    if (!briefIdTyped) {
+      return new Response(
+        JSON.stringify({ error: "Invalid briefId" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Authentication is required to generate from a brief" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    try {
+      const authedConvex = authedConvexClient ?? await getAuthedConvexClient();
+      authedConvexClient = authedConvex;
+      const brief = await authedConvex.query(api.contentBriefs.getById, { briefId: briefIdTyped });
+      if (brief.status !== "approved") {
+        return new Response(
+          JSON.stringify({ error: "Brief must be approved before generating" }),
+          { status: 422, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (!isBriefData(brief.briefData)) {
+        return new Response(
+          JSON.stringify({ error: "Brief data is malformed" }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const briefData: BriefData = brief.briefData;
+      // Override keyword and archetype from brief
+      keyword = briefData.targetKeyword;
+      const recommendedArchetype = briefData.archetypeRecommendation;
+      if (recommendedArchetype && ARCHETYPES[recommendedArchetype as Archetype]) {
+        archetype = recommendedArchetype as Archetype;
+      }
+      // Convert OutlineSection[] to heading string
+      const outlineStr = briefData.outline
+        .map((section) => (section.level === 2 ? `## ${section.heading}` : `### ${section.heading}`))
+        .join("\n");
+      briefHint = {
+        outline: outlineStr,
+        hookOptions: briefData.hookOptions,
+        internalLinkOpportunities: briefData.internalLinkOpportunities,
+        citationNeeds: briefData.citationNeeds,
+      };
+      resolvedBriefId = briefIdTyped;
+    } catch (err) {
+      if (hasConvexErrorCode(err, ERR_BRIEF_NOT_FOUND)) {
+        return new Response(
+          JSON.stringify({ error: "Brief not found" }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Failed to load brief" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
   }
 
   // Load anonymous session
@@ -105,10 +225,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   let neverSayTerms: string[] | undefined;
 
   try {
-    const { userId } = await auth();
     if (userId) {
-      const authedConvex = await getAuthedConvexClient();
-      const workspace = await authedConvex.query(api.workspaces.getByClerkUser, {});
+      const authedConvex = authedConvexClient ?? await getAuthedConvexClient();
+      authedConvexClient = authedConvex;
+      const workspace =
+        authedWorkspace ?? await authedConvex.query(api.workspaces.getByClerkUser, {});
+      authedWorkspace = workspace;
       if (workspace) {
         const workspaceId = workspace._id;
 
@@ -169,6 +291,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             audience,
             kbContext,
             neverSayTerms,
+            briefHint,
           },
           (step) => {
             if (abortSignal.aborted) throw new Error("Client disconnected");
@@ -216,6 +339,64 @@ export async function POST(request: NextRequest): Promise<Response> {
           console.error("Failed to persist blog to session:", e);
         }
 
+        // If generation was driven by an approved Phase 3 brief, persist the blog
+        // to the workspace and link it to the brief + keyword.
+        if (resolvedBriefId) {
+          try {
+            const authedConvex = await getAuthedConvexClient();
+            const workspace = await authedConvex.query(api.workspaces.getByClerkUser, {});
+            if (workspace) {
+              const workspaceBlogId = await authedConvex.mutation(api.blogs.create, {
+                workspaceId: workspace._id,
+                title: result.title,
+                slug: result.slug,
+                content: result.content,
+                contentHtml: result.contentHtml,
+                metaTitle: result.metaTitle,
+                metaDescription: result.metaDescription,
+                focusKeyword: result.focusKeyword,
+                archetype: result.archetype,
+                wordCount: result.wordCount,
+                status: "draft",
+                seoScore: result.scores.seoScore,
+                qualityScore: result.scores.qualityScore,
+                detectionRisk: result.scores.detectionRisk,
+                detectionRiskScore: result.scores.detectionRiskScore,
+                burstinessScore: result.scores.burstinessScore,
+                readabilityScore: result.scores.readabilityScore,
+                modelUsed: result.modelUsed,
+                inputTokens: result.totalInputTokens,
+                outputTokens: result.totalOutputTokens,
+                generationCostCents: result.totalCostCents,
+                generationTimeMs: result.generationTimeMs,
+                promptVersion: result.promptVersion,
+              });
+              try {
+                await authedConvex.mutation(api.contentBriefs.linkBlog, {
+                  briefId: resolvedBriefId,
+                  blogId: workspaceBlogId,
+                });
+              } catch (linkErr) {
+                console.warn("[generate] linkBlog failed:", linkErr);
+              }
+              // Phase 5: persist AEO score if available
+              if (result.aeoScore !== undefined) {
+                try {
+                  await authedConvex.mutation(api.blogs.updatePublishingData, {
+                    blogId: workspaceBlogId,
+                    aeoScore: result.aeoScore,
+                  });
+                } catch (aeoErr) {
+                  console.warn("[generate] aeoScore persist failed:", aeoErr);
+                }
+              }
+            }
+          } catch (linkErr) {
+            // Non-critical — blog was generated and streamed successfully
+            console.warn("[generate] Failed to link brief to workspace blog:", linkErr);
+          }
+        }
+
         sendEvent({
           type: "complete",
           result: {
@@ -225,6 +406,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             metaTitle: result.metaTitle,
             metaDescription: result.metaDescription,
             scores: result.scores,
+            aeoScore: result.aeoScore ?? null,
             wordCount: result.wordCount,
             generationTimeMs: result.generationTimeMs,
             totalCostCents: result.totalCostCents,
@@ -250,6 +432,16 @@ export async function POST(request: NextRequest): Promise<Response> {
       Connection: "keep-alive",
     },
   });
+}
+
+function workspaceNeedsUpgrade(workspace: {
+  plan?: string;
+  trialEndsAt?: number;
+}): boolean {
+  const plan = workspace.plan ?? "trial";
+  const trialEndsAt = workspace.trialEndsAt ?? 0;
+  const trialExpired = plan === "trial" && Date.now() > trialEndsAt;
+  return plan === "canceled" || plan === "past_due" || trialExpired;
 }
 
 function buildVoiceProfileFromSession(

@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { termTypeValidator } from "./validators";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND, ERR_NEVER_SAY_LIMIT, ERR_NEVER_SAY_DUPLICATE } from "./errors";
 
 export const listByWorkspace = query({
@@ -12,7 +12,7 @@ export const listByWorkspace = query({
     return ctx.db
       .query("neverSayList")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(100);
   },
 });
 
@@ -25,7 +25,22 @@ export const getAllTerms = query({
     const entries = await ctx.db
       .query("neverSayList")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-      .collect();
+      .take(100);
+    return entries.map((e) => e.term);
+  },
+});
+
+export const getAllTermsForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const entries = await ctx.db
+      .query("neverSayList")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(100);
     return entries.map((e) => e.term);
   },
 });
@@ -45,13 +60,13 @@ export const add = mutation({
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .take(101);
     if (existing.length >= 100) {
-      throw new Error(`${ERR_NEVER_SAY_LIMIT} 100-term limit reached`);
+      throw new ConvexError(ERR_NEVER_SAY_LIMIT);
     }
     // Check for duplicates (case-insensitive)
     const lower = args.term.toLowerCase();
     const duplicate = existing.find((e) => e.term.toLowerCase() === lower);
     if (duplicate) {
-      throw new Error(`${ERR_NEVER_SAY_DUPLICATE} term already exists: ${args.term}`);
+      throw new ConvexError(ERR_NEVER_SAY_DUPLICATE);
     }
     return ctx.db.insert("neverSayList", {
       workspaceId: args.workspaceId,
@@ -72,9 +87,8 @@ export const remove = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     await ctx.db.delete(args.entryId);
   },
 });
-

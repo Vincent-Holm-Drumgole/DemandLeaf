@@ -1,0 +1,261 @@
+import { mutation, query } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import { ERR_BATCH_TOO_LARGE, ERR_KEYWORD_NOT_FOUND, ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "./errors";
+import type { Id } from "./_generated/dataModel";
+import {
+  buyerStageValidator,
+  keywordStatusValidator,
+  searchIntentValidator,
+} from "./validators";
+
+export const listByStrategy = query({
+  args: { strategyId: v.id("strategies") },
+  handler: async (ctx, args) => {
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, strategy.workspaceId);
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(500);
+  },
+});
+
+export const listByStrategyForCron = query({
+  args: {
+    strategyId: v.id("strategies"),
+    workspaceId: v.optional(v.id("workspaces")),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    if (args.workspaceId && strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(500);
+  },
+});
+
+export const listByCluster = query({
+  args: { clusterId: v.id("topicClusters") },
+  handler: async (ctx, args) => {
+    const cluster = await ctx.db.get(args.clusterId);
+    if (!cluster) return [];
+    await requireWorkspaceAccess(ctx, cluster.workspaceId);
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_cluster", (q) => q.eq("clusterId", args.clusterId))
+      .take(500);
+  },
+});
+
+export const listAllByWorkspace = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    return ctx.db
+      .query("keywords")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .take(2000);
+  },
+});
+
+export const listByWorkspace = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cursor: v.union(v.string(), v.null()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    const result = await ctx.db
+      .query("keywords")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .paginate({ numItems: args.limit ?? 100, cursor: args.cursor });
+    return { items: result.page, nextCursor: result.isDone ? null : result.continueCursor };
+  },
+});
+
+export const getById = query({
+  args: { keywordId: v.id("keywords") },
+  handler: async (ctx, args) => {
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, kw.workspaceId);
+    return kw;
+  },
+});
+
+export const bulkCreate = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keywords: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Each keyword costs up to 2 DB ops (1 read + 1 insert). Cap at 500 to
+    // stay well within Convex's 4,096 ops-per-transaction limit.
+    const MAX_KEYWORDS_PER_BATCH = 500;
+    if (args.keywords.length > MAX_KEYWORDS_PER_BATCH) {
+      throw new ConvexError(ERR_BATCH_TOO_LARGE);
+    }
+
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy || strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+
+    const now = Date.now();
+    const ids: Array<Id<"keywords">> = [];
+    for (const keyword of args.keywords) {
+      const normalizedKeyword = keyword.trim();
+      if (!normalizedKeyword) {
+        continue;
+      }
+
+      const existing = await ctx.db
+        .query("keywords")
+        .withIndex("by_strategy_keyword", (q) =>
+          q.eq("strategyId", args.strategyId).eq("keyword", normalizedKeyword),
+        )
+        .first();
+      if (existing) {
+        ids.push(existing._id);
+        continue;
+      }
+
+      const id = await ctx.db.insert("keywords", {
+        workspaceId: args.workspaceId,
+        strategyId: args.strategyId,
+        keyword: normalizedKeyword,
+        status: "unassigned",
+        createdAt: now,
+      });
+      ids.push(id);
+    }
+    return ids;
+  },
+});
+
+export const createForCron = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    keyword: v.string(),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    if (strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+
+    const normalizedKeyword = args.keyword.trim();
+    if (!normalizedKeyword) {
+      throw new ConvexError("Keyword is required");
+    }
+
+    const existing = await ctx.db
+      .query("keywords")
+      .withIndex("by_strategy_keyword", (q) =>
+        q.eq("strategyId", args.strategyId).eq("keyword", normalizedKeyword),
+      )
+      .first();
+    if (existing) {
+      return existing._id;
+    }
+
+    return ctx.db.insert("keywords", {
+      workspaceId: args.workspaceId,
+      strategyId: args.strategyId,
+      keyword: normalizedKeyword,
+      status: "unassigned",
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const updateMetrics = mutation({
+  args: {
+    keywordId: v.id("keywords"),
+    searchVolume: v.number(),
+    keywordDifficulty: v.number(),
+    cpc: v.number(),
+    opportunityScore: v.number(),
+    searchIntent: v.optional(searchIntentValidator),
+    buyerStage: v.optional(buyerStageValidator),
+  },
+  handler: async (ctx, args) => {
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, kw.workspaceId);
+    await ctx.db.patch(args.keywordId, {
+      searchVolume: args.searchVolume,
+      keywordDifficulty: args.keywordDifficulty,
+      cpc: args.cpc,
+      opportunityScore: args.opportunityScore,
+      searchIntent: args.searchIntent,
+      buyerStage: args.buyerStage,
+      dataFetchedAt: Date.now(),
+    });
+  },
+});
+
+export const updateCluster = mutation({
+  args: {
+    keywordId: v.id("keywords"),
+    clusterId: v.id("topicClusters"),
+  },
+  handler: async (ctx, args) => {
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, kw.workspaceId);
+    const cluster = await ctx.db.get(args.clusterId);
+    if (!cluster || cluster.workspaceId !== kw.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    await ctx.db.patch(args.keywordId, { clusterId: args.clusterId });
+  },
+});
+
+export const updateStatus = mutation({
+  args: {
+    keywordId: v.id("keywords"),
+    status: keywordStatusValidator,
+  },
+  handler: async (ctx, args) => {
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, kw.workspaceId);
+    await ctx.db.patch(args.keywordId, { status: args.status });
+  },
+});
+
+export const assignToBlog = mutation({
+  args: {
+    keywordId: v.id("keywords"),
+    blogId: v.id("blogs"),
+  },
+  handler: async (ctx, args) => {
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new ConvexError(ERR_KEYWORD_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, kw.workspaceId);
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog || blog.workspaceId !== kw.workspaceId) {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+    await ctx.db.patch(args.keywordId, {
+      assignedBlogId: args.blogId,
+      status: "written",
+    });
+  },
+});

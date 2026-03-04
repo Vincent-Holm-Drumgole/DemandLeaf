@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 import type { DashboardResponse, DashboardBlog } from "@/types";
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -10,14 +13,36 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rateLimit = await checkRateLimit(`dashboard:${userId}`, { limit: 120, windowSec: 60 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const cursorParam = searchParams.get("cursor");
   const cursor = cursorParam ? parseInt(cursorParam, 10) : undefined;
 
   const convex = await getAuthedConvexClient();
-  const data = await convex.query(api.blogs.listByWorkspace, {
-    cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
-  });
+  let data;
+  try {
+    data = await convex.query(api.blogs.listByWorkspace, {
+      cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
+    });
+  } catch (err) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.error("[dashboard/GET] Convex query error:", err);
+    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
+  }
 
   const dashboardBlogs: DashboardBlog[] = data.blogs.map((blog: (typeof data.blogs)[number]) => ({
     id: blog._id,

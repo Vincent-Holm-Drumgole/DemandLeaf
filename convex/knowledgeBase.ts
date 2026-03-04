@@ -7,15 +7,17 @@ import {
   internalAction,
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_ENTRY_NOT_FOUND } from "./errors";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import {
   embeddingStatusValidator,
   kbEntryTypeValidator,
 } from "./validators";
+
+const MAX_KB_ENTRIES_PER_QUERY = 500;
 
 // ── Queries ────────────────────────────────────────────────────────────────────
 
@@ -35,13 +37,13 @@ export const listByWorkspace = query({
           q.eq("workspaceId", args.workspaceId).eq("entryType", entryType)
         )
         .order("desc")
-        .collect();
+        .take(MAX_KB_ENTRIES_PER_QUERY);
     }
     return ctx.db
       .query("knowledgeBase")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .order("desc")
-      .collect();
+      .take(MAX_KB_ENTRIES_PER_QUERY);
   },
 });
 
@@ -69,7 +71,23 @@ export const listReadyByWorkspace = query({
       .withIndex("by_workspace_status", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "ready")
       )
-      .collect();
+      .take(MAX_KB_ENTRIES_PER_QUERY);
+  },
+});
+
+export const listReadyByWorkspaceForCron = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    return ctx.db
+      .query("knowledgeBase")
+      .withIndex("by_workspace_status", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "ready"),
+      )
+      .take(MAX_KB_ENTRIES_PER_QUERY);
   },
 });
 
@@ -125,7 +143,7 @@ export const update = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     const contentChanged = args.content !== undefined && args.content !== entry.content;
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
@@ -152,7 +170,7 @@ export const remove = mutation({
 
     const entry = await ctx.db.get(args.entryId);
     if (!entry || entry.workspaceId !== args.workspaceId) {
-      throw new Error(ERR_ENTRY_NOT_FOUND);
+      throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
     await ctx.db.delete(args.entryId);
   },

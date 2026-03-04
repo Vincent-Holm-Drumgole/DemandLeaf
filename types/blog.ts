@@ -15,6 +15,17 @@ export type BlogStatus = "draft" | "approved" | "exported" | "published";
 
 export type DetectionRisk = "low" | "medium" | "high";
 
+export interface BriefHint {
+  /** Pre-approved outline string (H2/H3 headings) derived from a Phase 3 content brief. */
+  outline: string;
+  /** Hook options from the approved brief; first item is preferred. */
+  hookOptions: string[];
+  /** Phase 5: internal link topic hints from the brief. */
+  internalLinkOpportunities?: string[];
+  /** Phase 5: citation needs description from the brief. */
+  citationNeeds?: string;
+}
+
 export interface GenerationInput {
   keyword: string;
   archetype: Archetype;
@@ -24,6 +35,8 @@ export interface GenerationInput {
   audience: string;
   kbContext?: KBContextResult;
   neverSayTerms?: string[];
+  /** When provided, skips Step 1 brief generation and uses the pre-approved brief data. */
+  briefHint?: BriefHint;
 }
 
 export interface GenerationResult {
@@ -39,6 +52,7 @@ export interface GenerationResult {
   wordCount: number;
   scores: BlogScores;
   voiceMatchScore?: number;
+  aeoScore?: number;
   generationTimeMs: number;
   totalCostCents: number;
   totalInputTokens: number;

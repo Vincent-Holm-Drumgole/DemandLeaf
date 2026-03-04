@@ -25,6 +25,7 @@ export interface GenerateRequest {
   sessionId: string;
   keyword: string;
   archetype: Archetype;
+  briefId?: string;
 }
 
 export interface GenerateSSEEvent {
@@ -42,6 +43,7 @@ export interface GenerateResult {
   metaTitle: string;
   metaDescription: string;
   scores: BlogScores;
+  aeoScore?: number | null;
   wordCount: number;
   generationTimeMs: number;
   totalCostCents: number;

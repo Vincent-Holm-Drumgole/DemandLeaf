@@ -6,6 +6,7 @@ import type { FeedbackRequest } from "@/types";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ERR_BLOG_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
+import { hasConvexErrorCode } from "@/lib/convex-error";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -81,10 +82,10 @@ export async function POST(
     createdId = created.id;
     createdAt = created.createdAt;
   } catch (err) {
-    if (err instanceof Error && err.message.includes(ERR_BLOG_NOT_FOUND)) {
+    if (hasConvexErrorCode(err, ERR_BLOG_NOT_FOUND)) {
       return NextResponse.json({ error: "Blog not found" }, { status: 404 });
     }
-    if (err instanceof Error && err.message.includes(ERR_UNAUTHORIZED)) {
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     console.error("[blog/[id]/feedback/POST] mutation error:", err);
