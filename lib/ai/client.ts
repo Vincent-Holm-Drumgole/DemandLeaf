@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AICallOptions, AICallResult } from "@/types";
+import type { AICallOptions, AICallResult } from "../../types";
 import { getModelId, calculateCost } from "./models";
 
 const MAX_RETRIES = 3;

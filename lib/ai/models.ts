@@ -1,4 +1,4 @@
-import type { AIModel } from "@/types";
+import type { AIModel } from "../../types";
 
 export const MODEL_IDS: Record<AIModel, string> = {
   // Official stable aliases from Anthropic docs (Feb 2026).

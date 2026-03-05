@@ -8,18 +8,18 @@
  * @module
  */
 
-import type * as anonymousSessions from "../anonymousSessions.js";
 import type * as agentActions from "../agentActions.js";
 import type * as agentAuditLog from "../agentAuditLog.js";
 import type * as agentTrust from "../agentTrust.js";
+import type * as anonymousSessions from "../anonymousSessions.js";
 import type * as authorPersonas from "../authorPersonas.js";
 import type * as blogEdits from "../blogEdits.js";
 import type * as blogs from "../blogs.js";
 import type * as calibration from "../calibration.js";
+import type * as competitorTracking from "../competitorTracking.js";
 import type * as confidenceScores from "../confidenceScores.js";
 import type * as contentBriefs from "../contentBriefs.js";
 import type * as contentCalendar from "../contentCalendar.js";
-import type * as competitorTracking from "../competitorTracking.js";
 import type * as decayAlerts from "../decayAlerts.js";
 import type * as errors from "../errors.js";
 import type * as feedback from "../feedback.js";
@@ -49,18 +49,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  anonymousSessions: typeof anonymousSessions;
   agentActions: typeof agentActions;
   agentAuditLog: typeof agentAuditLog;
   agentTrust: typeof agentTrust;
+  anonymousSessions: typeof anonymousSessions;
   authorPersonas: typeof authorPersonas;
   blogEdits: typeof blogEdits;
   blogs: typeof blogs;
   calibration: typeof calibration;
+  competitorTracking: typeof competitorTracking;
   confidenceScores: typeof confidenceScores;
   contentBriefs: typeof contentBriefs;
   contentCalendar: typeof contentCalendar;
-  competitorTracking: typeof competitorTracking;
   decayAlerts: typeof decayAlerts;
   errors: typeof errors;
   feedback: typeof feedback;
