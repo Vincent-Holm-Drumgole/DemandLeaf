@@ -24,9 +24,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   let sessionId: string | undefined;
+  let name = "My Workspace";
   try {
     const body = await request.json();
     sessionId = typeof body.sessionId === "string" ? body.sessionId : undefined;
+    if (typeof body.name === "string" && body.name.trim().length > 0) {
+      name = body.name.trim().slice(0, 100);
+    }
   } catch {
     // No body is fine — we'll still provision the workspace.
   }
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const convex = await getAuthedConvexClient();
     const { workspaceId } = await convex.mutation(api.workspaces.provision, {
-      name: "My Workspace",
+      name,
       sessionToken: sessionId?.trim() || undefined,
     });
     return NextResponse.json({ workspaceId }, { status: 200 });

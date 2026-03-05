@@ -15,6 +15,12 @@ function OnboardingCompleteContent() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    // If no session data from the anonymous flow, redirect to the full onboarding wizard
+    if (!sessionId) {
+      router.replace("/onboarding");
+      return;
+    }
+
     if (called.current) return;
     called.current = true;
 
