@@ -7,18 +7,25 @@ import { useOnboardingWizardStore } from "@/store/onboarding-wizard-store";
 
 export function StepReady() {
   const router = useRouter();
-  const crawlResult = useOnboardingWizardStore((s) => s.crawlResult);
   const workspaceName = useOnboardingWizardStore((s) => s.workspaceName);
+  const setupResult = useOnboardingWizardStore((s) => s.setupResult);
   const reset = useOnboardingWizardStore((s) => s.reset);
 
   const setupItems = [
-    { label: `Workspace "${workspaceName}" created`, done: true },
+    { label: `Workspace "${workspaceName || "Your workspace"}" created`, done: true },
     { label: "14-day free trial activated", done: true },
     {
-      label: crawlResult
-        ? "Brand voice and audience detected"
-        : "Brand voice (add later in settings)",
-      done: !!crawlResult,
+      label: setupResult?.kbEntriesCreated
+        ? `${setupResult.kbEntriesCreated} knowledge base entries created`
+        : "Knowledge base ready",
+      done: !!setupResult?.kbEntriesCreated,
+    },
+    { label: "Brand voice configured", done: true },
+    {
+      label: setupResult?.strategyId
+        ? "Content strategy created"
+        : "Content strategy (add later)",
+      done: !!setupResult?.strategyId,
     },
   ];
 
@@ -37,7 +44,7 @@ export function StepReady() {
         You&apos;re all set!
       </h2>
       <p className="mt-3 text-muted-foreground">
-        Your workspace is ready. Here&apos;s what we set up for you.
+        Your workspace is ready. Here&apos;s what we built for you.
       </p>
 
       <div className="mt-8 space-y-3 text-left max-w-sm mx-auto">
@@ -57,12 +64,18 @@ export function StepReady() {
         ))}
       </div>
 
+      {setupResult?.keywordsDiscovering && (
+        <p className="mt-4 text-sm text-muted-foreground max-w-sm mx-auto">
+          Keyword discovery is running in the background — check the Strategy page in a few minutes.
+        </p>
+      )}
+
       <div className="mt-6 p-4 rounded-lg bg-muted/50 text-left max-w-sm mx-auto">
-        <p className="text-sm font-medium mb-2">Quick tips to get more from DemandLeaf:</p>
+        <p className="text-sm font-medium mb-2">Next steps:</p>
         <ul className="text-sm text-muted-foreground space-y-1.5">
-          <li>Add knowledge base entries for richer, more unique content</li>
-          <li>Build a content strategy to plan your keyword targets</li>
-          <li>Connect WordPress to publish directly from DemandLeaf</li>
+          <li>Generate your first blog post from the dashboard</li>
+          <li>Refine your voice in the Voice Builder settings</li>
+          <li>Connect WordPress to publish directly</li>
         </ul>
       </div>
 

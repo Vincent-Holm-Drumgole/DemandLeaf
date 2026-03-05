@@ -3,17 +3,21 @@
 import { Check } from "lucide-react";
 import { useOnboardingWizardStore, type WizardStep } from "@/store/onboarding-wizard-store";
 import { StepWelcome } from "./steps/step-welcome";
-import { StepWebsite } from "./steps/step-website";
-import { StepAnalyzing } from "./steps/step-analyzing";
-import { StepBrand } from "./steps/step-brand";
+import { StepBusiness } from "./steps/step-business";
+import { StepAudience } from "./steps/step-audience";
+import { StepVoice } from "./steps/step-voice";
+import { StepGoals } from "./steps/step-goals";
+import { StepSettingUp } from "./steps/step-setting-up";
 import { StepReady } from "./steps/step-ready";
 
 const STEPS = [
   { id: 1, label: "Welcome" },
-  { id: 2, label: "Website" },
-  { id: 3, label: "Analyze" },
-  { id: 4, label: "Brand" },
-  { id: 5, label: "Ready" },
+  { id: 2, label: "Business" },
+  { id: 3, label: "Audience" },
+  { id: 4, label: "Voice" },
+  { id: 5, label: "Goals" },
+  { id: 6, label: "Setup" },
+  { id: 7, label: "Ready" },
 ] as const;
 
 export function OnboardingWizard() {
@@ -28,7 +32,7 @@ export function OnboardingWizard() {
             <div key={s.id} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-colors ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
                     step > s.id
                       ? "bg-primary border-primary text-primary-foreground"
                       : step === s.id
@@ -36,10 +40,10 @@ export function OnboardingWizard() {
                         : "border-muted-foreground/30 text-muted-foreground"
                   }`}
                 >
-                  {step > s.id ? <Check className="h-4 w-4" /> : s.id}
+                  {step > s.id ? <Check className="h-3.5 w-3.5" /> : s.id}
                 </div>
                 <span
-                  className={`text-xs mt-1.5 whitespace-nowrap ${
+                  className={`text-[10px] mt-1 whitespace-nowrap ${
                     step === s.id
                       ? "text-primary font-medium"
                       : "text-muted-foreground"
@@ -50,7 +54,7 @@ export function OnboardingWizard() {
               </div>
               {idx < STEPS.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-2 mt-[-14px] transition-colors ${
+                  className={`flex-1 h-0.5 mx-1 mt-[-14px] transition-colors ${
                     step > s.id ? "bg-primary" : "bg-muted-foreground/20"
                   }`}
                 />
@@ -62,10 +66,12 @@ export function OnboardingWizard() {
         {/* Step content */}
         <div className="min-h-[400px]">
           {step === 1 && <StepWelcome />}
-          {step === 2 && <StepWebsite />}
-          {step === 3 && <StepAnalyzing />}
-          {step === 4 && <StepBrand />}
-          {step === 5 && <StepReady />}
+          {step === 2 && <StepBusiness />}
+          {step === 3 && <StepAudience />}
+          {step === 4 && <StepVoice />}
+          {step === 5 && <StepGoals />}
+          {step === 6 && <StepSettingUp />}
+          {step === 7 && <StepReady />}
         </div>
       </div>
     </div>

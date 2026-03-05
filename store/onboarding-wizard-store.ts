@@ -1,40 +1,98 @@
 import { create } from "zustand";
 import type { CrawlResponse } from "@/types";
 
-export type WizardStep = 1 | 2 | 3 | 4 | 5;
+export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export type SetupStage =
+  | "workspace"
+  | "knowledge_base"
+  | "voice"
+  | "strategy"
+  | "done";
+
+interface SetupResult {
+  workspaceId?: string;
+  kbEntriesCreated?: number;
+  strategyId?: string;
+  keywordsDiscovering?: boolean;
+}
 
 interface OnboardingWizardState {
   step: WizardStep;
+
+  // Step 1: Welcome
   workspaceName: string;
+
+  // Step 2: Business
+  companyDescription: string;
   url: string;
+  industry: string;
   sessionId: string | null;
   crawlResult: CrawlResponse | null;
   crawlError: string | null;
   isCrawling: boolean;
-  isProvisioning: boolean;
-  provisionError: string | null;
-  skippedUrl: boolean;
 
+  // Step 3: Audience
+  audienceDescription: string;
+  audienceExpertise: "beginner" | "intermediate" | "advanced" | "expert";
+
+  // Step 4: Voice
+  toneAttributes: string[];
+  formality: number;
+  avoidWords: string[];
+
+  // Step 5: Goals
+  businessOutcomes: string;
+  seedKeywords: string[];
+  competitorDomains: string[];
+
+  // Step 6: Setup
+  isSettingUp: boolean;
+  setupStage: SetupStage;
+  setupError: string | null;
+  setupResult: SetupResult | null;
+
+  // Actions
   setStep: (step: WizardStep) => void;
   setWorkspaceName: (name: string) => void;
+  setCompanyDescription: (desc: string) => void;
   setUrl: (url: string) => void;
-  updateCrawlResult: (fields: Partial<CrawlResponse>) => void;
+  setIndustry: (industry: string) => void;
+  setAudienceDescription: (desc: string) => void;
+  setAudienceExpertise: (level: "beginner" | "intermediate" | "advanced" | "expert") => void;
+  setToneAttributes: (attrs: string[]) => void;
+  setFormality: (val: number) => void;
+  setAvoidWords: (words: string[]) => void;
+  setBusinessOutcomes: (outcomes: string) => void;
+  setSeedKeywords: (keywords: string[]) => void;
+  setCompetitorDomains: (domains: string[]) => void;
   startCrawl: () => Promise<void>;
-  provision: () => Promise<boolean>;
+  runSetup: () => Promise<void>;
   reset: () => void;
 }
 
 const initialState = {
   step: 1 as WizardStep,
   workspaceName: "My Workspace",
+  companyDescription: "",
   url: "",
+  industry: "",
   sessionId: null as string | null,
   crawlResult: null as CrawlResponse | null,
   crawlError: null as string | null,
   isCrawling: false,
-  isProvisioning: false,
-  provisionError: null as string | null,
-  skippedUrl: false,
+  audienceDescription: "",
+  audienceExpertise: "intermediate" as const,
+  toneAttributes: [] as string[],
+  formality: 5,
+  avoidWords: [] as string[],
+  businessOutcomes: "",
+  seedKeywords: [] as string[],
+  competitorDomains: [] as string[],
+  isSettingUp: false,
+  setupStage: "workspace" as SetupStage,
+  setupError: null as string | null,
+  setupResult: null as SetupResult | null,
 };
 
 export const useOnboardingWizardStore = create<OnboardingWizardState>(
@@ -43,18 +101,21 @@ export const useOnboardingWizardStore = create<OnboardingWizardState>(
 
     setStep: (step) => set({ step }),
     setWorkspaceName: (workspaceName) => set({ workspaceName }),
+    setCompanyDescription: (companyDescription) => set({ companyDescription }),
     setUrl: (url) => set({ url }),
-
-    updateCrawlResult: (fields) =>
-      set((state) => ({
-        crawlResult: state.crawlResult
-          ? { ...state.crawlResult, ...fields }
-          : null,
-      })),
+    setIndustry: (industry) => set({ industry }),
+    setAudienceDescription: (audienceDescription) => set({ audienceDescription }),
+    setAudienceExpertise: (audienceExpertise) => set({ audienceExpertise }),
+    setToneAttributes: (toneAttributes) => set({ toneAttributes }),
+    setFormality: (formality) => set({ formality }),
+    setAvoidWords: (avoidWords) => set({ avoidWords }),
+    setBusinessOutcomes: (businessOutcomes) => set({ businessOutcomes }),
+    setSeedKeywords: (seedKeywords) => set({ seedKeywords }),
+    setCompetitorDomains: (competitorDomains) => set({ competitorDomains }),
 
     startCrawl: async () => {
       const { url } = get();
-      set({ isCrawling: true, crawlError: null, step: 3 });
+      set({ isCrawling: true, crawlError: null });
 
       try {
         const normalizedUrl =
@@ -69,14 +130,15 @@ export const useOnboardingWizardStore = create<OnboardingWizardState>(
         });
 
         if (!response.ok) {
-          let errorMessage = "Failed to analyze your website";
+          let errorMessage = "Could not analyze your website — no worries, just describe your business below.";
           try {
             const error = await response.json();
             errorMessage = error.error || errorMessage;
           } catch {
             // not JSON
           }
-          throw new Error(errorMessage);
+          set({ crawlError: errorMessage, isCrawling: false });
+          return;
         }
 
         const data: CrawlResponse = await response.json();
@@ -84,46 +146,68 @@ export const useOnboardingWizardStore = create<OnboardingWizardState>(
           sessionId: data.sessionId,
           crawlResult: data,
           isCrawling: false,
-          step: 4,
+          industry: data.industry || get().industry,
+          audienceDescription: data.audience || get().audienceDescription,
           workspaceName: data.companyName || get().workspaceName,
         });
-      } catch (err) {
+      } catch {
         set({
-          crawlError:
-            err instanceof Error ? err.message : "Something went wrong",
+          crawlError: "Could not reach your website — just describe your business below.",
           isCrawling: false,
-          step: 2,
         });
       }
     },
 
-    provision: async () => {
-      const { workspaceName, sessionId } = get();
-      set({ isProvisioning: true, provisionError: null });
+    runSetup: async () => {
+      const state = get();
+      set({ isSettingUp: true, setupError: null, setupStage: "workspace", step: 6 });
+
+      // Simulate staged progress while the API works
+      const stages: SetupStage[] = ["workspace", "knowledge_base", "voice", "strategy"];
+      let stageIdx = 0;
+      const stageTimer = setInterval(() => {
+        stageIdx++;
+        if (stageIdx < stages.length) {
+          set({ setupStage: stages[stageIdx] });
+        }
+      }, 2500);
 
       try {
-        const response = await fetch("/api/provision", {
+        const response = await fetch("/api/onboarding/setup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: workspaceName.trim() || "My Workspace",
-            sessionId: sessionId ?? undefined,
+            workspaceName: state.workspaceName.trim() || "My Workspace",
+            companyDescription: state.companyDescription,
+            websiteUrl: state.url || undefined,
+            industry: state.industry,
+            audienceDescription: state.audienceDescription,
+            audienceExpertise: state.audienceExpertise,
+            toneAttributes: state.toneAttributes,
+            formality: state.formality,
+            avoidWords: state.avoidWords.length > 0 ? state.avoidWords : undefined,
+            businessOutcomes: state.businessOutcomes || undefined,
+            seedKeywords: state.seedKeywords.length > 0 ? state.seedKeywords : undefined,
+            competitorDomains: state.competitorDomains.length > 0 ? state.competitorDomains : undefined,
+            sessionToken: state.sessionId ?? undefined,
           }),
         });
 
+        clearInterval(stageTimer);
+
         if (!response.ok) {
-          throw new Error("Failed to set up workspace");
+          const err = await response.json().catch(() => ({ error: "Setup failed" }));
+          throw new Error(err.error || "Setup failed");
         }
 
-        set({ isProvisioning: false });
-        return true;
+        const result: SetupResult = await response.json();
+        set({ setupResult: result, setupStage: "done", isSettingUp: false, step: 7 });
       } catch (err) {
+        clearInterval(stageTimer);
         set({
-          provisionError:
-            err instanceof Error ? err.message : "Something went wrong",
-          isProvisioning: false,
+          setupError: err instanceof Error ? err.message : "Something went wrong",
+          isSettingUp: false,
         });
-        return false;
       }
     },
 

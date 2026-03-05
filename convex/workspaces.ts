@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { requireCronAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_WORKSPACE_NOT_FOUND } from "./errors";
 import { planStatusValidator } from "./validators";
 
@@ -264,6 +264,25 @@ function toArchetype(value: unknown): Archetype {
   }
   return "how_to";
 }
+
+// ── Profile ──────────────────────────────────────────────────────────────────
+
+export const updateProfile = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    url: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    audienceDescription: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (args.url !== undefined) patch.url = args.url;
+    if (args.industry !== undefined) patch.industry = args.industry;
+    if (args.audienceDescription !== undefined) patch.audienceDescription = args.audienceDescription;
+    await ctx.db.patch(args.workspaceId, patch);
+  },
+});
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
