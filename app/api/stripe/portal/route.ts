@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { requireRequestWorkspace } from "@/lib/workspace-server";
-import { api } from "@/convex/_generated/api";
 import { createPortalSession } from "@/lib/stripe/actions";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 
@@ -13,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }

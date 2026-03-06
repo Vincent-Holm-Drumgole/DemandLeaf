@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { buildWorkspaceApiUrl } from "@/lib/workspace-paths";
 import { CreditCard, ExternalLink } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,45 +24,66 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
 
 export function BillingSettings() {
   const { status, isTrialing, trialDaysLeft, needsUpgrade } = useSubscription();
+  const { currentWorkspace } = useWorkspace();
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubscribe() {
     setError(null);
+    const fallbackMessage = "Failed to start checkout. Please try again.";
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          setError("Failed to start checkout. Please try again.");
-        }
-      } else {
-        setError("Failed to start checkout. Please try again.");
+      const res = await fetch(
+        buildWorkspaceApiUrl("/api/stripe/checkout", currentWorkspace._id),
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(
+          typeof data?.error === "string" && data.error.trim().length > 0
+            ? data.error
+            : fallbackMessage
+        );
+        return;
       }
+
+      if (typeof data?.url === "string" && data.url.length > 0) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setError(fallbackMessage);
     } catch (err) {
       console.error("[billing] Checkout failed:", err);
-      setError("Failed to start checkout. Please try again.");
+      setError(fallbackMessage);
     }
   }
 
   async function handleManageSubscription() {
     setError(null);
+    const fallbackMessage = "Failed to open billing portal. Please try again.";
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          setError("Failed to open billing portal. Please try again.");
-        }
-      } else {
-        setError("Failed to open billing portal. Please try again.");
+      const res = await fetch(
+        buildWorkspaceApiUrl("/api/stripe/portal", currentWorkspace._id),
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(
+          typeof data?.error === "string" && data.error.trim().length > 0
+            ? data.error
+            : fallbackMessage
+        );
+        return;
       }
+
+      if (typeof data?.url === "string" && data.url.length > 0) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setError(fallbackMessage);
     } catch (err) {
       console.error("[billing] Portal failed:", err);
-      setError("Failed to open billing portal. Please try again.");
+      setError(fallbackMessage);
     }
   }
 

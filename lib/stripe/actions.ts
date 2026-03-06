@@ -11,6 +11,7 @@ export async function createCheckoutSession(opts: {
   cancelUrl: string;
 }): Promise<string> {
   const stripe = getStripe();
+  const email = opts.email.trim();
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -18,7 +19,9 @@ export async function createCheckoutSession(opts: {
     line_items: [{ price: opts.priceId, quantity: 1 }],
     ...(opts.stripeCustomerId
       ? { customer: opts.stripeCustomerId }
-      : { customer_email: opts.email }),
+      : email
+        ? { customer_email: email }
+        : {}),
     metadata: {
       workspaceId: opts.workspaceId,
       userId: opts.userId,

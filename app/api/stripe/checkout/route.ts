@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { requireRequestWorkspace } from "@/lib/workspace-server";
-import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
@@ -33,13 +32,13 @@ export async function POST(request: Request) {
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
   const user = await currentUser();
-  const email = user?.emailAddresses?.[0]?.emailAddress ?? "";
+  const email = user?.emailAddresses?.[0]?.emailAddress?.trim() ?? "";
 
   const origin = new URL(request.url).origin;
 
@@ -56,7 +55,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (err) {
-    console.error("[stripe/checkout]", err);
+    console.error("[stripe/checkout]", {
+      err,
+      userId,
+      workspaceId: workspace._id,
+      hasEmail: email.length > 0,
+      hasStripeCustomerId: Boolean(workspace.stripeCustomerId),
+    });
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }
