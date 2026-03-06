@@ -9,12 +9,7 @@ import { buildWorkspacePath, normalizeWorkspaceSubpath } from "@/lib/workspace-p
 
 type ViewerWorkspace = Array<{ _id: string }>;
 
-async function ensureMembershipBackfill(convex: ConvexHttpClient) {
-  await convex.mutation(api.workspaces.backfillViewerMemberships, {});
-}
-
 export async function listViewerWorkspaces(convex: ConvexHttpClient) {
-  await ensureMembershipBackfill(convex);
   return convex.query(api.workspaces.listForViewer, {});
 }
 
@@ -25,7 +20,6 @@ export async function getViewerWorkspaceById(
   const validWorkspaceId = parseConvexId(workspaceId, "workspaces");
   if (!validWorkspaceId) return null;
 
-  await ensureMembershipBackfill(convex);
   return convex.query(api.workspaces.getByIdForViewer, { workspaceId: validWorkspaceId });
 }
 
@@ -44,22 +38,47 @@ export async function getPreferredWorkspaceRedirect(subpath = "/dashboard") {
     return "/sign-in";
   }
 
-  const convex = await getAuthedConvexClient();
-  const workspaces = await listViewerWorkspaces(convex);
-  if (workspaces.length === 0) {
-    return "/onboarding";
+  let convex: ConvexHttpClient;
+  try {
+    convex = await getAuthedConvexClient();
+  } catch (err) {
+    console.error("[workspace-server] failed to create authed Convex client:", err);
+    return "/sign-in";
   }
 
-  const cookieStore = await cookies();
-  const workspaceId = findPreferredWorkspaceId(
-    workspaces,
-    cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value,
-  );
-  if (!workspaceId) {
-    return "/onboarding";
+  try {
+    const workspaces = await listViewerWorkspaces(convex);
+    if (workspaces.length === 0) {
+      return "/onboarding";
+    }
+
+    const cookieStore = await cookies();
+    const workspaceId = findPreferredWorkspaceId(
+      workspaces,
+      cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value,
+    );
+    if (!workspaceId) {
+      return "/onboarding";
+    }
+
+    return buildWorkspacePath(workspaceId, normalizeWorkspaceSubpath(subpath));
+  } catch (err) {
+    console.error("[workspace-server] failed to resolve preferred workspace:", err);
   }
 
-  return buildWorkspacePath(workspaceId, normalizeWorkspaceSubpath(subpath));
+  try {
+    const fallbackWorkspace = await convex.query(api.workspaces.getByClerkUser, {});
+    if (fallbackWorkspace?._id) {
+      return buildWorkspacePath(
+        fallbackWorkspace._id,
+        normalizeWorkspaceSubpath(subpath),
+      );
+    }
+  } catch (err) {
+    console.error("[workspace-server] failed to resolve fallback workspace:", err);
+  }
+
+  return "/onboarding";
 }
 
 function getWorkspaceIdFromRequestLike(
