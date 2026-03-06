@@ -55,3 +55,10 @@ export async function createPortalSession(opts: {
 
   return session.url;
 }
+
+export async function cancelSubscription(opts: {
+  stripeSubscriptionId: string;
+}): Promise<void> {
+  const stripe = getStripe();
+  await stripe.subscriptions.cancel(opts.stripeSubscriptionId);
+}

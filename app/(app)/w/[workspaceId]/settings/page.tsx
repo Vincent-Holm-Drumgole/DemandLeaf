@@ -13,6 +13,7 @@ import { WordPressSettings } from "@/components/settings/wordpress-settings";
 import { AuthorPersonasSettings } from "@/components/settings/author-personas-settings";
 import { GoogleIntegrationsSettings } from "@/components/settings/google-integrations-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
+import { WorkspaceSettings } from "@/components/settings/workspace-settings";
 import { Wand2 } from "lucide-react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
@@ -48,6 +49,7 @@ function SettingsPageContent() {
         <Tabs defaultValue={defaultTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="workspace">Workspace</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="voice">Voice Profile</TabsTrigger>
             <TabsTrigger value="never-say">Never-Say List</TabsTrigger>
@@ -151,6 +153,17 @@ function SettingsPageContent() {
               </CardHeader>
               <CardContent>
                 <BillingSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="workspace">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Workspace Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <WorkspaceSettings />
               </CardContent>
             </Card>
           </TabsContent>

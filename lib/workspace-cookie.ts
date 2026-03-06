@@ -12,6 +12,17 @@ export function createActiveWorkspaceCookie(workspaceId: string) {
   };
 }
 
+export function createClearedActiveWorkspaceCookie() {
+  return {
+    name: ACTIVE_WORKSPACE_COOKIE,
+    value: "",
+    path: "/",
+    sameSite: "lax" as const,
+    httpOnly: false,
+    maxAge: 0,
+  };
+}
+
 export function readActiveWorkspaceCookie() {
   if (typeof document === "undefined") {
     return null;

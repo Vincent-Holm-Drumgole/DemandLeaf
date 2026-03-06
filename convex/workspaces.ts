@@ -4,7 +4,7 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { getWorkspaceAccess, requireCronAccess, requireWorkspaceAccess } from "./helpers";
-import { ERR_WORKSPACE_NOT_FOUND } from "./errors";
+import { ERR_UNAUTHORIZED, ERR_WORKSPACE_NOT_FOUND } from "./errors";
 import { planStatusValidator } from "./validators";
 
 const VALID_ARCHETYPES = [
@@ -311,7 +311,7 @@ function toCrawledPageRecord(
 }
 
 async function listViewerWorkspaces(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   clerkUserId: string,
 ): Promise<Array<Doc<"workspaces"> & { role: WorkspaceRole }>> {
   const [memberships, ownedWorkspaces] = await Promise.all([
@@ -439,6 +439,186 @@ export const updateBilling = mutation({
     if (args.planExpiresAt !== undefined) patch.planExpiresAt = args.planExpiresAt;
 
     await ctx.db.patch(args.workspaceId, patch);
+  },
+});
+
+export const deleteWorkspace = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Unauthenticated");
+    }
+
+    const { workspace, role } = await getWorkspaceAccess(ctx, args.workspaceId);
+    if (role !== "owner") {
+      throw new ConvexError(ERR_UNAUTHORIZED);
+    }
+
+    const workspaceId = workspace._id;
+
+    const blogs = await ctx.db
+      .query("blogs")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const blogIds = blogs.map((blog) => blog._id);
+
+    for (const blogId of blogIds) {
+      const blogFeedback = await ctx.db
+        .query("blogFeedback")
+        .withIndex("by_blog", (q) => q.eq("blogId", blogId))
+        .collect();
+      for (const entry of blogFeedback) {
+        await ctx.db.delete(entry._id);
+      }
+    }
+
+    const workspaceMembers = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const voiceProfiles = await ctx.db
+      .query("voiceProfiles")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const crawledPages = await ctx.db
+      .query("crawledPages")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const knowledgeBaseEntries = await ctx.db
+      .query("knowledgeBase")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const neverSayEntries = await ctx.db
+      .query("neverSayList")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const calibrationHistory = await ctx.db
+      .query("calibrationHistory")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const blogEdits = await ctx.db
+      .query("blogEdits")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const strategies = await ctx.db
+      .query("strategies")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const topicClusters = await ctx.db
+      .query("topicClusters")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const contentBriefs = await ctx.db
+      .query("contentBriefs")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const contentCalendar = await ctx.db
+      .query("contentCalendar")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const wpConnections = await ctx.db
+      .query("wpConnections")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const authorPersonas = await ctx.db
+      .query("authorPersonas")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const internalLinks = await ctx.db
+      .query("internalLinks")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const rankSnapshots = await ctx.db
+      .query("rankSnapshots")
+      .withIndex("by_workspace_checked", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const performanceMetrics = await ctx.db
+      .query("performanceMetrics")
+      .withIndex("by_workspace_period", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const decayAlerts = await ctx.db
+      .query("decayAlerts")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const refreshHistory = await ctx.db
+      .query("refreshHistory")
+      .withIndex("by_workspace_status", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const googleConnections = await ctx.db
+      .query("googleConnections")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const agentActions = await ctx.db
+      .query("agentActions")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const agentAuditLog = await ctx.db
+      .query("agentAuditLog")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const competitorTracking = await ctx.db
+      .query("competitorTracking")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const publishingAgentConfig = await ctx.db
+      .query("publishingAgentConfig")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+
+    const collections = [
+      notifications,
+      agentAuditLog,
+      agentActions,
+      decayAlerts,
+      refreshHistory,
+      performanceMetrics,
+      rankSnapshots,
+      internalLinks,
+      contentCalendar,
+      contentBriefs,
+      keywords,
+      topicClusters,
+      competitorTracking,
+      strategies,
+      blogEdits,
+      calibrationHistory,
+      knowledgeBaseEntries,
+      neverSayEntries,
+      crawledPages,
+      googleConnections,
+      wpConnections,
+      authorPersonas,
+      publishingAgentConfig,
+      voiceProfiles,
+      blogs,
+      workspaceMembers,
+    ] as const;
+
+    for (const docs of collections) {
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+
+    await ctx.db.delete(workspaceId);
+
+    const remainingWorkspaces = await listViewerWorkspaces(ctx, identity.subject);
+
+    return {
+      deletedWorkspaceId: workspaceId,
+      remainingWorkspaceId: remainingWorkspaces[0]?._id ?? null,
+    };
   },
 });
 
