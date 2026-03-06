@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 import { CannibalizationWarning } from "./cannibalization-warning";
 import type { BriefData, OutlineSection } from "@/types";
 
@@ -97,6 +99,7 @@ function OutlineDisplay({ outline }: { outline: OutlineSection[] }) {
 
 export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
   const router = useRouter();
+  const { currentWorkspace } = useWorkspace();
   const [modifications, setModifications] = useState<Partial<BriefData>>({});
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -132,7 +135,7 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Failed to reject brief");
       }
-      router.push("/keywords");
+      router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"));
     } catch (err) {
       // TODO: surface error to user (e.g., toast notification)
       console.error("Reject failed:", err);
@@ -179,7 +182,7 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
           </div>
         )}
         {status === "approved" && (
-          <Button onClick={() => router.push(`/dashboard`)}>
+          <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/dashboard"))}>
             Generate Blog Post
           </Button>
         )}

@@ -195,11 +195,12 @@ export const storeEmbedding = internalMutation({
 
 export const searchByEmbedding = action({
   args: {
+    workspaceId: v.id("workspaces"),
     queryEmbedding: v.array(v.float64()),
     limit: v.number(),
   },
   handler: async (ctx, args) => {
-    const workspace = await requireWorkspaceInAction(ctx);
+    const workspace = await requireWorkspaceInAction(ctx, args.workspaceId);
     const safeLimit = Math.max(1, Math.min(25, Math.floor(args.limit)));
 
     const results = await ctx.vectorSearch("knowledgeBase", "by_embedding", {
@@ -253,8 +254,9 @@ export const generateAndStoreEmbedding = internalAction({
 
 async function requireWorkspaceInAction(
   ctx: ActionCtx,
+  workspaceId: Doc<"workspaces">["_id"],
 ): Promise<Doc<"workspaces">> {
-  const workspace = await ctx.runQuery(api.workspaces.getByClerkUser, {});
+  const workspace = await ctx.runQuery(api.workspaces.getByIdForViewer, { workspaceId });
   if (!workspace) {
     throw new Error("Workspace not found");
   }

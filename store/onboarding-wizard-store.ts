@@ -12,6 +12,7 @@ export type SetupStage =
 
 interface SetupResult {
   workspaceId?: string;
+  trialActive?: boolean;
   kbEntriesCreated?: number;
   strategyId?: string;
   keywordsDiscovering?: boolean;

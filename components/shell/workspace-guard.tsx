@@ -9,9 +9,9 @@ import { api } from "@/convex/_generated/api";
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const workspace = useQuery(api.workspaces.getByClerkUser);
+  const workspaces = useQuery(api.workspaces.listForViewer, {});
 
-  const needsOnboarding = isLoaded && isSignedIn && workspace === null;
+  const needsOnboarding = isLoaded && isSignedIn && workspaces !== undefined && workspaces.length === 0;
 
   useEffect(() => {
     if (needsOnboarding) {
@@ -19,7 +19,7 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
     }
   }, [needsOnboarding, router]);
 
-  if (!isLoaded || workspace === undefined) {
+  if (!isLoaded || workspaces === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading…</p>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { UserButton, useUser } from "@clerk/nextjs";
 import {
   LayoutDashboard,
@@ -17,8 +17,18 @@ import {
   Bot,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/billing/trial-banner";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspacePath, replaceWorkspaceInPath } from "@/lib/workspace-paths";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface NavItem {
   label: string;
@@ -64,19 +74,47 @@ const BOTTOM_ITEMS: NavItem[] = [
 
 export function NavSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useUser();
+  const { currentWorkspace, workspaces } = useWorkspace();
 
   function isActive(href: string) {
-    if (href === "/dashboard") return pathname === href;
-    return pathname === href || pathname.startsWith(href + "/");
+    const target = buildWorkspacePath(currentWorkspace._id, href);
+    if (href === "/dashboard") return pathname === target;
+    return pathname === target || pathname.startsWith(target + "/");
+  }
+
+  function handleWorkspaceChange(nextWorkspaceId: string) {
+    router.push(replaceWorkspaceInPath(pathname, nextWorkspaceId));
   }
 
   return (
     <aside className="hidden md:flex flex-col w-60 shrink-0 border-r bg-card min-h-screen sticky top-0">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-4 py-4 border-b">
-        <Leaf className="h-5 w-5 text-green-600" />
-        <span className="font-semibold text-base tracking-tight">DemandLeaf</span>
+      <div className="border-b px-4 py-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Leaf className="h-5 w-5 text-green-600" />
+          <span className="font-semibold text-base tracking-tight">DemandLeaf</span>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Workspace
+          </p>
+          <Select value={currentWorkspace._id} onValueChange={handleWorkspaceChange}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue placeholder="Select workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              {workspaces.map((workspace) => (
+                <SelectItem key={workspace._id} value={workspace._id}>
+                  {workspace.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild size="sm" variant="outline" className="w-full justify-start">
+            <Link href="/onboarding?mode=new-workspace">New Workspace</Link>
+          </Button>
+        </div>
       </div>
 
       <TrialBanner />
@@ -97,7 +135,7 @@ export function NavSidebar() {
                 return (
                   <li key={item.href}>
                     <Link
-                      href={item.href}
+                      href={buildWorkspacePath(currentWorkspace._id, item.href)}
                       className={cn(
                         "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
                         active
@@ -128,7 +166,7 @@ export function NavSidebar() {
             return (
               <li key={item.href}>
                 <Link
-                  href={item.href}
+                  href={buildWorkspacePath(currentWorkspace._id, item.href)}
                   className={cn(
                     "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
                     active

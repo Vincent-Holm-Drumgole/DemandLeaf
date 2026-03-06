@@ -5,6 +5,8 @@ import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 import { exchangeCodeForTokens, parseOAuthState } from "@/lib/google/oauth";
 import { encryptTokens } from "@/lib/google/credentials";
+import { getViewerWorkspaceById } from "@/lib/workspace-server";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 export async function GET(request: Request) {
   const { userId } = await auth();
@@ -37,10 +39,10 @@ export async function GET(request: Request) {
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await getViewerWorkspaceById(convex, workspaceId);
   if (!workspace || workspace._id !== workspaceId) {
     return NextResponse.redirect(
-      new URL("/settings?tab=integrations&error=invalid_state", request.url)
+      new URL("/onboarding?mode=new-workspace", request.url)
     );
   }
 
@@ -78,12 +80,18 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(
-      new URL("/settings?tab=integrations&success=google_connected", request.url)
+      new URL(
+        `${buildWorkspacePath(workspaceId, "/settings")}?tab=integrations&success=google_connected`,
+        request.url,
+      )
     );
   } catch (err) {
     console.error("[google-auth/callback]", err);
     return NextResponse.redirect(
-      new URL("/settings?tab=integrations&error=auth_failed", request.url)
+      new URL(
+        `${buildWorkspacePath(workspaceId, "/settings")}?tab=integrations&error=auth_failed`,
+        request.url,
+      )
     );
   }
 }

@@ -60,6 +60,7 @@ export async function generateBrief(
   try {
     const queryEmbedding = await generateEmbedding(keywordText);
     const kbCandidates = await convex.action(api.knowledgeBase.searchByEmbedding, {
+      workspaceId,
       queryEmbedding,
       limit: 10,
     });

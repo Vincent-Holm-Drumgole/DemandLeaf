@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -32,6 +33,11 @@ export async function GET(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+  }
+
   const alert = await convex.query(api.decayAlerts.getById, { alertId });
   if (!alert) {
     return NextResponse.json({ error: "Alert not found" }, { status: 404 });
@@ -102,6 +108,10 @@ export async function PATCH(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+  }
 
   try {
     await convex.mutation(api.decayAlerts.updateStatus, {

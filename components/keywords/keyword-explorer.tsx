@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 import { KeywordFiltersBar, type KeywordFilters } from "./keyword-filters";
 import { KeywordTable, type KeywordRow } from "./keyword-table";
 
@@ -12,6 +14,7 @@ interface KeywordExplorerProps {
 
 export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplorerProps) {
   const router = useRouter();
+  const { currentWorkspace } = useWorkspace();
   const [filters, setFilters] = useState<KeywordFilters>({
     search: "",
     intent: "all",
@@ -44,7 +47,7 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
       });
       if (res.ok) {
         const data = await res.json();
-        router.push(`/brief/${data.briefId}`);
+        router.push(buildWorkspacePath(currentWorkspace._id, `/brief/${data.briefId}`));
       } else {
         setBriefError("Failed to generate brief. Please try again.");
       }

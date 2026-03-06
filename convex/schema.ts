@@ -45,6 +45,7 @@ import {
   publishingAgentStatusValidator,
   // Billing
   planStatusValidator,
+  workspaceRoleValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -66,6 +67,17 @@ export default defineSchema({
     .index("by_clerk_user", ["clerkUserId"])
     .index("by_clerk_user_created", ["clerkUserId", "createdAt"])
     .index("by_stripe_customer", ["stripeCustomerId"]),
+
+  workspaceMembers: defineTable({
+    workspaceId: v.id("workspaces"),
+    clerkUserId: v.string(),
+    role: workspaceRoleValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_user", ["workspaceId", "clerkUserId"])
+    .index("by_clerk_user", ["clerkUserId"]),
 
   voiceProfiles: defineTable({
     workspaceId: v.id("workspaces"),

@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
-import { api } from "@/convex/_generated/api";
 import { buildAuthUrl } from "@/lib/google/oauth";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }

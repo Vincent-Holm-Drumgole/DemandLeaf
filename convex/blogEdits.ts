@@ -6,7 +6,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { requireWorkspaceAccess } from "./helpers";
-import { ERR_UNAUTHENTICATED, ERR_UNAUTHORIZED, ERR_BLOG_NOT_FOUND } from "./errors";
+import { ERR_BLOG_NOT_FOUND } from "./errors";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { classificationStatusValidator, editTypeValidator } from "./validators";
@@ -48,19 +48,11 @@ export const getEditStats = query({
 export const listByBlog = query({
   args: { blogId: v.id("blogs") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError(ERR_UNAUTHENTICATED);
-    }
-
     const blog = await ctx.db.get(args.blogId);
     if (!blog) {
       return [];
     }
-    const workspace = await ctx.db.get(blog.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) {
-      throw new ConvexError(ERR_UNAUTHORIZED);
-    }
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
 
     return ctx.db
       .query("blogEdits")

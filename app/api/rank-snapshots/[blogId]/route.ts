@@ -4,9 +4,10 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ blogId: string }> }
 ) {
   const { userId } = await auth();
@@ -32,6 +33,10 @@ export async function GET(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
   const snapshots = await convex.query(api.rankSnapshots.getSnapshotsForBlog, {
     blogId,
     limit: 52,
@@ -39,6 +44,9 @@ export async function GET(
 
   // Compute trend summary scoped to the focus keyword
   const blog = await convex.query(api.blogs.getById, { blogId });
+  if (!blog || blog.workspaceId !== workspace._id) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
   const focusKeyword = blog?.focusKeyword ?? null;
   const withPosition = snapshots.filter(
     (s) => s.position != null && (!focusKeyword || s.keyword === focusKeyword)

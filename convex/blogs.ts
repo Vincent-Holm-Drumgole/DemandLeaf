@@ -12,17 +12,12 @@ const MAX_BLOG_FEEDBACK = 500;
 
 export const listByWorkspace = query({
   args: {
+    workspaceId: v.id("workspaces"),
     cursor: v.optional(v.number()), // createdAt Unix ms of last item seen
     pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
-    const workspace = await ctx.db
-      .query("workspaces")
-      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.subject))
-      .first();
+    const workspace = await requireWorkspaceAccess(ctx, args.workspaceId);
 
     if (!workspace) {
       return { blogs: [], nextCursor: null, workspaceName: "My Workspace", total: 0 };
@@ -88,15 +83,10 @@ export const listPublishedForCron = query({
 export const getById = query({
   args: { blogId: v.id("blogs") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
     const blog = await ctx.db.get(args.blogId);
     if (!blog) return null;
 
-    // Verify ownership: blog's workspace must belong to calling user
-    const workspace = await ctx.db.get(blog.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) return null;
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
 
     const feedback = await ctx.db
       .query("blogFeedback")
@@ -122,14 +112,10 @@ export const getByIdForCron = query({
 export const getExportData = query({
   args: { blogId: v.id("blogs") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
     const blog = await ctx.db.get(args.blogId);
     if (!blog) return null;
 
-    const workspace = await ctx.db.get(blog.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) return null;
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
 
     return {
       content: blog.content,
@@ -170,13 +156,7 @@ export const create = mutation({
     publishedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
-    const workspace = await ctx.db.get(args.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) {
-      throw new Error("Workspace not found or access denied");
-    }
+    await requireWorkspaceAccess(ctx, args.workspaceId);
 
     const now = Date.now();
     return ctx.db.insert("blogs", { ...args, createdAt: now, updatedAt: now });
@@ -238,17 +218,11 @@ export const update = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
     const { blogId, ...fields } = args;
     const blog = await ctx.db.get(blogId);
     if (!blog) throw new Error("Blog not found");
 
-    const workspace = await ctx.db.get(blog.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) {
-      throw new Error("Access denied");
-    }
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
 
     const updates = Object.fromEntries(
       Object.entries(fields).filter(([, val]) => val !== undefined)
@@ -276,17 +250,11 @@ export const updatePublishingData = mutation({
     internalLinksGenerated: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
     const { blogId, ...fields } = args;
     const blog = await ctx.db.get(blogId);
     if (!blog) throw new Error("Blog not found");
 
-    const workspace = await ctx.db.get(blog.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) {
-      throw new Error("Access denied");
-    }
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
 
     const updates = Object.fromEntries(
       Object.entries(fields).filter(([, val]) => val !== undefined)

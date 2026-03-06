@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { readActiveWorkspaceCookie } from "@/lib/workspace-cookie";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 export default function OnboardingPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const workspace = useQuery(api.workspaces.getByClerkUser);
+  const searchParams = useSearchParams();
+  const workspaces = useQuery(api.workspaces.listForViewer, {});
+  const isNewWorkspaceMode = searchParams.get("mode") === "new-workspace";
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -19,12 +23,19 @@ export default function OnboardingPage() {
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (workspace) {
-      router.replace("/dashboard");
+    if (!isNewWorkspaceMode && workspaces && workspaces.length > 0) {
+      const preferredWorkspaceId = readActiveWorkspaceCookie();
+      const workspace =
+        workspaces.find((entry) => entry._id === preferredWorkspaceId) ?? workspaces[0];
+      router.replace(buildWorkspacePath(workspace._id, "/dashboard"));
     }
-  }, [workspace, router]);
+  }, [isNewWorkspaceMode, router, workspaces]);
 
-  if (!isLoaded || workspace === undefined || workspace) {
+  if (
+    !isLoaded ||
+    workspaces === undefined ||
+    (!isNewWorkspaceMode && workspaces.length > 0)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading…</p>

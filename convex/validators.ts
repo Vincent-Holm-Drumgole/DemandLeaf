@@ -145,6 +145,12 @@ export const strategyStatusValidator = v.union(
   v.literal("archived")
 );
 
+export const workspaceRoleValidator = v.union(
+  v.literal("owner"),
+  v.literal("admin"),
+  v.literal("member")
+);
+
 // ── Crawl data ────────────────────────────────────────────────────────────────
 
 const crawledPageValidator = v.object({

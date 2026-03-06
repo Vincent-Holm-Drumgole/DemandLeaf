@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 
@@ -121,6 +122,10 @@ export async function PATCH(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+  }
 
   try {
     await convex.mutation(api.authorPersonas.update, {
@@ -135,7 +140,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
@@ -150,6 +155,10 @@ export async function DELETE(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+  }
 
   try {
     await convex.mutation(api.authorPersonas.remove, { personaId });

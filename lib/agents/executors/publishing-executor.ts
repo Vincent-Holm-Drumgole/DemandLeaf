@@ -316,6 +316,7 @@ export async function executePublishing(
       if (kbEntries.length > 0) {
         const embedding = await generateEmbedding(keyword);
         const vectorResults = await convex.action(api.knowledgeBase.searchByEmbedding, {
+          workspaceId,
           queryEmbedding: embedding,
           limit: 10,
         });

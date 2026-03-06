@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { ERR_UNAUTHORIZED } from "@/convex/errors";
 import { hasConvexErrorCode } from "@/lib/convex-error";
 import type { DashboardResponse, DashboardBlog } from "@/types";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { userId } = await auth();
@@ -31,9 +32,14 @@ export async function GET(request: Request): Promise<NextResponse> {
   const cursor = cursorParam ? parseInt(cursorParam, 10) : undefined;
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
   let data;
   try {
     data = await convex.query(api.blogs.listByWorkspace, {
+      workspaceId: workspace._id,
       cursor: cursor !== undefined && Number.isFinite(cursor) ? cursor : undefined,
     });
   } catch (err) {

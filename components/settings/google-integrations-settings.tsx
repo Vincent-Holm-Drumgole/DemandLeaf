@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Link2, Unlink } from "lucide-react";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspaceApiUrl } from "@/lib/workspace-paths";
 
 interface GoogleConnection {
   connected: boolean;
@@ -17,6 +19,7 @@ interface GoogleConnection {
 
 export function GoogleIntegrationsSettings() {
   const router = useRouter();
+  const { currentWorkspace } = useWorkspace();
   const [conn, setConn] = useState<GoogleConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +68,11 @@ export function GoogleIntegrationsSettings() {
           Connect Google Analytics and Search Console to track traffic,
           clicks, impressions, and CTR for your published posts.
         </p>
-        <Button onClick={() => router.push("/api/google-auth")}>
+        <Button
+          onClick={() =>
+            router.push(buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id))
+          }
+        >
           <Link2 className="mr-2 h-4 w-4" />
           Connect Google Account
         </Button>

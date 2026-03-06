@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Check, Leaf, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnboardingWizardStore } from "@/store/onboarding-wizard-store";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 export function StepReady() {
   const router = useRouter();
@@ -13,7 +14,13 @@ export function StepReady() {
 
   const setupItems = [
     { label: `Workspace "${workspaceName || "Your workspace"}" created`, done: true },
-    { label: "14-day free trial activated", done: true },
+    {
+      label:
+        setupResult?.trialActive === false
+          ? "Separate subscription required for this workspace"
+          : "14-day free trial activated",
+      done: true,
+    },
     {
       label: setupResult?.kbEntriesCreated
         ? `${setupResult.kbEntriesCreated} knowledge base entries created`
@@ -30,8 +37,11 @@ export function StepReady() {
   ];
 
   function goToDashboard() {
+    const target = setupResult?.workspaceId
+      ? buildWorkspacePath(setupResult.workspaceId, "/dashboard")
+      : "/dashboard";
     reset();
-    router.replace("/dashboard");
+    router.replace(target);
   }
 
   return (

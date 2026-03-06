@@ -5,13 +5,14 @@ import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteParams
 ): Promise<NextResponse> {
   const { userId } = await auth();
@@ -28,6 +29,10 @@ export async function GET(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
   let blog: FunctionReturnType<typeof api.blogs.getById>;
   try {
     blog = await convex.query(api.blogs.getById, {
@@ -39,6 +44,9 @@ export async function GET(
   }
 
   if (!blog) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
+  if (blog.workspaceId !== workspace._id) {
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
@@ -141,8 +149,18 @@ export async function PATCH(
     }
   }
 
+  const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+
+  const existingBlog = await convex.query(api.blogs.getById, { blogId: blogIdTyped });
+  if (!existingBlog || existingBlog.workspaceId !== workspace._id) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
+
   try {
-    const convex = await getAuthedConvexClient();
     await convex.mutation(api.blogs.update, { blogId: blogIdTyped, ...fields });
   } catch (err) {
     console.error("[blog/PATCH] mutation error:", err);
@@ -151,4 +169,3 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
-

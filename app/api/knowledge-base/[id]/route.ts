@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
@@ -30,7 +31,7 @@ export async function GET(_request: NextRequest, context: RouteParams): Promise<
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await requireRequestWorkspace(convex);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   let entry;
@@ -81,7 +82,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await requireRequestWorkspace(convex);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   try {
@@ -125,7 +126,7 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await requireRequestWorkspace(convex);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   try {

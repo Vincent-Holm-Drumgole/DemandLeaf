@@ -2,9 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 export function EmptyState() {
   const router = useRouter();
+  const { currentWorkspace } = useWorkspace();
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -14,7 +17,7 @@ export function EmptyState() {
         Create your first blog post by analyzing your website and choosing a
         topic.
       </p>
-      <Button onClick={() => router.push("/")} className="mt-4">
+      <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"))} className="mt-4">
         Write Your First Blog
       </Button>
     </div>

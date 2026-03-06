@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createCheckoutSession } from "@/lib/stripe/actions";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  const workspace = await requireRequestWorkspace(convex);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
@@ -48,8 +50,8 @@ export async function POST(request: Request) {
       email,
       stripeCustomerId: workspace.stripeCustomerId ?? undefined,
       priceId,
-      successUrl: `${origin}/settings?tab=billing&success=subscribed`,
-      cancelUrl: `${origin}/settings?tab=billing`,
+      successUrl: `${origin}${buildWorkspacePath(workspace._id, "/settings?tab=billing&success=subscribed")}`,
+      cancelUrl: `${origin}${buildWorkspacePath(workspace._id, "/settings?tab=billing")}`,
     });
 
     return NextResponse.json({ url: checkoutUrl });

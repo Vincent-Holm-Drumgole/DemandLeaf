@@ -4,6 +4,7 @@ import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { callHaiku, parseJsonResponse } from "@/lib/ai/client";
+import { createActiveWorkspaceCookie } from "@/lib/workspace-cookie";
 
 interface SetupBody {
   workspaceName: string;
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     // 1. Provision workspace
-    const { workspaceId } = await convex.mutation(api.workspaces.provision, {
+    const { workspaceId, trialActive } = await convex.mutation(api.workspaces.provision, {
       name: (body.workspaceName || "My Workspace").trim().slice(0, 100),
       sessionToken: body.sessionToken?.trim() || undefined,
     });
@@ -209,6 +210,7 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
             headers: {
               "Content-Type": "application/json",
               Cookie: request.headers.get("cookie") || "",
+              "x-workspace-id": workspaceId.toString(),
             },
             body: JSON.stringify({
               competitorDomains: body.competitorDomains?.slice(0, 5) || [],
@@ -222,12 +224,15 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       workspaceId: workspaceId.toString(),
+      trialActive,
       kbEntriesCreated,
       strategyId: strategyId?.toString(),
       keywordsDiscovering,
     });
+    response.cookies.set(createActiveWorkspaceCookie(workspaceId.toString()));
+    return response;
   } catch (err) {
     console.error("[onboarding/setup] error:", err);
     return NextResponse.json(

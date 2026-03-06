@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createActiveWorkspaceCookie } from "@/lib/workspace-cookie";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -40,11 +41,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const convex = await getAuthedConvexClient();
-    const { workspaceId } = await convex.mutation(api.workspaces.provision, {
+    const { workspaceId, trialActive } = await convex.mutation(api.workspaces.provision, {
       name,
       sessionToken: sessionId?.trim() || undefined,
     });
-    return NextResponse.json({ workspaceId }, { status: 200 });
+    const response = NextResponse.json({ workspaceId, trialActive }, { status: 200 });
+    response.cookies.set(createActiveWorkspaceCookie(workspaceId));
+    return response;
   } catch (err) {
     console.error("[provision] mutation error:", err);
     return NextResponse.json(

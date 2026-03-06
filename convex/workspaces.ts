@@ -1,8 +1,9 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { getWorkspaceAccess, requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_WORKSPACE_NOT_FOUND } from "./errors";
 import { planStatusValidator } from "./validators";
 
@@ -18,6 +19,9 @@ const VALID_ARCHETYPES = [
 ] as const;
 type Archetype = (typeof VALID_ARCHETYPES)[number];
 const MAX_WORKSPACES_PER_CRON_RUN = 500;
+const MAX_VIEWER_WORKSPACES = 100;
+const TRIAL_DAYS = 14;
+type WorkspaceRole = "owner" | "admin" | "member";
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -26,11 +30,32 @@ export const getByClerkUser = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
-    return ctx.db
-      .query("workspaces")
-      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.subject))
-      .order("desc")
-      .first();
+    const workspaces = await listViewerWorkspaces(ctx, identity.subject);
+    return workspaces[0] ?? null;
+  },
+});
+
+export const listForViewer = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    return listViewerWorkspaces(ctx, identity.subject);
+  },
+});
+
+export const getByIdForViewer = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    try {
+      const { workspace, role } = await getWorkspaceAccess(ctx, args.workspaceId);
+      return { ...workspace, role };
+    } catch {
+      return null;
+    }
   },
 });
 
@@ -39,9 +64,12 @@ export const getById = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
-    const workspace = await ctx.db.get(args.workspaceId);
-    if (!workspace || workspace.clerkUserId !== identity.subject) return null;
-    return workspace;
+    try {
+      const { workspace } = await getWorkspaceAccess(ctx, args.workspaceId);
+      return workspace;
+    } catch {
+      return null;
+    }
   },
 });
 
@@ -94,26 +122,24 @@ export const provision = mutation({
     const clerkUserId = identity.subject;
 
     const now = Date.now();
-
-    // Find or create workspace
-    const existing = await ctx.db
+    const existingOwnedWorkspace = await ctx.db
       .query("workspaces")
       .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", clerkUserId))
       .first();
+    const trialEndsAt = existingOwnedWorkspace
+      ? now
+      : now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
-    const TRIAL_DAYS = 14;
-    const trialEndsAt = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+    const workspaceId = await ctx.db.insert("workspaces", {
+      clerkUserId,
+      name: args.name,
+      plan: "trial",
+      trialEndsAt,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-    const workspaceId = existing
-      ? existing._id
-      : await ctx.db.insert("workspaces", {
-          clerkUserId,
-          name: args.name,
-          plan: "trial",
-          trialEndsAt,
-          createdAt: now,
-          updatedAt: now,
-        });
+    await ensureWorkspaceMembership(ctx, workspaceId, clerkUserId, "owner", now);
 
     // Migrate anonymous session if provided
     if (args.sessionToken) {
@@ -218,7 +244,42 @@ export const provision = mutation({
       }
     }
 
-    return { workspaceId };
+    return {
+      workspaceId,
+      trialActive: trialEndsAt > now,
+    };
+  },
+});
+
+export const backfillViewerMemberships = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+
+    const now = Date.now();
+    const ownedWorkspaces = await ctx.db
+      .query("workspaces")
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.subject))
+      .take(MAX_VIEWER_WORKSPACES);
+
+    let created = 0;
+    for (const workspace of ownedWorkspaces) {
+      const inserted = await ensureWorkspaceMembership(
+        ctx,
+        workspace._id,
+        identity.subject,
+        "owner",
+        now,
+      );
+      if (inserted) {
+        created += 1;
+      }
+    }
+
+    return { created };
   },
 });
 
@@ -247,6 +308,77 @@ function toCrawledPageRecord(
     wordCount: toSafeNumber(page.wordCount) ?? undefined,
     crawledAt: Date.now(),
   };
+}
+
+async function listViewerWorkspaces(
+  ctx: QueryCtx,
+  clerkUserId: string,
+): Promise<Array<Doc<"workspaces"> & { role: WorkspaceRole }>> {
+  const [memberships, ownedWorkspaces] = await Promise.all([
+    ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", clerkUserId))
+      .take(MAX_VIEWER_WORKSPACES),
+    ctx.db
+      .query("workspaces")
+      .withIndex("by_clerk_user_created", (q) => q.eq("clerkUserId", clerkUserId))
+      .order("desc")
+      .take(MAX_VIEWER_WORKSPACES),
+  ]);
+
+  const byId = new Map<string, Doc<"workspaces"> & { role: WorkspaceRole }>();
+
+  const membershipWorkspaces = await Promise.all(
+    memberships.map(async (membership) => {
+      const workspace = await ctx.db.get(membership.workspaceId);
+      return workspace ? { ...workspace, role: membership.role } : null;
+    }),
+  );
+
+  for (const workspace of membershipWorkspaces) {
+    if (workspace) {
+      byId.set(workspace._id, workspace);
+    }
+  }
+
+  for (const workspace of ownedWorkspaces) {
+    byId.set(workspace._id, { ...workspace, role: "owner" });
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt,
+  );
+}
+
+async function ensureWorkspaceMembership(
+  ctx: MutationCtx,
+  workspaceId: Id<"workspaces">,
+  clerkUserId: string,
+  role: WorkspaceRole,
+  now: number,
+): Promise<boolean> {
+  const existing = await ctx.db
+    .query("workspaceMembers")
+    .withIndex("by_workspace_user", (q) =>
+      q.eq("workspaceId", workspaceId).eq("clerkUserId", clerkUserId),
+    )
+    .unique();
+
+  if (existing) {
+    if (existing.role !== role) {
+      await ctx.db.patch(existing._id, { role, updatedAt: now });
+    }
+    return false;
+  }
+
+  await ctx.db.insert("workspaceMembers", {
+    workspaceId,
+    clerkUserId,
+    role,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return true;
 }
 
 function toSafeNumber(value: unknown): number | null {

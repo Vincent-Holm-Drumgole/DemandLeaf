@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 
@@ -20,6 +21,10 @@ export async function DELETE(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+  }
 
   try {
     await convex.mutation(api.wpConnections.remove, { connectionId });

@@ -7,10 +7,11 @@ import { parseConvexId } from "@/lib/convex-id";
 import { ERR_BRIEF_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import { isBriefData } from "@/lib/brief/validate";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 // GET /api/brief/[id]
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { userId } = await auth();
@@ -30,7 +31,14 @@ export async function GET(
 
   try {
     const convex = await getAuthedConvexClient();
+    const workspace = await requireRequestWorkspace(convex, request);
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    }
     const brief = await convex.query(api.contentBriefs.getById, { briefId });
+    if (brief.workspaceId !== workspace._id) {
+      return NextResponse.json({ error: "Brief not found" }, { status: 404 });
+    }
     if (!isBriefData(brief.briefData)) {
       console.error("[brief/[id]/GET] invalid briefData shape for brief:", brief._id);
       return NextResponse.json({ error: "Invalid brief data" }, { status: 500 });

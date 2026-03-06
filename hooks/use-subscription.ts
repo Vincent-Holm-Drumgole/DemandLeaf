@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useWorkspace } from "@/components/providers/workspace-provider";
 
 export type PlanStatus =
   | "trial"
@@ -22,7 +21,7 @@ export interface SubscriptionState {
 }
 
 export function useSubscription(): SubscriptionState {
-  const workspace = useQuery(api.workspaces.getByClerkUser);
+  const { currentWorkspace: workspace } = useWorkspace();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -31,28 +30,6 @@ export function useSubscription(): SubscriptionState {
     }, 60_000);
     return () => window.clearInterval(intervalId);
   }, []);
-
-  if (workspace === undefined) {
-    return {
-      status: "loading",
-      isActive: false,
-      isTrialing: false,
-      trialDaysLeft: null,
-      trialExpired: false,
-      needsUpgrade: false,
-    };
-  }
-
-  if (workspace === null) {
-    return {
-      status: "no_workspace",
-      isActive: false,
-      isTrialing: false,
-      trialDaysLeft: null,
-      trialExpired: false,
-      needsUpgrade: false,
-    };
-  }
 
   const plan = workspace.plan ?? "trial";
   const trialEndsAt = workspace.trialEndsAt ?? 0;

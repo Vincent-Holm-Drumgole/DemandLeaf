@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboarding-store";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 function OnboardingCompleteContent() {
   const router = useRouter();
@@ -38,8 +39,13 @@ function OnboardingCompleteContent() {
           return;
         }
 
+        const data = await response.json();
         reset();
-        router.replace("/dashboard");
+        router.replace(
+          data.workspaceId
+            ? buildWorkspacePath(data.workspaceId, "/dashboard")
+            : "/dashboard"
+        );
       } catch (err) {
         console.error("[provision] error:", err);
         setError("Failed to set up workspace. Please try again.");

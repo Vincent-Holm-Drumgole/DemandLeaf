@@ -6,6 +6,7 @@ import type { ExportRequest } from "@/types";
 import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sanitizeGeneratedHtml } from "@/lib/html-sanitize";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -58,11 +59,16 @@ export async function POST(
   }
 
   const convex = await getAuthedConvexClient();
-  const blog = await convex.query(api.blogs.getExportData, {
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+
+  const blog = await convex.query(api.blogs.getById, {
     blogId,
   });
 
-  if (!blog) {
+  if (!blog || blog.workspaceId !== workspace._id) {
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
@@ -102,7 +108,7 @@ export async function POST(
 
 function buildHtmlExport(blog: {
   title: string;
-  contentHtml: string | null;
+  contentHtml?: string | null;
 }): string {
   const safeContentHtml = blog.contentHtml
     ? sanitizeGeneratedHtml(blog.contentHtml)

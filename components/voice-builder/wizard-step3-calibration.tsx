@@ -9,10 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { buildWorkspacePath } from "@/lib/workspace-paths";
 import { useVoiceWizardStore } from "@/store/voice-wizard-store";
 import type { CalibrationRating } from "@/store/voice-wizard-store";
 
 export function WizardStep3Calibration() {
+  const { currentWorkspace } = useWorkspace();
   const {
     calibrationSamples,
     isLoading,
@@ -87,7 +90,9 @@ export function WizardStep3Calibration() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/dashboard">Go to Dashboard</Link>
+          <Link href={buildWorkspacePath(currentWorkspace._id, "/dashboard")}>
+            Go to Dashboard
+          </Link>
         </Button>
       </div>
     );

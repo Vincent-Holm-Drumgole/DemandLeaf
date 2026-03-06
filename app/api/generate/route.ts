@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getConvexClient, getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
 import { generateEmbedding } from "@/lib/ai/embedding";
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     | null = null;
   if (userId) {
     authedConvexClient = await getAuthedConvexClient();
-    const workspace = await authedConvexClient.query(api.workspaces.getByClerkUser, {});
+    const workspace = await requireRequestWorkspace(authedConvexClient, request);
     if (workspace) {
       authedWorkspace = workspace;
       if (workspaceNeedsUpgrade(workspace)) {
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const authedConvex = authedConvexClient ?? await getAuthedConvexClient();
       authedConvexClient = authedConvex;
       const workspace =
-        authedWorkspace ?? await authedConvex.query(api.workspaces.getByClerkUser, {});
+        authedWorkspace ?? await requireRequestWorkspace(authedConvex, request);
       authedWorkspace = workspace;
       if (workspace) {
         const workspaceId = workspace._id;
@@ -245,6 +246,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         if (kbEntries.length > 0) {
           const queryEmbedding = await generateEmbedding(keyword);
           const vectorResults = await authedConvex.action(api.knowledgeBase.searchByEmbedding, {
+            workspaceId,
             queryEmbedding,
             limit: 10,
           });
@@ -344,7 +346,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         if (resolvedBriefId) {
           try {
             const authedConvex = await getAuthedConvexClient();
-            const workspace = await authedConvex.query(api.workspaces.getByClerkUser, {});
+            const workspace = await requireRequestWorkspace(authedConvex, request);
             if (workspace) {
               const workspaceBlogId = await authedConvex.mutation(api.blogs.create, {
                 workspaceId: workspace._id,

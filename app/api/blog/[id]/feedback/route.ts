@@ -7,6 +7,7 @@ import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ERR_BLOG_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -70,6 +71,14 @@ export async function POST(
   }
 
   const convex = await getAuthedConvexClient();
+  const workspace = await requireRequestWorkspace(convex, request);
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+  const blog = await convex.query(api.blogs.getById, { blogId });
+  if (!blog || blog.workspaceId !== workspace._id) {
+    return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+  }
   let createdId: string;
   let createdAt: number;
   try {

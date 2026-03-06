@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
+import { requireRequestWorkspace } from "@/lib/workspace-server";
 import { api } from "@/convex/_generated/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getKeywordData } from "@/lib/seo-data";
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const convex = await getAuthedConvexClient();
-    const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+    const workspace = await requireRequestWorkspace(convex);
     if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
     const [metrics, intents] = await Promise.all([
