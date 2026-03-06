@@ -5,6 +5,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { isBillingEnabledClient } from "@/lib/billing-config";
 import { buildWorkspaceApiUrl } from "@/lib/workspace-paths";
 import { CreditCard, ExternalLink } from "lucide-react";
 
@@ -89,6 +90,27 @@ export function BillingSettings() {
 
   if (status === "loading" || status === "no_workspace") {
     return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
+  }
+
+  if (!isBillingEnabledClient) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between rounded-md border p-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Current Plan</span>
+              <Badge variant="secondary" className="text-[10px]">
+                Billing Disabled
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Stripe billing is not configured yet. Access is currently unrestricted.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

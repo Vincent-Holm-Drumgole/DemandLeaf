@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { requireRequestWorkspace } from "@/lib/workspace-server";
+import { isBillingEnabledServer } from "@/lib/billing-config";
 import { createPortalSession } from "@/lib/stripe/actions";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 
@@ -9,6 +10,10 @@ export async function POST(request: Request) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isBillingEnabledServer()) {
+    return NextResponse.json({ error: "Billing is not enabled yet" }, { status: 503 });
   }
 
   const convex = await getAuthedConvexClient();

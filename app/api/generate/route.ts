@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getConvexClient, getAuthedConvexClient } from "@/lib/convex";
 import { requireRequestWorkspace } from "@/lib/workspace-server";
+import { isBillingEnabledServer } from "@/lib/billing-config";
 import { api } from "@/convex/_generated/api";
 import { generateBlog } from "@/lib/ai/generator";
 import { generateEmbedding } from "@/lib/ai/embedding";
@@ -440,6 +441,10 @@ function workspaceNeedsUpgrade(workspace: {
   plan?: string;
   trialEndsAt?: number;
 }): boolean {
+  if (!isBillingEnabledServer()) {
+    return false;
+  }
+
   const plan = workspace.plan ?? "trial";
   const trialEndsAt = workspace.trialEndsAt ?? 0;
   const trialExpired = plan === "trial" && Date.now() > trialEndsAt;

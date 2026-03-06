@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useWorkspace } from "@/components/providers/workspace-provider";
+import { isBillingEnabledClient } from "@/lib/billing-config";
 
 export type PlanStatus =
   | "trial"
@@ -30,6 +31,17 @@ export function useSubscription(): SubscriptionState {
     }, 60_000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  if (!isBillingEnabledClient) {
+    return {
+      status: "active",
+      isActive: true,
+      isTrialing: false,
+      trialDaysLeft: null,
+      trialExpired: false,
+      needsUpgrade: false,
+    };
+  }
 
   const plan = workspace.plan ?? "trial";
   const trialEndsAt = workspace.trialEndsAt ?? 0;
