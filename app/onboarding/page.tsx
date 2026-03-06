@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -9,7 +9,7 @@ import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { readActiveWorkspaceCookie } from "@/lib/workspace-cookie";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,4 +44,18 @@ export default function OnboardingPage() {
   }
 
   return <OnboardingWizard />;
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-muted-foreground">Loading…</p>
+        </div>
+      }
+    >
+      <OnboardingPageContent />
+    </Suspense>
+  );
 }
