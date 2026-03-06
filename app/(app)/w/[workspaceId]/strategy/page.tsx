@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Loader2, TrendingUp } from "lucide-react";
@@ -14,6 +13,7 @@ import { useStrategyStore } from "@/store/strategy-store";
 import { PaywallGate } from "@/components/billing/paywall-gate";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 interface Strategy {
   _id: string;
@@ -25,7 +25,7 @@ interface Strategy {
 }
 
 export default function StrategyPage() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -34,10 +34,6 @@ export default function StrategyPage() {
   const [fetchKey, setFetchKey] = useState(0);
   const [showWizard, setShowWizard] = useState(false);
   const { reset } = useStrategyStore();
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace("/sign-in");
-  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

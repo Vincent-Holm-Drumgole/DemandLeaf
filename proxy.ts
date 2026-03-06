@@ -1,12 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/generate",
-  "/review/(.*)",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/onboarding(.*)",
+const isPublicApiRoute = createRouteMatcher([
   "/api/crawl",
   "/api/generate",
   "/api/anonymous-session(.*)",
@@ -16,7 +10,9 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
+  // Page routes enforce auth inside the App Router so workspace-aware redirects
+  // can preserve the exact destination. Only private API routes are blocked here.
+  if (req.nextUrl.pathname.startsWith("/api") && !isPublicApiRoute(req)) {
     await auth.protect();
   }
 });

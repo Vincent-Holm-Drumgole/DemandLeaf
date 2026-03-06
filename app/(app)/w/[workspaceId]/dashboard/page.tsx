@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { BlogCard } from "@/components/dashboard/blog-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -9,9 +8,10 @@ import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 import type { DashboardResponse } from "@/types";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export default function DashboardPage() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -19,12 +19,6 @@ export default function DashboardPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

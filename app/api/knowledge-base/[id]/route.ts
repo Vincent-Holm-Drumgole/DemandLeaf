@@ -12,7 +12,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: NextRequest, context: RouteParams): Promise<NextResponse> {
+export async function GET(request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, context: RouteParams): Promise<
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   let entry;
@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   try {
@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   return NextResponse.json({ success: true });
 }
 
-export async function DELETE(_request: NextRequest, context: RouteParams): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -126,7 +126,7 @@ export async function DELETE(_request: NextRequest, context: RouteParams): Promi
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
   try {

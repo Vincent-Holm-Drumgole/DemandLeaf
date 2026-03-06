@@ -12,3 +12,11 @@ export function sanitizeRelativeRedirectUrl(
 
   return value;
 }
+
+export function buildSignInRedirectHref(
+  value: string | null | undefined,
+  fallback = "/",
+) {
+  const redirectUrl = sanitizeRelativeRedirectUrl(value, fallback);
+  return `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`;
+}

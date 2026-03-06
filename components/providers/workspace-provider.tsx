@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useLayoutEffect } from "react";
 import {
   installWorkspaceFetch,
   setActiveWorkspaceId,
@@ -30,7 +30,7 @@ export function WorkspaceProvider({
   workspaces,
   children,
 }: React.PropsWithChildren<WorkspaceContextValue>) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     installWorkspaceFetch();
     setActiveWorkspaceId(currentWorkspace._id);
 

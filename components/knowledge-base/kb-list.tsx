@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KBEntryCard } from "./kb-entry-card";
 import { KBEntryForm } from "./kb-entry-form";
 import type { KBEntry, KBEntryType } from "@/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 const ENTRY_TYPE_TABS: { value: string; label: string }[] = [
   { value: "all", label: "All" },
@@ -28,7 +29,7 @@ export function KBList() {
     setIsLoading(true);
     try {
       const url = activeTab !== "all" ? `/api/knowledge-base?type=${activeTab}` : "/api/knowledge-base";
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setEntries(data.entries);
@@ -46,7 +47,7 @@ export function KBList() {
   async function handleSave(data: { entryType: KBEntryType; title: string; content: string; tags: string[] }) {
     try {
       if (editingEntry) {
-        const res = await fetch(`/api/knowledge-base/${editingEntry.id}`, {
+        const res = await apiFetch(`/api/knowledge-base/${editingEntry.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -56,7 +57,7 @@ export function KBList() {
           throw new Error(json.error ?? "Failed to update entry");
         }
       } else {
-        const res = await fetch("/api/knowledge-base", {
+        const res = await apiFetch("/api/knowledge-base", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
@@ -77,7 +78,7 @@ export function KBList() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this entry? This cannot be undone.")) return;
-    const res = await fetch(`/api/knowledge-base/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/knowledge-base/${id}`, { method: "DELETE" });
     if (res.ok) {
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } else {

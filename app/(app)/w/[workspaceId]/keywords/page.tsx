@@ -1,23 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { Loader2, Hash } from "lucide-react";
 import { KeywordExplorer } from "@/components/keywords/keyword-explorer";
 import type { KeywordRow } from "@/components/keywords/keyword-table";
 import { PaywallGate } from "@/components/billing/paywall-gate";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export default function KeywordsPage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const [keywords, setKeywords] = useState<KeywordRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace("/sign-in");
-  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

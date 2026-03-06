@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import { Loader2, ArrowLeft, GitBranch, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import type { ClusterResult } from "@/types";
 import { PaywallGate } from "@/components/billing/paywall-gate";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 interface StrategyPageData {
   strategy: {
@@ -48,7 +48,7 @@ interface CalendarEntry {
 }
 
 export default function StrategyDetailPage() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const params = useParams();
   const { currentWorkspace } = useWorkspace();
@@ -58,10 +58,6 @@ export default function StrategyDetailPage() {
   const [calendarItems, setCalendarItems] = useState<CalendarEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace("/sign-in");
-  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !strategyId) return;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { BriefReview } from "@/components/brief/brief-review";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 import type { BriefData } from "@/types";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 interface BriefDoc {
   _id: string;
@@ -19,7 +19,7 @@ interface BriefDoc {
 }
 
 export default function BriefDetailPage() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
   const { id: briefId } = useParams<{ id: string }>();
@@ -27,10 +27,6 @@ export default function BriefDetailPage() {
   const [brief, setBrief] = useState<BriefDoc | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace("/sign-in");
-  }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !briefId) return;
