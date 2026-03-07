@@ -46,9 +46,9 @@ export default function BriefDetailPage() {
       .finally(() => setIsLoading(false));
   }, [isLoaded, isSignedIn, briefId]);
 
-  if (!isLoaded || !isSignedIn || !currentWorkspace) return null;
+  if (!isLoaded || !isSignedIn) return null;
 
-  if (isLoading) {
+  if (isLoading || !currentWorkspace) {
     return (
       <main className="container max-w-3xl py-8 flex justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -162,6 +162,7 @@ export const useOnboardingWizardStore = create<OnboardingWizardState>(
 
     runSetup: async () => {
       const state = get();
+      if (state.isSettingUp) return;
       set({ isSettingUp: true, setupError: null, setupStage: "workspace", step: 6 });
 
       // Simulate staged progress while the API works

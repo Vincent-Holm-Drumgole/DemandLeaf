@@ -65,6 +65,7 @@ export default function StrategyPage() {
 
   const handleWizardComplete = (strategyId: string) => {
     setShowWizard(false);
+    if (!currentWorkspace?._id) return;
     router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${strategyId}`));
   };
 

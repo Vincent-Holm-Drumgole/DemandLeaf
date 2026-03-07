@@ -165,6 +165,7 @@ export default function PerformancePage() {
               {roi && !roi.available && (
                 <GoogleConnectBanner
                   onConnect={() => {
+                    if (!currentWorkspace?._id) return;
                     window.location.href = buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id);
                   }}
                 />
@@ -177,6 +178,7 @@ export default function PerformancePage() {
                 avgPosition={roi?.avgPosition ?? null}
                 googleConnected={roi?.available ?? false}
                 onConnect={() => {
+                  if (!currentWorkspace?._id) return;
                   window.location.href = buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id);
                 }}
               />

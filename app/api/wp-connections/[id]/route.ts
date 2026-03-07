@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { parseConvexId } from "@/lib/convex-id";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
@@ -21,7 +21,7 @@ export async function DELETE(
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }

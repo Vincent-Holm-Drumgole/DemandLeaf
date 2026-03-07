@@ -34,6 +34,15 @@ export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
+
+  if (!currentWorkspace) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
   const blogId = typeof params.id === "string" ? params.id : "";
   const { generationResult, sessionId } = useOnboardingStore();
   const [savedBlog, setSavedBlog] = useState<SavedBlogResponse | null>(null);

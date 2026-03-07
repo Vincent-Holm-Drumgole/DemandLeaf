@@ -140,7 +140,7 @@ export function ScorecardPanel({ blogId, onSubmitted }: ScorecardPanelProps) {
 
         <Button
           onClick={handleSubmit}
-          disabled={!allScored || submitting}
+          disabled={!allScored || submitting || !currentWorkspace?._id}
           className="w-full"
         >
           {submitting ? (

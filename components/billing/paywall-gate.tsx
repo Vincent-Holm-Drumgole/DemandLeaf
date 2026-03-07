@@ -2,7 +2,6 @@
 
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeCTA } from "./upgrade-cta";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface PaywallGateProps {
   children: React.ReactNode;

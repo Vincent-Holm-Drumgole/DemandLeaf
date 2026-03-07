@@ -9,7 +9,7 @@ export function TrialBanner() {
   const { isTrialing, trialDaysLeft, needsUpgrade, status } = useSubscription();
   const { currentWorkspace } = useWorkspace();
 
-  if (status === "active") {
+  if (status === "active" || !currentWorkspace) {
     return null;
   }
 
