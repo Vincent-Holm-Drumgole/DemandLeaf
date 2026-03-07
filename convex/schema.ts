@@ -46,6 +46,10 @@ import {
   // Billing
   planStatusValidator,
   workspaceRoleValidator,
+  scorecardDimensionAveragesValidator,
+  scorecardDimensionValidator,
+  scorecardReasonTagValidator,
+  scorecardSuppressedTagValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -168,6 +172,67 @@ export default defineSchema({
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_created", ["workspaceId", "createdAt"])
     .index("by_workspace_status", ["workspaceId", "status"]),
+
+  scoredOutputs: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    brandVoice: v.number(),
+    structure: v.number(),
+    depthAccuracy: v.number(),
+    readability: v.number(),
+    onTopicFocus: v.number(),
+    compositeScore: v.number(),
+    reasonTags: v.array(scorecardReasonTagValidator),
+    coachingNote: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_created", ["workspaceId", "createdAt"])
+    .index("by_blog", ["blogId"])
+    .index("by_workspace_composite", ["workspaceId", "compositeScore"]),
+
+  workspaceScoreStats: defineTable({
+    workspaceId: v.id("workspaces"),
+    totalScored: v.number(),
+    avgComposite: v.number(),
+    dimensionAverages: scorecardDimensionAveragesValidator,
+    aiConfidence: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  coachingNotesLibrary: defineTable({
+    workspaceId: v.id("workspaces"),
+    note: v.string(),
+    echoCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_echo", ["workspaceId", "echoCount"]),
+
+  tagFrequency: defineTable({
+    workspaceId: v.id("workspaces"),
+    dimension: scorecardDimensionValidator,
+    tag: v.string(),
+    count: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_dimension", ["workspaceId", "dimension"]),
+
+  generationContextLog: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    fewShotBlogIds: v.array(v.id("blogs")),
+    suppressedTags: v.array(scorecardSuppressedTagValidator),
+    coachingNotes: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_workspace", ["workspaceId"]),
 
   blogFeedback: defineTable({
     blogId: v.id("blogs"),

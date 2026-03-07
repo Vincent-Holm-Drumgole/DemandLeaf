@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { KB_ENTRY_TYPES } from "../types/knowledge-base";
 import { EDIT_TYPES } from "../types/voice";
+import { SCORECARD_DIMENSIONS } from "../lib/scorecard/tags";
 
 function literalUnion<const T extends readonly [string, string, ...string[]]>(values: T) {
   const [first, second, ...rest] = values;
@@ -150,6 +151,27 @@ export const workspaceRoleValidator = v.union(
   v.literal("admin"),
   v.literal("member")
 );
+
+export const scorecardDimensionValidator = literalUnion(SCORECARD_DIMENSIONS);
+
+export const scorecardReasonTagValidator = v.object({
+  dimension: scorecardDimensionValidator,
+  tag: v.string(),
+});
+
+export const scorecardSuppressedTagValidator = v.object({
+  dimension: scorecardDimensionValidator,
+  tag: v.string(),
+  count: v.number(),
+});
+
+export const scorecardDimensionAveragesValidator = v.object({
+  brandVoice: v.number(),
+  structure: v.number(),
+  depthAccuracy: v.number(),
+  readability: v.number(),
+  onTopicFocus: v.number(),
+});
 
 // ── Crawl data ────────────────────────────────────────────────────────────────
 

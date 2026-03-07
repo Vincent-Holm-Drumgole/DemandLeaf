@@ -35,6 +35,7 @@ export interface GenerationInput {
   audience: string;
   kbContext?: KBContextResult;
   neverSayTerms?: string[];
+  trainingContext?: string;
   /** When provided, skips Step 1 brief generation and uses the pre-approved brief data. */
   briefHint?: BriefHint;
 }

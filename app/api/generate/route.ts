@@ -23,6 +23,7 @@ import { ERR_BRIEF_NOT_FOUND } from "@/convex/errors";
 import type { Id } from "@/convex/_generated/dataModel";
 import { isBriefData } from "@/lib/brief/validate";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { formatTrainingSignals, type TrainingSignalsPayload } from "@/lib/scorecard/training-signals";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -225,6 +226,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Enrich with workspace KB context + never-say list for authenticated users
   let kbContext: KBContextResult | undefined;
   let neverSayTerms: string[] | undefined;
+  let trainingContext: string | undefined;
+  let trainingSignals: TrainingSignalsPayload<Id<"blogs">> = {
+    fewShotExamples: [],
+    suppressedTags: [],
+    coachingNotes: [],
+  };
 
   try {
     if (userId) {
@@ -236,13 +243,16 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (workspace) {
         const workspaceId = workspace._id;
 
-        const [neverSayItems, kbEntries] = await Promise.all([
+        const [neverSayItems, kbEntries, scorecardSignals] = await Promise.all([
           authedConvex.query(api.neverSayList.getAllTerms, { workspaceId }),
           authedConvex.query(api.knowledgeBase.listReadyByWorkspace, { workspaceId }),
+          authedConvex.query(api.scoredOutputs.getTrainingSignals, { workspaceId }),
         ]);
         if (neverSayItems.length > 0) {
           neverSayTerms = neverSayItems;
         }
+        trainingSignals = scorecardSignals as TrainingSignalsPayload<Id<"blogs">>;
+        trainingContext = formatTrainingSignals(trainingSignals);
 
         if (kbEntries.length > 0) {
           const queryEmbedding = await generateEmbedding(keyword);
@@ -294,6 +304,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             audience,
             kbContext,
             neverSayTerms,
+            trainingContext,
             briefHint,
           },
           (step) => {
@@ -374,6 +385,21 @@ export async function POST(request: NextRequest): Promise<Response> {
                 generationTimeMs: result.generationTimeMs,
                 promptVersion: result.promptVersion,
               });
+              try {
+                await authedConvex.mutation(api.scoredOutputs.logGenerationContext, {
+                  workspaceId: workspace._id,
+                  blogId: workspaceBlogId,
+                  fewShotBlogIds: trainingSignals.fewShotExamples.map((example) => example.blogId),
+                  suppressedTags: trainingSignals.suppressedTags.map((tag) => ({
+                    dimension: tag.dimension,
+                    tag: tag.tag,
+                    count: tag.count,
+                  })),
+                  coachingNotes: trainingSignals.coachingNotes,
+                });
+              } catch (contextErr) {
+                console.warn("[generate] generation context log failed:", contextErr);
+              }
               try {
                 await authedConvex.mutation(api.contentBriefs.linkBlog, {
                   briefId: resolvedBriefId,

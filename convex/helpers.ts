@@ -56,6 +56,17 @@ export async function requireWorkspaceAccess(
   return workspace;
 }
 
+export async function requireWorkspaceAdminAccess(
+  ctx: QueryCtx | MutationCtx,
+  workspaceId: Id<"workspaces">,
+): Promise<Doc<"workspaces">> {
+  const { workspace, role } = await getWorkspaceAccess(ctx, workspaceId);
+  if (role !== "owner" && role !== "admin") {
+    throw new ConvexError(ERR_UNAUTHORIZED);
+  }
+  return workspace;
+}
+
 /**
  * Asserts that a server-side cron/admin key matches the configured secret.
  * Used by background jobs (Inngest) that execute without end-user identity.

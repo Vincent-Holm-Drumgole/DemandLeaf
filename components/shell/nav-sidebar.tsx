@@ -15,6 +15,7 @@ import {
   Network,
   LineChart,
   Bot,
+  ClipboardCheck,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const NAV_GROUPS: { heading?: string; items: NavItem[] }[] = [
     heading: "Intelligence",
     items: [
       { label: "Performance", href: "/performance", icon: LineChart },
+      { label: "AI Scorecard", href: "/scorecard", icon: ClipboardCheck },
       { label: "Agents", href: "/agents", icon: Bot },
     ],
   },

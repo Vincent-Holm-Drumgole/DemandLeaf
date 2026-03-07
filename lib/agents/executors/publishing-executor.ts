@@ -5,6 +5,7 @@ import { generateBlog } from "@/lib/ai/generator";
 import { generateEmbedding } from "@/lib/ai/embedding";
 import { selectKBContext } from "@/lib/knowledge-base/context-selector";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
+import { formatTrainingSignals, type TrainingSignalsPayload } from "@/lib/scorecard/training-signals";
 import type {
   Archetype,
   BriefData,
@@ -295,12 +296,26 @@ export async function executePublishing(
     : "how_to";
 
   let kbContext: KBContextResult | undefined;
+  let trainingContext: string | undefined;
+  let trainingSignals: TrainingSignalsPayload<Id<"blogs">> = {
+    fewShotExamples: [],
+    suppressedTags: [],
+    coachingNotes: [],
+  };
   try {
     if (hasCronAccess && cronKey) {
-      const kbEntries = await convex.query(api.knowledgeBase.listReadyByWorkspaceForCron, {
-        workspaceId,
-        cronKey,
-      });
+      const [kbEntries, scorecardSignals] = await Promise.all([
+        convex.query(api.knowledgeBase.listReadyByWorkspaceForCron, {
+          workspaceId,
+          cronKey,
+        }),
+        convex.query(api.scoredOutputs.getTrainingSignalsForCron, {
+          workspaceId,
+          cronKey,
+        }),
+      ]);
+      trainingSignals = scorecardSignals as TrainingSignalsPayload<Id<"blogs">>;
+      trainingContext = formatTrainingSignals(trainingSignals);
       kbContext = buildCronKbContext(
         kbEntries.map((entry) => ({
           _id: entry._id,
@@ -310,9 +325,16 @@ export async function executePublishing(
         })),
       );
     } else {
-      const kbEntries = await convex.query(api.knowledgeBase.listReadyByWorkspace, {
-        workspaceId,
-      });
+      const [kbEntries, scorecardSignals] = await Promise.all([
+        convex.query(api.knowledgeBase.listReadyByWorkspace, {
+          workspaceId,
+        }),
+        convex.query(api.scoredOutputs.getTrainingSignals, {
+          workspaceId,
+        }),
+      ]);
+      trainingSignals = scorecardSignals as TrainingSignalsPayload<Id<"blogs">>;
+      trainingContext = formatTrainingSignals(trainingSignals);
       if (kbEntries.length > 0) {
         const embedding = await generateEmbedding(keyword);
         const vectorResults = await convex.action(api.knowledgeBase.searchByEmbedding, {
@@ -338,6 +360,7 @@ export async function executePublishing(
     audience: workspace.audienceDescription ?? "Business professionals",
     kbContext,
     neverSayTerms,
+    trainingContext,
     briefHint: buildBriefHint(briefData),
   };
 
@@ -403,6 +426,37 @@ export async function executePublishing(
         aeoScore: generated.aeoScore,
         publishedAt: qualityPasses ? now : undefined,
       });
+
+  try {
+    if (hasCronAccess && cronKey) {
+      await convex.mutation(api.scoredOutputs.logGenerationContextForCron, {
+        workspaceId,
+        blogId,
+        fewShotBlogIds: trainingSignals.fewShotExamples.map((example) => example.blogId),
+        suppressedTags: trainingSignals.suppressedTags.map((tag) => ({
+          dimension: tag.dimension,
+          tag: tag.tag,
+          count: tag.count,
+        })),
+        coachingNotes: trainingSignals.coachingNotes,
+        cronKey,
+      });
+    } else {
+      await convex.mutation(api.scoredOutputs.logGenerationContext, {
+        workspaceId,
+        blogId,
+        fewShotBlogIds: trainingSignals.fewShotExamples.map((example) => example.blogId),
+        suppressedTags: trainingSignals.suppressedTags.map((tag) => ({
+          dimension: tag.dimension,
+          tag: tag.tag,
+          count: tag.count,
+        })),
+        coachingNotes: trainingSignals.coachingNotes,
+      });
+    }
+  } catch (err) {
+    console.warn("[publishing-executor] generation context log failed:", err);
+  }
 
   if (hasCronAccess && cronKey) {
     await convex.mutation(api.contentBriefs.linkBlogForCron, {

@@ -15,6 +15,7 @@ export const ERR_UNAUTHORIZED = "Unauthorized";
 export const ERR_WORKSPACE_MISMATCH = "Workspace mismatch";
 export const ERR_BLOG_NOT_FOUND = "Blog not found";
 export const ERR_ENTRY_NOT_FOUND = "Entry not found";
+export const ERR_BLOG_ALREADY_SCORED = "Blog already scored";
 /** Partial token: embedded in the full never-say limit-reached message. */
 export const ERR_NEVER_SAY_LIMIT = "NEVER_SAY_LIMIT:";
 /** Partial token: embedded in the full never-say duplicate-term message. */
@@ -22,6 +23,8 @@ export const ERR_NEVER_SAY_DUPLICATE = "NEVER_SAY_DUPLICATE:";
 
 export const ERR_INVALID_PARAGRAPH_INDEX = "Invalid paragraph index";
 export const ERR_INVALID_VOICE_MATCH_SCORE = "voiceMatchScore must be between 0 and 100";
+export const ERR_INVALID_DIMENSION_SCORE = "Dimension scores must be integers between 1 and 5";
+export const ERR_COACHING_NOTE_TOO_LONG = "Coaching note is too long";
 export const ERR_BATCH_TOO_LARGE = "Batch too large";
 export const ERR_CALENDAR_NOT_FOUND = "Calendar item not found";
 

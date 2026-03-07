@@ -111,6 +111,7 @@ export function buildBlogDraftPrompt(input: {
   audience: string;
   outline?: string;
   kbContext?: string;
+  trainingContext?: string;
   neverSayTerms?: string[];
   hookOptions?: string[];
   uniqueAngle?: string;
@@ -167,6 +168,7 @@ AEO (Answer Engine Optimization) REQUIREMENTS:
     audience: input.audience,
     outline: input.outline,
     kbContext: input.kbContext,
+    trainingContext: input.trainingContext,
     hookOptions: input.hookOptions,
     uniqueAngle: input.uniqueAngle,
     internalLinkOpportunities: input.internalLinkOpportunities,
@@ -213,6 +215,7 @@ function buildUserMessage(input: {
   audience: string;
   outline?: string;
   kbContext?: string;
+  trainingContext?: string;
   hookOptions?: string[];
   uniqueAngle?: string;
   internalLinkOpportunities?: string[];
@@ -236,6 +239,13 @@ FOCUS KEYWORD: ${sanitizeSingleLine(input.keyword)}
     message += `<kb_context>
 ${safeKbContext}
 </kb_context>
+`;
+  }
+
+  if (input.trainingContext?.trim()) {
+    message += `
+WORKSPACE TRAINING SIGNALS:
+${input.trainingContext.trim()}
 `;
   }
 

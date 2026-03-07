@@ -113,6 +113,7 @@ export async function generateBlog(
     audience: input.audience,
     outline: brief.outline,
     kbContext: kbContextString,
+    trainingContext: input.trainingContext,
     neverSayTerms: input.neverSayTerms,
     hookOptions: brief.hookOptions,
     uniqueAngle: brief.uniqueAngle || undefined,

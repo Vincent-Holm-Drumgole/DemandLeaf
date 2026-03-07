@@ -563,6 +563,26 @@ export const deleteWorkspace = mutation({
       .query("notifications")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
       .collect();
+    const scoredOutputs = await ctx.db
+      .query("scoredOutputs")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const workspaceScoreStats = await ctx.db
+      .query("workspaceScoreStats")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const coachingNotesLibrary = await ctx.db
+      .query("coachingNotesLibrary")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const tagFrequency = await ctx.db
+      .query("tagFrequency")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const generationContextLog = await ctx.db
+      .query("generationContextLog")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
     const agentAuditLog = await ctx.db
       .query("agentAuditLog")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
@@ -578,6 +598,11 @@ export const deleteWorkspace = mutation({
 
     const collections = [
       notifications,
+      generationContextLog,
+      tagFrequency,
+      coachingNotesLibrary,
+      workspaceScoreStats,
+      scoredOutputs,
       agentAuditLog,
       agentActions,
       decayAlerts,
