@@ -2,6 +2,7 @@
 
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { KBList } from "@/components/knowledge-base/kb-list";
+import { MasterContextCard } from "@/components/knowledge-base/master-context-card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -41,9 +42,13 @@ export default function KnowledgeBasePage() {
 
         <div className="mx-auto max-w-5xl px-4 py-6">
           <p className="text-sm text-muted-foreground mb-6">
-            Add company knowledge that gets automatically injected into relevant blog posts.
-            Entries are embedded for semantic search — the most relevant context is selected per post.
+            Add deep company knowledge for semantic retrieval, bulk import markdown topic briefs,
+            and maintain a workspace-level master context that is always injected during blog
+            generation.
           </p>
+          <div className="mb-6">
+            <MasterContextCard />
+          </div>
           <KBList />
         </div>
       </div>

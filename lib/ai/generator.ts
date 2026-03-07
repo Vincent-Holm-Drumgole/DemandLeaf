@@ -109,6 +109,7 @@ export async function generateBlog(
     voiceProfile: input.voiceProfile,
     keyword: input.keyword,
     companyContext: input.companyContext,
+    masterContext: input.masterContext,
     industry: input.industry,
     audience: input.audience,
     outline: brief.outline,

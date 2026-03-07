@@ -31,6 +31,7 @@ export interface GenerationInput {
   archetype: Archetype;
   voiceProfile: VoiceProfile;
   companyContext: string;
+  masterContext?: string;
   industry: string;
   audience: string;
   kbContext?: KBContextResult;

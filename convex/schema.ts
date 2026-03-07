@@ -59,6 +59,7 @@ export default defineSchema({
     url: v.optional(v.string()),
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
+    masterContext: v.optional(v.string()),
     // Billing
     stripeCustomerId: v.optional(v.string()),
     stripeSubscriptionId: v.optional(v.string()),
@@ -284,6 +285,23 @@ export default defineSchema({
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_type", ["workspaceId", "entryType"])
     .index("by_workspace_status", ["workspaceId", "embeddingStatus"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["workspaceId"],
+    }),
+
+  knowledgeBaseChunks: defineTable({
+    workspaceId: v.id("workspaces"),
+    entryId: v.id("knowledgeBase"),
+    chunkIndex: v.number(),
+    content: v.string(),
+    embedding: v.array(v.float64()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_entry", ["entryId"])
+    .index("by_workspace", ["workspaceId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: 1536,

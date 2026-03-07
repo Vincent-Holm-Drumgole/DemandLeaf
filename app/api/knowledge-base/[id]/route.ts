@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseConvexId } from "@/lib/convex-id";
 import { ERR_ENTRY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { MAX_KB_CONTENT_CHARS } from "@/lib/knowledge-base/constants";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -74,8 +75,11 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (body.content && body.content.length > 2000) {
-    return NextResponse.json({ error: "content must be 2000 characters or less" }, { status: 400 });
+  if (body.content && body.content.length > MAX_KB_CONTENT_CHARS) {
+    return NextResponse.json(
+      { error: `content must be ${MAX_KB_CONTENT_CHARS} characters or less` },
+      { status: 400 },
+    );
   }
   if (body.tags && !Array.isArray(body.tags)) {
     return NextResponse.json({ error: "tags must be an array of strings" }, { status: 400 });

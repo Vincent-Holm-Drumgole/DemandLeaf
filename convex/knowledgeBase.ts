@@ -4,7 +4,6 @@ import {
   action,
   internalMutation,
   internalQuery,
-  internalAction,
 } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
@@ -16,6 +15,7 @@ import {
   embeddingStatusValidator,
   kbEntryTypeValidator,
 } from "./validators";
+import { MAX_KB_IMPORT_ENTRIES } from "../lib/knowledge-base/constants";
 
 const MAX_KB_ENTRIES_PER_QUERY = 500;
 
@@ -98,6 +98,13 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+export const getChunkByIdInternal = internalQuery({
+  args: { chunkId: v.id("knowledgeBaseChunks") },
+  handler: async (ctx, args) => {
+    return ctx.db.get(args.chunkId);
+  },
+});
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const create = mutation({
@@ -123,10 +130,54 @@ export const create = mutation({
       updatedAt: now,
     });
     // Schedule async embedding generation
-    await ctx.scheduler.runAfter(0, internal.knowledgeBase.generateAndStoreEmbedding, {
+    await ctx.scheduler.runAfter(0, internal.knowledgeBaseEmbeddings.generateAndStoreEmbedding, {
       entryId,
     });
     return entryId;
+  },
+});
+
+export const createMany = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    entries: v.array(
+      v.object({
+        entryType: kbEntryTypeValidator,
+        title: v.string(),
+        content: v.string(),
+        tags: v.array(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const entries = args.entries.slice(0, MAX_KB_IMPORT_ENTRIES);
+    const now = Date.now();
+    const entryIds = await Promise.all(
+      entries.map((entry) =>
+        ctx.db.insert("knowledgeBase", {
+          workspaceId: args.workspaceId,
+          entryType: entry.entryType,
+          title: entry.title,
+          content: entry.content,
+          tags: entry.tags,
+          embeddingStatus: "pending",
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+
+    await Promise.all(
+      entryIds.map((entryId) =>
+        ctx.scheduler.runAfter(0, internal.knowledgeBaseEmbeddings.generateAndStoreEmbedding, {
+          entryId,
+        }),
+      ),
+    );
+
+    return entryIds;
   },
 });
 
@@ -145,15 +196,26 @@ export const update = mutation({
     if (!entry || entry.workspaceId !== args.workspaceId) {
       throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
-    const contentChanged = args.content !== undefined && args.content !== entry.content;
+    const embeddingInputChanged =
+      (args.title !== undefined && args.title !== entry.title) ||
+      (args.content !== undefined && args.content !== entry.content);
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.title !== undefined) patch.title = args.title;
     if (args.content !== undefined) patch.content = args.content;
     if (args.tags !== undefined) patch.tags = args.tags;
-    if (contentChanged) patch.embeddingStatus = "pending";
+    if (embeddingInputChanged) {
+      patch.embedding = undefined;
+      patch.embeddingStatus = "pending";
+    }
     await ctx.db.patch(args.entryId, patch);
-    if (contentChanged) {
-      await ctx.scheduler.runAfter(0, internal.knowledgeBase.generateAndStoreEmbedding, {
+
+    if (embeddingInputChanged) {
+      const existingChunks = await ctx.db
+        .query("knowledgeBaseChunks")
+        .withIndex("by_entry", (q) => q.eq("entryId", args.entryId))
+        .collect();
+      await Promise.all(existingChunks.map((chunk) => ctx.db.delete(chunk._id)));
+      await ctx.scheduler.runAfter(0, internal.knowledgeBaseEmbeddings.generateAndStoreEmbedding, {
         entryId: args.entryId,
       });
     }
@@ -172,22 +234,97 @@ export const remove = mutation({
     if (!entry || entry.workspaceId !== args.workspaceId) {
       throw new ConvexError(ERR_ENTRY_NOT_FOUND);
     }
+
+    const chunks = await ctx.db
+      .query("knowledgeBaseChunks")
+      .withIndex("by_entry", (q) => q.eq("entryId", args.entryId))
+      .collect();
+
+    await Promise.all(chunks.map((chunk) => ctx.db.delete(chunk._id)));
     await ctx.db.delete(args.entryId);
   },
 });
 
-export const storeEmbedding = internalMutation({
+export const replaceChunksAndStatus = internalMutation({
   args: {
     entryId: v.id("knowledgeBase"),
-    embedding: v.optional(v.array(v.float64())),
+    workspaceId: v.id("workspaces"),
+    chunks: v.array(
+      v.object({
+        chunkIndex: v.number(),
+        content: v.string(),
+        embedding: v.array(v.float64()),
+      }),
+    ),
     status: embeddingStatusValidator,
   },
   handler: async (ctx, args) => {
+    const entry = await ctx.db.get(args.entryId);
+    if (!entry || entry.workspaceId !== args.workspaceId) {
+      return;
+    }
+
+    const existingChunks = await ctx.db
+      .query("knowledgeBaseChunks")
+      .withIndex("by_entry", (q) => q.eq("entryId", args.entryId))
+      .collect();
+    await Promise.all(existingChunks.map((chunk) => ctx.db.delete(chunk._id)));
+
+    const now = Date.now();
+    await Promise.all(
+      args.chunks.map((chunk) =>
+        ctx.db.insert("knowledgeBaseChunks", {
+          workspaceId: args.workspaceId,
+          entryId: args.entryId,
+          chunkIndex: chunk.chunkIndex,
+          content: chunk.content,
+          embedding: chunk.embedding,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+
     await ctx.db.patch(args.entryId, {
-      embedding: args.embedding,
+      embedding: args.chunks[0]?.embedding,
       embeddingStatus: args.status,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
+  },
+});
+
+export const retryFailedEmbeddings = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const failedEntries = await ctx.db
+      .query("knowledgeBase")
+      .withIndex("by_workspace_status", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("embeddingStatus", "failed"),
+      )
+      .collect();
+
+    const now = Date.now();
+    for (const entry of failedEntries) {
+      const chunks = await ctx.db
+        .query("knowledgeBaseChunks")
+        .withIndex("by_entry", (q) => q.eq("entryId", entry._id))
+        .collect();
+      await Promise.all(chunks.map((chunk) => ctx.db.delete(chunk._id)));
+      await ctx.db.patch(entry._id, {
+        embedding: undefined,
+        embeddingStatus: "pending",
+        updatedAt: now,
+      });
+      await ctx.scheduler.runAfter(0, internal.knowledgeBaseEmbeddings.generateAndStoreEmbedding, {
+        entryId: entry._id,
+      });
+    }
+
+    return { queued: failedEntries.length };
   },
 });
 
@@ -203,51 +340,40 @@ export const searchByEmbedding = action({
     const workspace = await requireWorkspaceInAction(ctx, args.workspaceId);
     const safeLimit = Math.max(1, Math.min(25, Math.floor(args.limit)));
 
-    const results = await ctx.vectorSearch("knowledgeBase", "by_embedding", {
+    const results = await ctx.vectorSearch("knowledgeBaseChunks", "by_embedding", {
       vector: args.queryEmbedding,
-      limit: safeLimit,
+      limit: safeLimit * 4,
       filter: (q) => q.eq("workspaceId", workspace._id),
     });
 
     type VectorSearchEntry = { entry: Doc<"knowledgeBase">; score: number };
-    const entries: Array<VectorSearchEntry | null> = await Promise.all(
+    const entries = new Map<string, VectorSearchEntry>();
+
+    const hydrated = await Promise.all(
       results.map(async (result) => {
-        const entry = await ctx.runQuery(internal.knowledgeBase.getByIdInternal, {
-          entryId: result._id,
+        const chunk = await ctx.runQuery(internal.knowledgeBase.getChunkByIdInternal, {
+          chunkId: result._id,
         });
-        return entry ? { entry, score: result._score } : null;
+        if (!chunk) return null;
+        const entry = await ctx.runQuery(internal.knowledgeBase.getByIdInternal, {
+          entryId: chunk.entryId,
+        });
+        if (!entry || entry.embeddingStatus !== "ready") return null;
+        return { entry, score: result._score };
       }),
     );
-    return entries.filter((entry): entry is VectorSearchEntry => entry !== null);
-  },
-});
 
-export const generateAndStoreEmbedding = internalAction({
-  args: { entryId: v.id("knowledgeBase") },
-  handler: async (ctx, args) => {
-    const entry = await ctx.runQuery(internal.knowledgeBase.getByIdInternal, {
-      entryId: args.entryId,
-    });
-    if (!entry) return;
-
-    try {
-      // Dynamic import so the module is resolved at runtime inside Convex
-      const { generateEmbedding } = await import("../lib/ai/embedding");
-      const text = `${entry.title}\n${entry.content}`;
-      const embedding = await generateEmbedding(text);
-      await ctx.runMutation(internal.knowledgeBase.storeEmbedding, {
-        entryId: args.entryId,
-        embedding,
-        status: "ready",
-      });
-    } catch (err) {
-      console.error("[knowledgeBase] embedding failed:", err);
-      await ctx.runMutation(internal.knowledgeBase.storeEmbedding, {
-        entryId: args.entryId,
-        embedding: undefined,
-        status: "failed",
-      });
+    for (const hydratedEntry of hydrated) {
+      if (!hydratedEntry) continue;
+      const existing = entries.get(hydratedEntry.entry._id);
+      if (!existing || hydratedEntry.score > existing.score) {
+        entries.set(hydratedEntry.entry._id, hydratedEntry);
+      }
     }
+
+    return [...entries.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, safeLimit);
   },
 });
 

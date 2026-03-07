@@ -10,6 +10,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import type { FunctionReturnType } from "convex/server";
 import { ERR_UNAUTHORIZED } from "@/convex/errors";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import { MAX_KB_CONTENT_CHARS } from "@/lib/knowledge-base/constants";
 
 const VALID_ENTRY_TYPES = new Set<KBEntryType>(KB_ENTRY_TYPES);
 
@@ -102,8 +103,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!content || typeof content !== "string" || content.trim().length === 0) {
     return NextResponse.json({ error: "content is required" }, { status: 400 });
   }
-  if (content.trim().length > 2000) {
-    return NextResponse.json({ error: "content must be 2000 characters or less" }, { status: 400 });
+  if (content.trim().length > MAX_KB_CONTENT_CHARS) {
+    return NextResponse.json(
+      { error: `content must be ${MAX_KB_CONTENT_CHARS} characters or less` },
+      { status: 400 },
+    );
   }
 
   const convex = await getAuthedConvexClient();

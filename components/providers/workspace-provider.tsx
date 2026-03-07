@@ -16,6 +16,7 @@ export interface WorkspaceView {
   url?: string;
   industry?: string;
   audienceDescription?: string;
+  masterContext?: string;
 }
 
 interface WorkspaceContextValue {

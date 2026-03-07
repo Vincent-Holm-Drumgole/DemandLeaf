@@ -28,6 +28,7 @@ import type * as helpers from "../helpers.js";
 import type * as internalLinks from "../internalLinks.js";
 import type * as keywords from "../keywords.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
+import type * as knowledgeBaseEmbeddings from "../knowledgeBaseEmbeddings.js";
 import type * as neverSayList from "../neverSayList.js";
 import type * as notifications from "../notifications.js";
 import type * as performanceMetrics from "../performanceMetrics.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   internalLinks: typeof internalLinks;
   keywords: typeof keywords;
   knowledgeBase: typeof knowledgeBase;
+  knowledgeBaseEmbeddings: typeof knowledgeBaseEmbeddings;
   neverSayList: typeof neverSayList;
   notifications: typeof notifications;
   performanceMetrics: typeof performanceMetrics;

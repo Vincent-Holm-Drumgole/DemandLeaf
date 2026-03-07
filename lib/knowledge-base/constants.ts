@@ -1,0 +1,6 @@
+export const MAX_KB_CONTENT_CHARS = 15_000;
+export const MAX_KB_IMPORT_ENTRIES = 100;
+export const MAX_KB_EMBED_CHUNK_CHARS = 6_000;
+export const MAX_KB_TAGS = 8;
+export const MAX_MASTER_CONTEXT_CHARS = 10_000;
+export const DEFAULT_KB_CONTEXT_TOKEN_BUDGET = 3_000;

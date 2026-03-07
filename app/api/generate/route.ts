@@ -101,6 +101,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         _id: Id<"workspaces">;
         plan?: string;
         trialEndsAt?: number;
+        masterContext?: string;
       }
     | null = null;
   if (userId) {
@@ -300,6 +301,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             archetype: archetype as Archetype,
             voiceProfile,
             companyContext,
+            masterContext: authedWorkspace?.masterContext,
             industry,
             audience,
             kbContext,
@@ -356,6 +358,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         // If generation was driven by an approved Phase 3 brief, persist the blog
         // to the workspace and link it to the brief + keyword.
         if (resolvedBriefId && authedWorkspace) {
+          const authedConvex = authedConvexClient;
+          if (!authedConvex) {
+            throw new Error("Authenticated Convex client unavailable for workspace persistence");
+          }
           try {
             const workspaceBlogId = await authedConvex.mutation(api.blogs.create, {
               workspaceId: authedWorkspace._id,

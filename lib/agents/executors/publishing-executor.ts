@@ -3,6 +3,7 @@ import { inngest } from "@/lib/inngest/client";
 import { parseConvexId } from "@/lib/convex-id";
 import { generateBlog } from "@/lib/ai/generator";
 import { generateEmbedding } from "@/lib/ai/embedding";
+import { DEFAULT_KB_CONTEXT_TOKEN_BUDGET } from "@/lib/knowledge-base/constants";
 import { selectKBContext } from "@/lib/knowledge-base/context-selector";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 import { formatTrainingSignals, type TrainingSignalsPayload } from "@/lib/scorecard/training-signals";
@@ -130,18 +131,29 @@ function buildCronKbContext(
 ): KBContextResult | undefined {
   if (entries.length === 0) return undefined;
   const limited = entries.slice(0, MAX_CRON_KB_ITEMS);
-  const items = limited.map((entry, index) => ({
-    entryId: entry._id,
-    entryType: entry.entryType as KBContextResult["items"][number]["entryType"],
-    title: entry.title,
-    content: entry.content,
-    similarityScore: Math.max(0, 1 - index * 0.08),
-  }));
-  const totalChars = items.reduce((sum, item) => sum + item.title.length + item.content.length, 0);
+  const charBudget = DEFAULT_KB_CONTEXT_TOKEN_BUDGET * 4;
+  const items: KBContextResult["items"] = [];
+  let totalChars = 0;
+
+  for (const [index, entry] of limited.entries()) {
+    const nextChars = entry.title.length + entry.content.length;
+    if (items.length > 0 && totalChars + nextChars > charBudget) {
+      break;
+    }
+    items.push({
+      entryId: entry._id,
+      entryType: entry.entryType as KBContextResult["items"][number]["entryType"],
+      title: entry.title,
+      content: entry.content,
+      similarityScore: Math.max(0, 1 - index * 0.08),
+    });
+    totalChars += nextChars;
+  }
+
   return {
     items,
     totalTokens: Math.ceil(totalChars / 4),
-    truncated: entries.length > limited.length,
+    truncated: entries.length > items.length,
   };
 }
 
@@ -356,6 +368,7 @@ export async function executePublishing(
     archetype,
     voiceProfile,
     companyContext: buildCompanyContext(workspace),
+    masterContext: workspace.masterContext,
     industry: workspace.industry ?? "General",
     audience: workspace.audienceDescription ?? "Business professionals",
     kbContext,

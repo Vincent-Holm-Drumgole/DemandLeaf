@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KBEntryCard } from "./kb-entry-card";
 import { KBEntryForm } from "./kb-entry-form";
+import { KBImportDialog } from "./kb-import-dialog";
 import type { KBEntry, KBEntryType } from "@/types";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -18,27 +20,33 @@ const ENTRY_TYPE_TABS: { value: string; label: string }[] = [
 ];
 
 export function KBList() {
+  const { currentWorkspace } = useWorkspace();
   const [entries, setEntries] = useState<KBEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<KBEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
 
   const fetchEntries = useCallback(async () => {
     setIsLoading(true);
     try {
       const url = activeTab !== "all" ? `/api/knowledge-base?type=${activeTab}` : "/api/knowledge-base";
-      const res = await apiFetch(url);
+      const res = await apiFetch(url, {
+        headers: { "x-workspace-id": currentWorkspace._id },
+      });
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setEntries(data.entries);
+      setError(null);
     } catch {
       setError("Failed to load knowledge base entries");
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, currentWorkspace._id]);
 
   useEffect(() => {
     void fetchEntries();
@@ -49,7 +57,10 @@ export function KBList() {
       if (editingEntry) {
         const res = await apiFetch(`/api/knowledge-base/${editingEntry.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-workspace-id": currentWorkspace._id,
+          },
           body: JSON.stringify(data),
         });
         if (!res.ok) {
@@ -59,7 +70,10 @@ export function KBList() {
       } else {
         const res = await apiFetch("/api/knowledge-base", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-workspace-id": currentWorkspace._id,
+          },
           body: JSON.stringify(data),
         });
         if (!res.ok) {
@@ -78,21 +92,61 @@ export function KBList() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this entry? This cannot be undone.")) return;
-    const res = await apiFetch(`/api/knowledge-base/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/knowledge-base/${id}`, {
+      method: "DELETE",
+      headers: { "x-workspace-id": currentWorkspace._id },
+    });
     if (res.ok) {
       setEntries((prev) => prev.filter((e) => e.id !== id));
+      setError(null);
     } else {
       setError("Failed to delete entry");
     }
   }
 
+  async function handleRetryFailed() {
+    if (isRetryingFailed) return;
+    setIsRetryingFailed(true);
+    setError(null);
+
+    try {
+      const res = await apiFetch("/api/knowledge-base/reindex", {
+        method: "POST",
+        headers: { "x-workspace-id": currentWorkspace._id },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error ?? "Failed to queue reindex");
+      }
+      void fetchEntries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to queue reindex");
+    } finally {
+      setIsRetryingFailed(false);
+    }
+  }
+
+  const failedEntriesCount = entries.filter((entry) => entry.embeddingStatus === "failed").length;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{entries.length} entries</p>
-        <Button onClick={() => { setEditingEntry(null); setFormOpen(true); }}>
-          Add Entry
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {failedEntriesCount > 0 && (
+            <Button variant="outline" onClick={handleRetryFailed} disabled={isRetryingFailed}>
+              {isRetryingFailed
+                ? "Retrying…"
+                : `Retry Failed Indexes (${failedEntriesCount})`}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            Upload Document
+          </Button>
+          <Button onClick={() => { setEditingEntry(null); setFormOpen(true); }}>
+            Add Entry
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -142,6 +196,15 @@ export function KBList() {
         entry={editingEntry}
         onClose={() => { setFormOpen(false); setEditingEntry(null); }}
         onSave={handleSave}
+      />
+
+      <KBImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setError(null);
+          void fetchEntries();
+        }}
       />
     </div>
   );

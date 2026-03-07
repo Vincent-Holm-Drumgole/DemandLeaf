@@ -3,7 +3,11 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { getWorkspaceAccess, requireCronAccess, requireWorkspaceAccess } from "./helpers";
+import {
+  getWorkspaceAccess,
+  requireCronAccess,
+  requireWorkspaceAdminAccess,
+} from "./helpers";
 import { ERR_UNAUTHORIZED, ERR_WORKSPACE_NOT_FOUND } from "./errors";
 import { planStatusValidator } from "./validators";
 
@@ -405,13 +409,15 @@ export const updateProfile = mutation({
     url: v.optional(v.string()),
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
+    masterContext: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireWorkspaceAccess(ctx, args.workspaceId);
+    await requireWorkspaceAdminAccess(ctx, args.workspaceId);
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.url !== undefined) patch.url = args.url;
     if (args.industry !== undefined) patch.industry = args.industry;
     if (args.audienceDescription !== undefined) patch.audienceDescription = args.audienceDescription;
+    if (args.masterContext !== undefined) patch.masterContext = args.masterContext;
     await ctx.db.patch(args.workspaceId, patch);
   },
 });
@@ -489,6 +495,10 @@ export const deleteWorkspace = mutation({
       .collect();
     const knowledgeBaseEntries = await ctx.db
       .query("knowledgeBase")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const knowledgeBaseChunks = await ctx.db
+      .query("knowledgeBaseChunks")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
       .collect();
     const neverSayEntries = await ctx.db
@@ -619,6 +629,7 @@ export const deleteWorkspace = mutation({
       blogEdits,
       calibrationHistory,
       knowledgeBaseEntries,
+      knowledgeBaseChunks,
       neverSayEntries,
       crawledPages,
       googleConnections,

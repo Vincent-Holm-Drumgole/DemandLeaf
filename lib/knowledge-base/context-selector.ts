@@ -1,4 +1,5 @@
 import type { Archetype, KBContextItem, KBContextResult } from "@/types";
+import { DEFAULT_KB_CONTEXT_TOKEN_BUDGET } from "./constants";
 
 interface KBEntryWithScore {
   entry: {
@@ -41,7 +42,7 @@ const CHARS_PER_TOKEN_ESTIMATE = 4;
 export function selectKBContext(
   candidates: KBEntryWithScore[],
   archetype: Archetype,
-  maxTokenBudget = 3000
+  maxTokenBudget = DEFAULT_KB_CONTEXT_TOKEN_BUDGET
 ): KBContextResult {
   // Take top 10 by original similarity score
   const top10 = candidates.slice(0, 10);

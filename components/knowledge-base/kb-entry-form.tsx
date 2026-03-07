@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { KBEntry, KBEntryType } from "@/types";
+import { MAX_KB_CONTENT_CHARS } from "@/lib/knowledge-base/constants";
 
-const KB_ENTRY_TYPES: { value: KBEntryType; label: string }[] = [
+const KB_ENTRY_TYPES: Array<{ value: KBEntryType; label: string }> = [
   { value: "company_info", label: "Company Info" },
   { value: "product", label: "Product" },
   { value: "audience", label: "Audience" },
@@ -35,8 +36,6 @@ const KB_ENTRY_TYPES: { value: KBEntryType; label: string }[] = [
   { value: "methodology", label: "Methodology" },
   { value: "thought_leadership_position", label: "Thought Leadership Position" },
 ];
-
-const MAX_CONTENT_CHARS = 2000;
 
 interface KBEntryFormProps {
   open: boolean;
@@ -74,8 +73,8 @@ export function KBEntryForm({ open, entry, onClose, onSave }: KBEntryFormProps) 
       setError("Title and content are required");
       return;
     }
-    if (content.length > MAX_CONTENT_CHARS) {
-      setError(`Content must be ${MAX_CONTENT_CHARS} characters or less`);
+    if (content.length > MAX_KB_CONTENT_CHARS) {
+      setError(`Content must be ${MAX_KB_CONTENT_CHARS} characters or less`);
       return;
     }
     setError(null);
@@ -92,7 +91,7 @@ export function KBEntryForm({ open, entry, onClose, onSave }: KBEntryFormProps) 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{entry ? "Edit Entry" : "Add Knowledge Base Entry"}</DialogTitle>
         </DialogHeader>
@@ -130,8 +129,8 @@ export function KBEntryForm({ open, entry, onClose, onSave }: KBEntryFormProps) 
           <div className="space-y-1.5">
             <div className="flex justify-between">
               <Label htmlFor="content">Content</Label>
-              <span className={`text-xs ${content.length > MAX_CONTENT_CHARS ? "text-destructive" : "text-muted-foreground"}`}>
-                {content.length}/{MAX_CONTENT_CHARS}
+              <span className={`text-xs ${content.length > MAX_KB_CONTENT_CHARS ? "text-destructive" : "text-muted-foreground"}`}>
+                {content.length}/{MAX_KB_CONTENT_CHARS}
               </span>
             </div>
             <Textarea
@@ -139,7 +138,7 @@ export function KBEntryForm({ open, entry, onClose, onSave }: KBEntryFormProps) 
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Paste the knowledge base content here..."
-              rows={6}
+              rows={12}
               required
             />
           </div>
