@@ -10,7 +10,7 @@ import { hasConvexErrorCode } from "@/lib/convex-error";
 
 // PUT /api/brief/[id]/reject — reject a brief
 export async function PUT(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { userId } = await auth();
@@ -30,9 +30,9 @@ export async function PUT(
 
   try {
     const convex = await getAuthedConvexClient();
-    const workspace = await requireRequestWorkspace(convex);
+    const workspace = await requireRequestWorkspace(convex, request);
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
     await convex.mutation(api.contentBriefs.reject, { briefId });
     return NextResponse.json({ ok: true });

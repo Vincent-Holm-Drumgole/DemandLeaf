@@ -8,6 +8,7 @@ import { Bot } from "lucide-react";
 import { AgentActionCard } from "@/components/agents/agent-action-card";
 import type { AgentType, AgentActionStatus } from "@/types";
 import { PaywallGate } from "@/components/billing/paywall-gate";
+import { useWorkspace } from "@/components/providers/workspace-provider";
 
 interface ActionData {
   id: string;
@@ -23,6 +24,7 @@ interface ActionData {
 
 export default function AgentsPage() {
   const { isLoaded, isSignedIn } = useAuthGuard();
+  const { currentWorkspace } = useWorkspace();
   const [actions, setActions] = useState<ActionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +47,9 @@ export default function AgentsPage() {
   }
 
   useEffect(() => {
+    if (!currentWorkspace?._id) return;
     void loadActions();
-  }, []);
+  }, [currentWorkspace?._id]);
 
   async function handleApprove(actionId: string) {
     const res = await fetch(`/api/agent-actions/${actionId}/approve`, {

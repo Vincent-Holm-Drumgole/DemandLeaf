@@ -61,10 +61,11 @@ export default function StrategyDetailPage() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !strategyId) return;
+    const controller = new AbortController();
 
     Promise.all([
-      fetch(`/api/strategy/${strategyId}`),
-      fetch(`/api/calendar?strategyId=${encodeURIComponent(strategyId)}`),
+      fetch(`/api/strategy/${strategyId}`, { signal: controller.signal }),
+      fetch(`/api/calendar?strategyId=${encodeURIComponent(strategyId)}`, { signal: controller.signal }),
     ])
       .then(async ([strategyResponse, calendarResponse]) => {
         const [strategyData, calendarData] = await Promise.all([
@@ -82,10 +83,13 @@ export default function StrategyDetailPage() {
         setData(strategyData);
         setCalendarItems(calendarData.items ?? []);
       })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load strategy"),
-      )
+      .catch((err) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load strategy");
+      })
       .finally(() => setIsLoading(false));
+
+    return () => controller.abort();
   }, [isLoaded, isSignedIn, strategyId]);
 
   if (!isLoaded || !isSignedIn) return null;
@@ -104,7 +108,8 @@ export default function StrategyDetailPage() {
         <p className="text-destructive">{error ?? "Strategy not found."}</p>
         <Button
           variant="link"
-          onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
+          disabled={!currentWorkspace?._id}
+          onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Strategies
         </Button>
@@ -121,7 +126,8 @@ export default function StrategyDetailPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
+            disabled={!currentWorkspace?._id}
+            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>

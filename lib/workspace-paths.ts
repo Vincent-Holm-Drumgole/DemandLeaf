@@ -1,6 +1,9 @@
 const DEFAULT_WORKSPACE_PATH = "/dashboard";
 
 export function buildWorkspacePath(workspaceId: string, path = DEFAULT_WORKSPACE_PATH): string {
+  if (!workspaceId) {
+    throw new Error("workspaceId is required");
+  }
   const normalizedPath = normalizeWorkspaceSubpath(path);
   return `/w/${workspaceId}${normalizedPath}`;
 }

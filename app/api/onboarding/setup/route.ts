@@ -100,9 +100,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 2. Update workspace profile
     await convex.mutation(api.workspaces.updateProfile, {
       workspaceId,
-      url: body.websiteUrl || undefined,
-      industry: body.industry || undefined,
-      audienceDescription: body.audienceDescription || undefined,
+      url: body.websiteUrl?.trim() || undefined,
+      industry: body.industry?.trim() || undefined,
+      audienceDescription: body.audienceDescription?.trim() || undefined,
     });
 
     // 3. Generate KB entries via Haiku
@@ -120,13 +120,21 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
 
       const entries = parseJsonResponse<KBEntry[]>(aiResult.content);
 
+      const VALID_ENTRY_TYPES = ["company_info", "product", "audience", "industry", "expert_insight"] as const;
+      type ValidEntryType = (typeof VALID_ENTRY_TYPES)[number];
+
       if (Array.isArray(entries)) {
         for (const entry of entries.slice(0, 5)) {
-          if (entry.entryType && entry.title && entry.content) {
+          if (
+            entry.entryType &&
+            VALID_ENTRY_TYPES.includes(entry.entryType as ValidEntryType) &&
+            entry.title &&
+            entry.content
+          ) {
             try {
               await convex.mutation(api.knowledgeBase.create, {
                 workspaceId,
-                entryType: entry.entryType as "company_info" | "product" | "audience" | "industry" | "expert_insight",
+                entryType: entry.entryType as ValidEntryType,
                 title: String(entry.title).slice(0, 200),
                 content: String(entry.content).slice(0, 2000),
                 tags: Array.isArray(entry.tags)
@@ -174,12 +182,13 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
     // 5. Add never-say terms
     if (Array.isArray(body.avoidWords)) {
       for (const word of body.avoidWords.slice(0, 20)) {
-        if (typeof word === "string" && word.trim().length > 0 && word.length <= 50) {
+        const trimmedWord = typeof word === "string" ? word.trim() : "";
+        if (trimmedWord.length > 0 && trimmedWord.length <= 50) {
           try {
             await convex.mutation(api.neverSayList.add, {
               workspaceId,
-              term: word.trim(),
-              termType: word.includes(" ") ? "phrase" : "word",
+              term: trimmedWord,
+              termType: trimmedWord.includes(" ") ? "phrase" : "word",
             });
           } catch {
             // Duplicate or limit — skip silently
@@ -205,6 +214,8 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
         // Fire-and-forget keyword discovery
         if (strategyId) {
           keywordsDiscovering = true;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30_000);
           fetch(`${request.nextUrl.origin}/api/strategy/${strategyId}/discover`, {
             method: "POST",
             headers: {
@@ -215,8 +226,11 @@ Audience Expertise: ${body.audienceExpertise || "intermediate"}`;
             body: JSON.stringify({
               competitorDomains: body.competitorDomains?.slice(0, 5) || [],
             }),
+            signal: controller.signal,
           }).catch((e) => {
             console.error("[onboarding] Keyword discovery fire-and-forget error:", e);
+          }).finally(() => {
+            clearTimeout(timeoutId);
           });
         }
       } catch (e) {

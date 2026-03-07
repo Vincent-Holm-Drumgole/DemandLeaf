@@ -100,6 +100,7 @@ function OutlineDisplay({ outline }: { outline: OutlineSection[] }) {
 export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
+
   const [modifications, setModifications] = useState<Partial<BriefData>>({});
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -135,7 +136,9 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Failed to reject brief");
       }
-      router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"));
+      if (currentWorkspace?._id) {
+        router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"));
+      }
     } catch (err) {
       // TODO: surface error to user (e.g., toast notification)
       console.error("Reject failed:", err);
@@ -182,7 +185,10 @@ export function BriefReview({ briefId, briefData, status }: BriefReviewProps) {
           </div>
         )}
         {status === "approved" && (
-          <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/dashboard"))}>
+          <Button
+            disabled={!currentWorkspace?._id}
+            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/dashboard"))}
+          >
             Generate Blog Post
           </Button>
         )}

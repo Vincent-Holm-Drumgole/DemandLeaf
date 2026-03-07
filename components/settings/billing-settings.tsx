@@ -88,10 +88,6 @@ export function BillingSettings() {
     }
   }
 
-  if (status === "loading" || status === "no_workspace") {
-    return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
-  }
-
   if (!isBillingEnabledClient) {
     return (
       <div className="space-y-4">

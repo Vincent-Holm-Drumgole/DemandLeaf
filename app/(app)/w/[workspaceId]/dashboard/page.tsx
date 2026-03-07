@@ -64,7 +64,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (!isLoaded || isLoading) {
+  if (!isLoaded || !isSignedIn || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading dashboard...</p>
@@ -92,7 +92,10 @@ export default function DashboardPage() {
               {data.blogs.length} of {data.total} blog{data.total !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"))}>
+          <Button
+            disabled={!currentWorkspace?._id}
+            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"))}
+          >
             Write New Blog
           </Button>
         </div>

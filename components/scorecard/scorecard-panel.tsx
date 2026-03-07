@@ -52,7 +52,7 @@ export function ScorecardPanel({ blogId, onSubmitted }: ScorecardPanelProps) {
   }
 
   async function handleSubmit() {
-    if (!allScored || submitting) return;
+    if (!allScored || submitting || !currentWorkspace?._id) return;
     setSubmitting(true);
     setError(null);
 

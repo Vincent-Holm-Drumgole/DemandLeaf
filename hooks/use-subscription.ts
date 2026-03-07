@@ -8,9 +8,7 @@ export type PlanStatus =
   | "trial"
   | "active"
   | "past_due"
-  | "canceled"
-  | "loading"
-  | "no_workspace";
+  | "canceled";
 
 export interface SubscriptionState {
   status: PlanStatus;

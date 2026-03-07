@@ -36,7 +36,7 @@ export async function GET(
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
     const brief = await convex.query(api.contentBriefs.getById, { briefId });
-    if (brief.workspaceId !== workspace._id) {
+    if (!brief || brief.workspaceId !== workspace._id) {
       return NextResponse.json({ error: "Brief not found" }, { status: 404 });
     }
     if (!isBriefData(brief.briefData)) {

@@ -25,7 +25,7 @@ function SettingsPageContent() {
   const { currentWorkspace } = useWorkspace();
   const defaultTab = searchParams.get("tab") ?? "account";
 
-  if (!isLoaded) {
+  if (!isLoaded || !currentWorkspace) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>

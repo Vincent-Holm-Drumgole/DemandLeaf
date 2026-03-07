@@ -66,11 +66,11 @@ export default function BlogPage() {
     fetch("/api/wp-connections")
       .then((r) => (r.ok ? r.json() : []))
       .then(setWpConnections)
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load WP connections:", err));
     fetch("/api/author-personas")
       .then((r) => (r.ok ? r.json() : []))
       .then(setAuthorPersonas)
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load author personas:", err));
   }, []);
 
   // Initialise local state once blog loads

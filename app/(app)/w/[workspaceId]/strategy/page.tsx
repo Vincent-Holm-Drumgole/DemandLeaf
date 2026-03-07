@@ -37,10 +37,10 @@ export default function StrategyPage() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    const controller = new AbortController();
     setIsLoading(true);
     setLoadError(null);
-    fetch("/api/strategy")
+    fetch("/api/strategy", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -50,10 +50,12 @@ export default function StrategyPage() {
       })
       .then((data) => setStrategies(data.strategies ?? []))
       .catch((err) => {
+        if (err instanceof Error && err.name === "AbortError") return;
         console.error(err);
         setLoadError("Failed to load strategies. Please try again.");
       })
       .finally(() => setIsLoading(false));
+    return () => controller.abort();
   }, [isLoaded, isSignedIn, fetchKey]);
 
   const handleOpenWizard = () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useOnboardingWizardStore, type WizardStep } from "@/store/onboarding-wizard-store";
+import { useOnboardingWizardStore } from "@/store/onboarding-wizard-store";
 import { StepWelcome } from "./steps/step-welcome";
 import { StepBusiness } from "./steps/step-business";
 import { StepAudience } from "./steps/step-audience";

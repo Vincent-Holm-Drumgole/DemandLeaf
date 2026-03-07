@@ -61,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }

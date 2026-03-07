@@ -4,6 +4,7 @@ import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useOnboardingWizardStore } from "@/store/onboarding-wizard-store";
 
 export function StepBusiness() {
@@ -46,12 +47,12 @@ export function StepBusiness() {
       <div className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="company-desc">What does your company do?</Label>
-          <textarea
+          <Textarea
             id="company-desc"
             placeholder="e.g. We're a B2B SaaS company that helps marketing teams automate their content workflow. Our platform integrates with CMS tools and uses AI to optimize publishing schedules."
             value={companyDescription}
             onChange={(e) => setCompanyDescription(e.target.value)}
-            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-[100px]"
             autoFocus
           />
           <p className="text-xs text-muted-foreground">
@@ -88,7 +89,7 @@ export function StepBusiness() {
             )}
           </div>
           {crawlError && (
-            <p className="text-xs text-muted-foreground">{crawlError}</p>
+            <p className="text-xs text-destructive">{crawlError}</p>
           )}
         </div>
 

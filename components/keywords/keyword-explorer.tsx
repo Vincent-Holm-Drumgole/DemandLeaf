@@ -37,6 +37,7 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
   }, [keywords, filters]);
 
   const handleGenerateBrief = async (keywordId: string) => {
+    if (!currentWorkspace?._id) return;
     setBriefError(null);
     setIsGenerating(keywordId);
     try {

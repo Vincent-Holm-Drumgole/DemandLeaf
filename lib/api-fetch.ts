@@ -31,7 +31,13 @@ function withWorkspaceHeader(
     return [input, init];
   }
 
-  const headers = new Headers(input instanceof Request ? input.headers : init?.headers);
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  if (init?.headers) {
+    const initHeaders = new Headers(init.headers);
+    initHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
   if (!headers.has("x-workspace-id")) {
     headers.set("x-workspace-id", workspaceId);
   }

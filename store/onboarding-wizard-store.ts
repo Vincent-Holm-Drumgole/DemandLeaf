@@ -115,7 +115,8 @@ export const useOnboardingWizardStore = create<OnboardingWizardState>(
     setCompetitorDomains: (competitorDomains) => set({ competitorDomains }),
 
     startCrawl: async () => {
-      const { url } = get();
+      const { url, isCrawling } = get();
+      if (isCrawling) return;
       set({ isCrawling: true, crawlError: null });
 
       try {

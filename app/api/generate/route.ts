@@ -355,69 +355,65 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         // If generation was driven by an approved Phase 3 brief, persist the blog
         // to the workspace and link it to the brief + keyword.
-        if (resolvedBriefId) {
+        if (resolvedBriefId && authedWorkspace) {
           try {
-            const authedConvex = await getAuthedConvexClient();
-            const workspace = await requireRequestWorkspace(authedConvex, request);
-            if (workspace) {
-              const workspaceBlogId = await authedConvex.mutation(api.blogs.create, {
-                workspaceId: workspace._id,
-                title: result.title,
-                slug: result.slug,
-                content: result.content,
-                contentHtml: result.contentHtml,
-                metaTitle: result.metaTitle,
-                metaDescription: result.metaDescription,
-                focusKeyword: result.focusKeyword,
-                archetype: result.archetype,
-                wordCount: result.wordCount,
-                status: "draft",
-                seoScore: result.scores.seoScore,
-                qualityScore: result.scores.qualityScore,
-                detectionRisk: result.scores.detectionRisk,
-                detectionRiskScore: result.scores.detectionRiskScore,
-                burstinessScore: result.scores.burstinessScore,
-                readabilityScore: result.scores.readabilityScore,
-                modelUsed: result.modelUsed,
-                inputTokens: result.totalInputTokens,
-                outputTokens: result.totalOutputTokens,
-                generationCostCents: result.totalCostCents,
-                generationTimeMs: result.generationTimeMs,
-                promptVersion: result.promptVersion,
+            const workspaceBlogId = await authedConvex.mutation(api.blogs.create, {
+              workspaceId: authedWorkspace._id,
+              title: result.title,
+              slug: result.slug,
+              content: result.content,
+              contentHtml: result.contentHtml,
+              metaTitle: result.metaTitle,
+              metaDescription: result.metaDescription,
+              focusKeyword: result.focusKeyword,
+              archetype: result.archetype,
+              wordCount: result.wordCount,
+              status: "draft",
+              seoScore: result.scores.seoScore,
+              qualityScore: result.scores.qualityScore,
+              detectionRisk: result.scores.detectionRisk,
+              detectionRiskScore: result.scores.detectionRiskScore,
+              burstinessScore: result.scores.burstinessScore,
+              readabilityScore: result.scores.readabilityScore,
+              modelUsed: result.modelUsed,
+              inputTokens: result.totalInputTokens,
+              outputTokens: result.totalOutputTokens,
+              generationCostCents: result.totalCostCents,
+              generationTimeMs: result.generationTimeMs,
+              promptVersion: result.promptVersion,
+            });
+            try {
+              await authedConvex.mutation(api.scoredOutputs.logGenerationContext, {
+                workspaceId: authedWorkspace._id,
+                blogId: workspaceBlogId,
+                fewShotBlogIds: trainingSignals.fewShotExamples.map((example) => example.blogId),
+                suppressedTags: trainingSignals.suppressedTags.map((tag) => ({
+                  dimension: tag.dimension,
+                  tag: tag.tag,
+                  count: tag.count,
+                })),
+                coachingNotes: trainingSignals.coachingNotes,
               });
+            } catch (contextErr) {
+              console.warn("[generate] generation context log failed:", contextErr);
+            }
+            try {
+              await authedConvex.mutation(api.contentBriefs.linkBlog, {
+                briefId: resolvedBriefId,
+                blogId: workspaceBlogId,
+              });
+            } catch (linkErr) {
+              console.warn("[generate] linkBlog failed:", linkErr);
+            }
+            // Phase 5: persist AEO score if available
+            if (result.aeoScore !== undefined) {
               try {
-                await authedConvex.mutation(api.scoredOutputs.logGenerationContext, {
-                  workspaceId: workspace._id,
+                await authedConvex.mutation(api.blogs.updatePublishingData, {
                   blogId: workspaceBlogId,
-                  fewShotBlogIds: trainingSignals.fewShotExamples.map((example) => example.blogId),
-                  suppressedTags: trainingSignals.suppressedTags.map((tag) => ({
-                    dimension: tag.dimension,
-                    tag: tag.tag,
-                    count: tag.count,
-                  })),
-                  coachingNotes: trainingSignals.coachingNotes,
+                  aeoScore: result.aeoScore,
                 });
-              } catch (contextErr) {
-                console.warn("[generate] generation context log failed:", contextErr);
-              }
-              try {
-                await authedConvex.mutation(api.contentBriefs.linkBlog, {
-                  briefId: resolvedBriefId,
-                  blogId: workspaceBlogId,
-                });
-              } catch (linkErr) {
-                console.warn("[generate] linkBlog failed:", linkErr);
-              }
-              // Phase 5: persist AEO score if available
-              if (result.aeoScore !== undefined) {
-                try {
-                  await authedConvex.mutation(api.blogs.updatePublishingData, {
-                    blogId: workspaceBlogId,
-                    aeoScore: result.aeoScore,
-                  });
-                } catch (aeoErr) {
-                  console.warn("[generate] aeoScore persist failed:", aeoErr);
-                }
+              } catch (aeoErr) {
+                console.warn("[generate] aeoScore persist failed:", aeoErr);
               }
             }
           } catch (linkErr) {

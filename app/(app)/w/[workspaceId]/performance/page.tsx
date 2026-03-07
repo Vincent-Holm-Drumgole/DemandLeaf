@@ -15,6 +15,7 @@ import type { ROIData } from "@/types";
 import { PaywallGate } from "@/components/billing/paywall-gate";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspaceApiUrl, buildWorkspacePath } from "@/lib/workspace-paths";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface AlertData {
   id: string;
@@ -38,13 +39,15 @@ export default function PerformancePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!currentWorkspace?._id) return;
     async function load() {
       setLoading(true);
       setError(null);
       try {
+        const headers = { "x-workspace-id": currentWorkspace._id };
         const [roiRes, alertsRes] = await Promise.all([
-          fetch("/api/roi"),
-          fetch("/api/decay-alerts"),
+          apiFetch("/api/roi", { headers }),
+          apiFetch("/api/decay-alerts", { headers }),
         ]);
         let hasError = false;
         if (roiRes.ok) setRoi(await roiRes.json());
@@ -58,7 +61,7 @@ export default function PerformancePage() {
       }
     }
     void load();
-  }, []);
+  }, [currentWorkspace?._id]);
 
   if (!isLoaded) {
     return (
@@ -70,7 +73,8 @@ export default function PerformancePage() {
   if (!isSignedIn) return null;
 
   async function handleAcknowledge(alertId: string) {
-    const res = await fetch(`/api/decay-alerts/${alertId}`, {
+    if (!currentWorkspace?._id) return;
+    const res = await fetch(buildWorkspaceApiUrl(`/api/decay-alerts/${alertId}`, currentWorkspace._id), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "acknowledge" }),
@@ -88,7 +92,8 @@ export default function PerformancePage() {
   }
 
   async function handleDiagnose(alertId: string) {
-    const res = await fetch(`/api/decay-alerts/${alertId}/diagnose`, {
+    if (!currentWorkspace?._id) return;
+    const res = await fetch(buildWorkspaceApiUrl(`/api/decay-alerts/${alertId}/diagnose`, currentWorkspace._id), {
       method: "POST",
     });
     if (!res.ok) {
@@ -107,6 +112,7 @@ export default function PerformancePage() {
   }
 
   function handleRefresh(alertId: string, blogId: string) {
+    if (!currentWorkspace?._id) return;
     router.push(buildWorkspacePath(currentWorkspace._id, `/performance/${blogId}?alert=${alertId}`));
   }
 
@@ -126,7 +132,9 @@ export default function PerformancePage() {
             <Button
               variant="outline"
               size="sm"
+              disabled={!currentWorkspace?._id}
               onClick={() =>
+                currentWorkspace?._id &&
                 window.open(
                   buildWorkspaceApiUrl("/api/report", currentWorkspace._id),
                   "_blank",
@@ -156,9 +164,9 @@ export default function PerformancePage() {
             <>
               {roi && !roi.available && (
                 <GoogleConnectBanner
-                  onConnect={() =>
-                    router.push(buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id))
-                  }
+                  onConnect={() => {
+                    window.location.href = buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id);
+                  }}
                 />
               )}
 
@@ -168,9 +176,9 @@ export default function PerformancePage() {
                 postsRanking={roi?.postsRanking ?? 0}
                 avgPosition={roi?.avgPosition ?? null}
                 googleConnected={roi?.available ?? false}
-                onConnect={() =>
-                  router.push(buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id))
-                }
+                onConnect={() => {
+                  window.location.href = buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id);
+                }}
               />
 
               {openAlerts.length > 0 && (

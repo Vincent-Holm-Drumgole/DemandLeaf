@@ -4,10 +4,11 @@ export const ACTIVE_WORKSPACE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 export function createActiveWorkspaceCookie(workspaceId: string) {
   return {
     name: ACTIVE_WORKSPACE_COOKIE,
-    value: workspaceId,
+    value: encodeURIComponent(workspaceId),
     path: "/",
     sameSite: "lax" as const,
     httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
     maxAge: ACTIVE_WORKSPACE_COOKIE_MAX_AGE,
   };
 }

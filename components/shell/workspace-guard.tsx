@@ -9,7 +9,10 @@ import { api } from "@/convex/_generated/api";
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const workspaces = useQuery(api.workspaces.listForViewer, {});
+  const workspaces = useQuery(
+    api.workspaces.listForViewer,
+    isLoaded && isSignedIn ? {} : "skip"
+  );
 
   const needsOnboarding = isLoaded && isSignedIn && workspaces !== undefined && workspaces.length === 0;
 

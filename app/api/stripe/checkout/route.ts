@@ -28,13 +28,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID;
-  if (!priceId) {
-    return NextResponse.json(
-      { error: "Billing not configured" },
-      { status: 500 }
-    );
-  }
+  const priceId = process.env.STRIPE_PRICE_ID!;
 
   const convex = await getAuthedConvexClient();
   const workspace = await requireRequestWorkspace(convex, request);

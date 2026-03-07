@@ -243,9 +243,11 @@ ${safeKbContext}
   }
 
   if (input.trainingContext?.trim()) {
+    const safeTrainingContext = sanitizeXmlContent(input.trainingContext);
     message += `
-WORKSPACE TRAINING SIGNALS:
-${input.trainingContext.trim()}
+<training_signals>
+${safeTrainingContext}
+</training_signals>
 `;
   }
 

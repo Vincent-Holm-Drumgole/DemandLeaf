@@ -44,7 +44,7 @@ export async function getWorkspaceAccess(
 }
 
 /**
- * Asserts that the calling user is authenticated and owns the given workspace.
+ * Asserts that the calling user is authenticated and has access to the given workspace.
  * Throws "Unauthenticated" or "Unauthorized" so callers can propagate them as
  * 401/403 errors at the API layer.
  */

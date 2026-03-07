@@ -10,15 +10,7 @@ interface PaywallGateProps {
 }
 
 export function PaywallGate({ children, fallback }: PaywallGateProps) {
-  const { needsUpgrade, status } = useSubscription();
-
-  if (status === "loading" || status === "no_workspace") {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Skeleton className="h-48 w-full max-w-md rounded-lg" />
-      </div>
-    );
-  }
+  const { needsUpgrade } = useSubscription();
 
   if (needsUpgrade) {
     return <>{fallback ?? <UpgradeCTA />}</>;

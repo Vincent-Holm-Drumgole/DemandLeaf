@@ -57,7 +57,7 @@ export async function PUT(
     const convex = await getAuthedConvexClient();
     const workspace = await requireRequestWorkspace(convex, request);
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
 
     await convex.mutation(api.contentCalendar.update, {

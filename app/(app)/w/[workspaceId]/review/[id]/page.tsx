@@ -34,7 +34,7 @@ export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
-  const blogId = params.id as string;
+  const blogId = typeof params.id === "string" ? params.id : "";
   const { generationResult, sessionId } = useOnboardingStore();
   const [savedBlog, setSavedBlog] = useState<SavedBlogResponse | null>(null);
   const [savedBlogError, setSavedBlogError] = useState<string | null>(null);

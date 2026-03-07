@@ -90,8 +90,12 @@ function getWorkspaceIdFromRequestLike(
   }
 
   if (requestLike?.url) {
-    const url = new URL(requestLike.url);
-    return url.searchParams.get("workspaceId")?.trim() || undefined;
+    try {
+      const url = new URL(requestLike.url, "http://localhost");
+      return url.searchParams.get("workspaceId")?.trim() || undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   return undefined;
@@ -101,10 +105,10 @@ export async function requireRequestWorkspace(
   convex: ConvexHttpClient,
   requestLike?: Request | { headers: Headers; url?: string },
 ) {
-  const currentHeaders = requestLike?.headers ?? (await headers());
+  const effectiveHeaders = requestLike?.headers ?? (await headers());
+  const effectiveRequest = requestLike ?? { headers: effectiveHeaders };
   const workspaceId =
-    getWorkspaceIdFromRequestLike(requestLike) ??
-    currentHeaders.get("x-workspace-id")?.trim() ??
+    getWorkspaceIdFromRequestLike(effectiveRequest) ??
     (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value?.trim() ??
     undefined;
 

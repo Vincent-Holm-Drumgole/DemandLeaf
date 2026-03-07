@@ -6,7 +6,7 @@ export function sanitizeRelativeRedirectUrl(
     return fallback;
   }
 
-  if (!value.startsWith("/") || value.startsWith("//")) {
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
     return fallback;
   }
 

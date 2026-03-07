@@ -75,7 +75,7 @@ export function StepVoice() {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label>Tone (pick 2-4)</Label>
+          <Label>Tone (pick 1 or more)</Label>
           <div className="flex flex-wrap gap-2">
             {TONE_OPTIONS.map((tone) => (
               <button

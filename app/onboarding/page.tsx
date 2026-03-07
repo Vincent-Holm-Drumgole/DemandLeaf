@@ -13,7 +13,10 @@ function OnboardingPageContent() {
   const { isLoaded, isSignedIn } = useAuthGuard();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const workspaces = useQuery(api.workspaces.listForViewer, {});
+  const workspaces = useQuery(
+    api.workspaces.listForViewer,
+    isLoaded && isSignedIn ? {} : "skip"
+  );
   const isNewWorkspaceMode = searchParams.get("mode") === "new-workspace";
 
   useEffect(() => {
@@ -27,6 +30,7 @@ function OnboardingPageContent() {
 
   if (
     !isLoaded ||
+    !isSignedIn ||
     workspaces === undefined ||
     (!isNewWorkspaceMode && workspaces.length > 0)
   ) {

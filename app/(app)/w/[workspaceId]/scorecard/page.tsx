@@ -24,7 +24,7 @@ export default function ScorecardPage() {
       </div>
     );
   }
-  if (!isSignedIn) return null;
+  if (!isSignedIn || !currentWorkspace) return null;
 
   return (
     <PaywallGate>

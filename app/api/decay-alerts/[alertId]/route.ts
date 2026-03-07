@@ -7,7 +7,7 @@ import { parseConvexId } from "@/lib/convex-id";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ alertId: string }> }
 ) {
   const { userId } = await auth();
@@ -33,9 +33,9 @@ export async function GET(
   }
 
   const convex = await getAuthedConvexClient();
-  const workspace = await requireRequestWorkspace(convex);
+  const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
-    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
   const alert = await convex.query(api.decayAlerts.getById, { alertId });
@@ -110,7 +110,7 @@ export async function PATCH(
   const convex = await getAuthedConvexClient();
   const workspace = await requireRequestWorkspace(convex, request);
   if (!workspace) {
-    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
   try {

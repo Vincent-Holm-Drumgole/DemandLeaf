@@ -9,6 +9,8 @@ import Link from "next/link";
 export function UpgradeCTA() {
   const { currentWorkspace } = useWorkspace();
 
+  if (!currentWorkspace) return null;
+
   return (
     <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border bg-muted/30 px-6 py-12 text-center">
       <Lock className="mb-4 h-10 w-10 text-muted-foreground" />

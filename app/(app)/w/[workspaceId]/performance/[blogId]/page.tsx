@@ -76,8 +76,8 @@ export default function BlogPerformancePage() {
           setAlerts(data.alerts);
           setGoogleConnected(data.googleConnected);
         }
-        if (!snapRes.ok && !perfRes.ok) {
-          setError("Failed to load performance data");
+        if (!snapRes.ok || !perfRes.ok) {
+          setError("Some performance data failed to load");
         }
       } catch {
         setError("Network error loading performance data");
@@ -85,8 +85,8 @@ export default function BlogPerformancePage() {
         setLoading(false);
       }
     }
-    if (blogId) void load();
-  }, [blogId]);
+    if (blogId && isLoaded && isSignedIn) void load();
+  }, [blogId, isLoaded, isSignedIn]);
 
   async function handleCheckNow() {
     setChecking(true);
@@ -139,7 +139,8 @@ export default function BlogPerformancePage() {
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8"
-                onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/performance"))}
+                disabled={!currentWorkspace?._id}
+                onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/performance"))}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -175,6 +176,7 @@ export default function BlogPerformancePage() {
               {!googleConnected && (
                 <GoogleConnectBanner
                   onConnect={() =>
+                    currentWorkspace?._id &&
                     router.push(buildWorkspaceApiUrl("/api/google-auth", currentWorkspace._id))
                   }
                 />

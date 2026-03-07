@@ -23,7 +23,7 @@ export async function DELETE(
   const convex = await getAuthedConvexClient();
   const workspace = await requireRequestWorkspace(convex);
   if (!workspace) {
-    return NextResponse.json({ error: "Workspace required" }, { status: 403 });
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
   try {

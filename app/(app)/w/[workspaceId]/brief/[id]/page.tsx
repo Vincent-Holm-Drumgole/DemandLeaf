@@ -46,7 +46,7 @@ export default function BriefDetailPage() {
       .finally(() => setIsLoading(false));
   }, [isLoaded, isSignedIn, briefId]);
 
-  if (!isLoaded || !isSignedIn) return null;
+  if (!isLoaded || !isSignedIn || !currentWorkspace) return null;
 
   if (isLoading) {
     return (
