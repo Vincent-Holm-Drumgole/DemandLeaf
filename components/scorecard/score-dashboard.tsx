@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import { HeadlineCards } from "./headline-cards";
 import { ScoreTrendChart } from "./score-trend-chart";
 import { DimensionRadar } from "./dimension-radar";
@@ -39,7 +40,11 @@ interface DashboardData {
   }>;
 }
 
-export function ScoreDashboard() {
+interface ScoreDashboardProps {
+  workspaceId: string;
+}
+
+export function ScoreDashboard({ workspaceId }: ScoreDashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +54,9 @@ export function ScoreDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/scorecard/dashboard");
+        const res = await apiFetch("/api/scorecard/dashboard", {
+          headers: { "x-workspace-id": workspaceId },
+        });
         if (!res.ok) throw new Error("Failed to load dashboard");
         setData(await res.json());
       } catch {
@@ -59,7 +66,7 @@ export function ScoreDashboard() {
       }
     }
     void load();
-  }, []);
+  }, [workspaceId]);
 
   if (loading) {
     return (

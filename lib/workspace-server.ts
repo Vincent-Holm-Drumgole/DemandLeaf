@@ -105,6 +105,7 @@ export async function requireRequestWorkspace(
   const workspaceId =
     getWorkspaceIdFromRequestLike(requestLike) ??
     currentHeaders.get("x-workspace-id")?.trim() ??
+    (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value?.trim() ??
     undefined;
 
   if (!workspaceId) {

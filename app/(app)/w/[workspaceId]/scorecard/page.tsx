@@ -62,7 +62,7 @@ export default function ScorecardPage() {
           {tab === "queue" ? (
             <ReviewQueue workspaceId={currentWorkspace._id} />
           ) : (
-            <ScoreDashboard />
+            <ScoreDashboard workspaceId={currentWorkspace._id} />
           )}
         </div>
       </div>

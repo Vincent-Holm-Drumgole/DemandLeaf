@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-fetch";
 import { UnscoredBlogRow } from "./unscored-blog-row";
 import { CheckCircle2 } from "lucide-react";
 
@@ -30,7 +31,9 @@ export function ReviewQueue({ workspaceId, totalScored }: ReviewQueueProps) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/scorecard/queue");
+        const res = await apiFetch("/api/scorecard/queue", {
+          headers: { "x-workspace-id": workspaceId },
+        });
         if (!res.ok) throw new Error("Failed to load queue");
         const data = await res.json();
         setBlogs(data.blogs);
@@ -41,7 +44,7 @@ export function ReviewQueue({ workspaceId, totalScored }: ReviewQueueProps) {
       }
     }
     void load();
-  }, []);
+  }, [workspaceId]);
 
   if (loading) {
     return (

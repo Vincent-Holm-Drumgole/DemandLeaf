@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useWorkspace } from "@/components/providers/workspace-provider";
+import { apiFetch } from "@/lib/api-fetch";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { DimensionScorer } from "./dimension-scorer";
 import { CoachingNoteInput } from "./coaching-note-input";
@@ -28,6 +30,7 @@ const emptyTags: DimensionTags = {
 };
 
 export function ScorecardPanel({ blogId, onSubmitted }: ScorecardPanelProps) {
+  const { currentWorkspace } = useWorkspace();
   const [scores, setScores] = useState<DimensionScores>({});
   const [tags, setTags] = useState<DimensionTags>({ ...emptyTags });
   const [coachingNote, setCoachingNote] = useState("");
@@ -58,9 +61,12 @@ export function ScorecardPanel({ blogId, onSubmitted }: ScorecardPanelProps) {
     );
 
     try {
-      const res = await fetch("/api/scorecard/submit", {
+      const res = await apiFetch("/api/scorecard/submit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": currentWorkspace._id,
+        },
         body: JSON.stringify({
           blogId,
           brandVoice: scores.brandVoice,

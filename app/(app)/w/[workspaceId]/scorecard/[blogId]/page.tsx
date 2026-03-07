@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 
 interface BlogData {
@@ -42,10 +43,13 @@ export default function ScoringPage() {
       setLoading(true);
       setError(null);
       try {
+        const workspaceHeaders = {
+          "x-workspace-id": currentWorkspace._id,
+        };
         const [blogRes, scoreRes, queueRes] = await Promise.all([
-          fetch(`/api/blog/${blogId}`),
-          fetch(`/api/scorecard/blog/${blogId}`),
-          fetch("/api/scorecard/queue?limit=5"),
+          apiFetch(`/api/blog/${blogId}`, { headers: workspaceHeaders }),
+          apiFetch(`/api/scorecard/blog/${blogId}`, { headers: workspaceHeaders }),
+          apiFetch("/api/scorecard/queue?limit=5", { headers: workspaceHeaders }),
         ]);
 
         if (!blogRes.ok) throw new Error("Blog not found");
@@ -71,7 +75,7 @@ export default function ScoringPage() {
       }
     }
     void load();
-  }, [blogId]);
+  }, [blogId, currentWorkspace._id]);
 
   function handleSubmitted() {
     setAlreadyScored(true);
