@@ -54,9 +54,14 @@ export function WizardStepDiscovery() {
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-destructive mb-4">{error}</p>
-          <Button onClick={() => currentStrategyId && runDiscovery(currentStrategyId)}>
-            Retry
-          </Button>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" onClick={() => currentStrategyId && runDiscovery(currentStrategyId)}>
+              Retry
+            </Button>
+            <Button onClick={() => setStep(WIZARD_STEP.CLUSTERS)}>
+              Skip &amp; Continue
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -123,7 +128,7 @@ export function WizardStepDiscovery() {
               {discoveredKeywords.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No keywords found. Try different seeds.
+                    No additional keywords discovered. You can still continue with your seed keywords.
                   </TableCell>
                 </TableRow>
               )}
@@ -133,7 +138,6 @@ export function WizardStepDiscovery() {
         <Button
           className="w-full mt-4"
           onClick={() => setStep(WIZARD_STEP.CLUSTERS)}
-          disabled={discoveredKeywords.length === 0}
         >
           Continue to Clustering
         </Button>

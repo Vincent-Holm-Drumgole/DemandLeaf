@@ -40,7 +40,14 @@ export async function discoverKeywords(
 
   // Remove seeds themselves and cap at 500
   const seedSet = new Set(seeds.map((s) => s.toLowerCase().trim()));
-  return Array.from(discovered)
+  const expanded = Array.from(discovered)
     .filter((kw) => !seedSet.has(kw) && kw.length > 0)
     .slice(0, 500);
+
+  // Fall back to seed keywords when external discovery returns nothing
+  if (expanded.length === 0) {
+    return seeds.map((s) => s.toLowerCase().trim()).filter((s) => s.length > 0);
+  }
+
+  return expanded;
 }
