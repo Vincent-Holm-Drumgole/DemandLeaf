@@ -12,6 +12,7 @@ import { scoreOpportunity } from "@/lib/strategy/opportunity-scorer";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import type { SearchIntent } from "@/types";
 
 export const maxDuration = 300;
 
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const metricsMap = new Map(metrics.map((m) => [m.keyword.toLowerCase(), m]));
 
     // 3. Classify intents
-    const intents = await classifyIntents(keywordStrings);
+    const intents: Map<string, SearchIntent> = await classifyIntents(keywordStrings);
 
     // 4. Score opportunities + bulk create in Convex
     const ids: FunctionReturnType<typeof api.keywords.bulkCreate> = await convex.mutation(

@@ -12,6 +12,7 @@ import { scoreOpportunity } from "@/lib/strategy/opportunity-scorer";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
 import { hasConvexErrorCode } from "@/lib/convex-error";
+import type { SearchIntent } from "@/types";
 
 // POST /api/strategy/[id]/discover — full keyword discovery pipeline
 export async function POST(
@@ -82,7 +83,7 @@ export async function POST(
     }
 
     // 3. Classify intents (graceful if AI unavailable)
-    let intents = new Map<string, string>();
+    let intents = new Map<string, SearchIntent>();
     try {
       intents = await classifyIntents(keywordStrings);
     } catch (intentErr) {
