@@ -94,7 +94,7 @@ export default function DashboardPage() {
           </div>
           <Button
             disabled={!currentWorkspace?._id}
-            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"))}
+            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
           >
             Write New Blog
           </Button>

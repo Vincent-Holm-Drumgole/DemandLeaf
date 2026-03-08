@@ -16,9 +16,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }
 
-  const planning = await convex.query(api.contentCalendar.getPlanningOverview, {
-    workspaceId: workspace._id,
-  });
-
-  return NextResponse.json(planning);
+  try {
+    const planning = await convex.query(api.contentCalendar.getPlanningOverview, {
+      workspaceId: workspace._id,
+    });
+    return NextResponse.json(planning);
+  } catch (error) {
+    console.error("[calendar/planning] Failed to fetch planning overview:", error);
+    return NextResponse.json({ error: "Failed to load planning data" }, { status: 500 });
+  }
 }

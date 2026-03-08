@@ -25,24 +25,28 @@ export const monthlyKbReviewReminder = inngest.createFunction(
     let notifications = 0;
 
     for (const workspace of workspaces) {
-      const dueEntries = await step.run(`load-due-entries-${workspace._id}`, async () =>
-        convex.query(api.knowledgeBase.listDueForReviewForCron, {
-          workspaceId: workspace._id,
-          cronKey,
-        }),
-      );
-      if (dueEntries.length === 0) continue;
+      try {
+        const dueEntries = await step.run(`load-due-entries-${workspace._id}`, async () =>
+          convex.query(api.knowledgeBase.listDueForReviewForCron, {
+            workspaceId: workspace._id,
+            cronKey,
+          }),
+        );
+        if (dueEntries.length === 0) continue;
 
-      await step.run(`create-review-notification-${workspace._id}`, async () =>
-        convex.mutation(api.notifications.createForCron, {
-          workspaceId: workspace._id,
-          type: "kb_review_due",
-          title: "Knowledge base review due",
-          body: `${dueEntries.length} entries have not been verified in the last 90 days.`,
-          cronKey,
-        }),
-      );
-      notifications += 1;
+        await step.run(`create-review-notification-${workspace._id}`, async () =>
+          convex.mutation(api.notifications.createForCron, {
+            workspaceId: workspace._id,
+            type: "kb_review_due",
+            title: "Knowledge base review due",
+            body: `${dueEntries.length} entries have not been verified in the last 90 days.`,
+            cronKey,
+          }),
+        );
+        notifications += 1;
+      } catch (error) {
+        console.error(`[kb-review-reminder] Failed for workspace ${workspace._id}:`, error);
+      }
     }
 
     return { processed: workspaces.length, notifications };

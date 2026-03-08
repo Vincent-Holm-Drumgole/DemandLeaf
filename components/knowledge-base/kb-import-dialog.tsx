@@ -374,7 +374,7 @@ export function KBImportDialog({ open, onClose, onImported }: KBImportDialogProp
           <Button
             type="button"
             onClick={handleImport}
-            disabled={entries.length === 0 || includedCount === 0 || isImporting}
+            disabled={entries.length === 0 || includedCount === 0 || includedCount > MAX_KB_IMPORT_ENTRIES || isImporting}
           >
             {isImporting ? "Importing…" : `Import ${includedCount || ""} Entries`}
           </Button>

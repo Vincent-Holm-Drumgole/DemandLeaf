@@ -42,7 +42,9 @@ export async function PATCH(request: NextRequest, context: RouteParams): Promise
     keywords: Array.isArray(body.keywords)
       ? body.keywords.filter((keyword): keyword is string => typeof keyword === "string" && keyword.trim().length > 0)
       : undefined,
-    status: body.status,
+    status: body.status === "active" || body.status === "paused" || body.status === "error"
+      ? body.status
+      : undefined,
   });
 
   return NextResponse.json({ success: true });

@@ -129,11 +129,11 @@ function countRepeatedSentenceOpeners(sentences: string[]): number {
     if (!opener) continue;
     if (opener === last) {
       streak += 1;
+      if (streak === 3) count += 1;
     } else {
       last = opener;
       streak = 1;
     }
-    if (streak >= 3) count += 1;
   }
   return count;
 }
