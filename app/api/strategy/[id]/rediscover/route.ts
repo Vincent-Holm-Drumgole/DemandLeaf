@@ -22,7 +22,7 @@ export async function POST(
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rateLimit = await checkRateLimit(`strategy-discover:${userId}`, { limit: 20, windowSec: 3600 });
+  const rateLimit = await checkRateLimit(`strategy-rediscover:${userId}`, { limit: 20, windowSec: 3600 });
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Too many requests" }, {
       status: 429,
