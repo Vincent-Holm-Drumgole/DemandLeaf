@@ -52,6 +52,47 @@ export async function GET(
   }
 }
 
+// DELETE /api/strategy/[id] — delete strategy and all children
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rateLimit = await checkRateLimit(`strategy-delete:${userId}`, { limit: 5, windowSec: 3600 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, {
+      status: 429,
+      headers: { "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))) },
+    });
+  }
+
+  const { id } = await params;
+  const strategyId = parseConvexId(id, "strategies");
+  if (!strategyId) return NextResponse.json({ error: "Invalid strategy id" }, { status: 400 });
+
+  try {
+    const convex = await getAuthedConvexClient();
+    const workspace = await requireRequestWorkspace(convex);
+    if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
+    await convex.query(api.strategies.getByIdInternal, { strategyId, workspaceId: workspace._id });
+    await convex.mutation(api.strategies.deleteWithCascade, { strategyId });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (hasConvexErrorCode(err, ERR_STRATEGY_NOT_FOUND)) {
+      return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
+    }
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.error("[strategy/[id]/DELETE] error:", err);
+    return NextResponse.json({ error: "Failed to delete strategy" }, { status: 500 });
+  }
+}
+
 // PATCH /api/strategy/[id] — update name / outcomes
 export async function PATCH(
   request: NextRequest,

@@ -110,6 +110,58 @@ export const updateDriftCheckedAt = mutation({
   },
 });
 
+export const deleteWithCascade = mutation({
+  args: { strategyId: v.id("strategies") },
+  handler: async (ctx, args) => {
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, strategy.workspaceId);
+
+    const [keywords, clusters, briefs, calendar, competitors] = await Promise.all([
+      ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
+      ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(100),
+      ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(200),
+      ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
+      ctx.db.query("competitorTracking").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(50),
+    ]);
+
+    await Promise.all([
+      ...keywords.map((d) => ctx.db.delete(d._id)),
+      ...clusters.map((d) => ctx.db.delete(d._id)),
+      ...briefs.map((d) => ctx.db.delete(d._id)),
+      ...calendar.map((d) => ctx.db.delete(d._id)),
+      ...competitors.map((d) => ctx.db.delete(d._id)),
+    ]);
+
+    await ctx.db.delete(args.strategyId);
+  },
+});
+
+export const clearDiscoveryData = mutation({
+  args: { strategyId: v.id("strategies") },
+  handler: async (ctx, args) => {
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
+    await requireWorkspaceAccess(ctx, strategy.workspaceId);
+
+    const [keywords, clusters, briefs, calendar] = await Promise.all([
+      ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
+      ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(100),
+      ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(200),
+      ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
+    ]);
+
+    await Promise.all([
+      ...keywords.map((d) => ctx.db.delete(d._id)),
+      ...clusters.map((d) => ctx.db.delete(d._id)),
+      ...briefs.map((d) => ctx.db.delete(d._id)),
+      ...calendar.map((d) => ctx.db.delete(d._id)),
+    ]);
+
+    await ctx.db.patch(args.strategyId, { updatedAt: Date.now() });
+  },
+});
+
 // Internal query used by API routes that need workspace validation separately
 export const getByIdInternal = query({
   args: { strategyId: v.id("strategies"), workspaceId: v.id("workspaces") },

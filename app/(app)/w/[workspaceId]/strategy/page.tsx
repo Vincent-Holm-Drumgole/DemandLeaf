@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Loader2, TrendingUp } from "lucide-react";
+import { Plus, Loader2, TrendingUp, Copy, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ export default function StrategyPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
   const [showWizard, setShowWizard] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const { reset } = useStrategyStore();
 
   useEffect(() => {
@@ -65,6 +66,71 @@ export default function StrategyPage() {
     setShowWizard(false);
     if (!currentWorkspace?._id) return;
     router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${strategyId}`));
+  };
+
+  const handleDelete = async (e: React.MouseEvent, strategyId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Delete this strategy and all its keywords, clusters, briefs, and calendar items? This cannot be undone.")) return;
+    setBusyId(strategyId);
+    try {
+      const res = await fetch(`/api/strategy/${strategyId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to delete");
+      }
+      setStrategies((prev) => prev.filter((s) => s._id !== strategyId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete strategy");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleClone = async (e: React.MouseEvent, strategyId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBusyId(strategyId);
+    try {
+      const res = await fetch("/api/strategy/clone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategyId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to clone");
+      }
+      const data = await res.json();
+      if (currentWorkspace?._id) {
+        router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${data.strategyId}`));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to clone strategy");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRediscover = async (e: React.MouseEvent, strategyId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Re-run keyword discovery? This will clear existing keywords, clusters, briefs, and calendar items.")) return;
+    setBusyId(strategyId);
+    try {
+      const res = await fetch(`/api/strategy/${strategyId}/rediscover`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to re-discover");
+      }
+      if (currentWorkspace?._id) {
+        router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${strategyId}`));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to re-run discovery");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   if (!isLoaded || !isSignedIn) return null;
@@ -130,9 +196,45 @@ export default function StrategyPage() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{strategy.name}</CardTitle>
-                      <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
-                        {strategy.status}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Clone strategy"
+                          disabled={busyId === strategy._id}
+                          onClick={(e) => handleClone(e, strategy._id)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Re-run keyword discovery"
+                          disabled={busyId === strategy._id}
+                          onClick={(e) => handleRediscover(e, strategy._id)}
+                        >
+                          {busyId === strategy._id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          title="Delete strategy"
+                          disabled={busyId === strategy._id}
+                          onClick={(e) => handleDelete(e, strategy._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
+                          {strategy.status}
+                        </Badge>
+                      </div>
                     </div>
                     <CardDescription className="line-clamp-2">
                       {strategy.businessOutcomes}
