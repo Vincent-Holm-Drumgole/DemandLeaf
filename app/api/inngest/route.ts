@@ -12,6 +12,8 @@ import { blogPublishedLinksAgent } from "@/lib/inngest/functions/blog-published-
 import { weeklyCompetitiveAgent } from "@/lib/inngest/functions/weekly-competitive-agent";
 import { quarterlyDriftAgent } from "@/lib/inngest/functions/quarterly-drift-agent";
 import { dailyPublishingAgent } from "@/lib/inngest/functions/daily-publishing-agent";
+import { dailyResearchMonitor } from "@/lib/inngest/functions/daily-research-monitor";
+import { monthlyKbReviewReminder } from "@/lib/inngest/functions/monthly-kb-review-reminder";
 // Phase 8: Agent Coordination
 import { onStrategyDriftApplied } from "@/lib/inngest/functions/on-strategy-drift-applied";
 import { onCompetitiveResponseApplied } from "@/lib/inngest/functions/on-competitive-response-applied";
@@ -32,6 +34,8 @@ export const { GET, POST, PUT } = serve({
     weeklyCompetitiveAgent,
     quarterlyDriftAgent,
     dailyPublishingAgent,
+    dailyResearchMonitor,
+    monthlyKbReviewReminder,
     // Phase 8 coordination
     onStrategyDriftApplied,
     onCompetitiveResponseApplied,

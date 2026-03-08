@@ -8,7 +8,13 @@ export type AgentType =
   | "strategy_drift"
   | "publishing";
 export type AgentActionStatus = "pending" | "approved" | "rejected" | "executing" | "done" | "failed";
-export type NotificationType = "agent_action_ready" | "agent_action_done" | "agent_action_failed";
+export type NotificationType =
+  | "agent_action_ready"
+  | "agent_action_done"
+  | "agent_action_failed"
+  | "kb_review_due"
+  | "research_brief_ready"
+  | "trend_report_ready";
 
 export interface AgentAction {
   _id: string;
@@ -122,7 +128,7 @@ export interface Notification {
   _id: string;
   workspaceId: string;
   type: NotificationType;
-  agentType: AgentType;
+  agentType?: AgentType;
   agentActionId?: string;
   title: string;
   body: string;

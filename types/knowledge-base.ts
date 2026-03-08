@@ -16,6 +16,34 @@ export const KB_ENTRY_TYPES = [
 export type KBEntryType = (typeof KB_ENTRY_TYPES)[number];
 
 export type KBEmbeddingStatus = "pending" | "ready" | "failed";
+export type KBCapabilityStatus = "current" | "planned";
+export type KBClaimConfidence = "verified" | "observed" | "directional";
+
+export interface KBClaim {
+  id: string;
+  entryId: string;
+  statement: string;
+  sourceName: string;
+  sourceUrl?: string;
+  confidence: KBClaimConfidence;
+  lastCheckedAt: number;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface KBVersion {
+  id: string;
+  entryId: string;
+  title: string;
+  content: string;
+  entryType: KBEntryType;
+  tags: string[];
+  capabilityStatus: KBCapabilityStatus;
+  discoveryNotes?: string;
+  lastVerifiedAt?: number;
+  createdAt: number;
+}
 
 export interface KBEntry {
   id: string;
@@ -25,6 +53,12 @@ export interface KBEntry {
   content: string;
   tags: string[];
   embeddingStatus: KBEmbeddingStatus;
+  embeddingError?: string;
+  embeddingVersion: number;
+  lastVerifiedAt?: number;
+  capabilityStatus: KBCapabilityStatus;
+  discoveryNotes?: string;
+  claims: KBClaim[];
   createdAt: number;
   updatedAt: number;
 }
@@ -34,6 +68,9 @@ export interface KBContextItem {
   entryType: KBEntryType;
   title: string;
   content: string;
+  capabilityStatus: KBCapabilityStatus;
+  discoveryNotes?: string;
+  claims: KBClaim[];
   similarityScore: number;
 }
 

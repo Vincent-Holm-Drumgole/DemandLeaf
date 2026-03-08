@@ -1,3 +1,5 @@
+import type { ContentTrack } from "./blog";
+
 export type SearchIntent = "informational" | "commercial" | "transactional" | "navigational";
 export type BuyerStage = "awareness" | "consideration" | "decision";
 export type KeywordStatus = "unassigned" | "briefed" | "written" | "published" | "ranking";
@@ -62,6 +64,7 @@ export interface CalendarItem {
   keywordId: string;
   keyword: string;
   archetype: string;
+  contentTrack: ContentTrack;
   scheduledDate: number;
   priority: number;
 }

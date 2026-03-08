@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { KBEntryType } from "@/types";
+import type { KBEntryType, KBClaim } from "@/types";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { apiFetch } from "@/lib/api-fetch";
+import { MAX_KB_IMPORT_ENTRIES } from "@/lib/knowledge-base/constants";
 import {
   type KnowledgeBaseImportDraft,
   parseKnowledgeBaseMarkdown,
@@ -112,6 +113,9 @@ export function KBImportDialog({ open, onClose, onImported }: KBImportDialogProp
             title: entry.title,
             content: entry.content,
             tags: entry.tags,
+            capabilityStatus: entry.capabilityStatus,
+            discoveryNotes: entry.discoveryNotes,
+            claims: entry.claims,
           })),
         }),
       });
@@ -161,7 +165,12 @@ export function KBImportDialog({ open, onClose, onImported }: KBImportDialogProp
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <p className="font-medium">Import Preview</p>
-                <p className="text-muted-foreground">{includedCount} selected</p>
+                <p className="text-muted-foreground">
+                  {includedCount} selected
+                  {includedCount > MAX_KB_IMPORT_ENTRIES && (
+                    <span className="ml-1 text-destructive">(max {MAX_KB_IMPORT_ENTRIES})</span>
+                  )}
+                </p>
               </div>
 
               <ScrollArea className="h-[420px] rounded-lg border">
@@ -209,6 +218,23 @@ export function KBImportDialog({ open, onClose, onImported }: KBImportDialogProp
                                 </SelectItem>
                               ))}
                             </SelectContent>
+                            </Select>
+                          </div>
+                        <div className="space-y-1.5">
+                          <Label>Capability Status</Label>
+                          <Select
+                            value={entry.capabilityStatus}
+                            onValueChange={(value) =>
+                              updateEntry(entry.id, { capabilityStatus: value as "current" | "planned" })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="current">Current</SelectItem>
+                              <SelectItem value="planned">Planned</SelectItem>
+                            </SelectContent>
                           </Select>
                         </div>
                       </div>
@@ -225,12 +251,111 @@ export function KBImportDialog({ open, onClose, onImported }: KBImportDialogProp
                                 .filter(Boolean),
                             })
                           }
+                          />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Discovery Notes</Label>
+                        <Textarea
+                          value={entry.discoveryNotes ?? ""}
+                          rows={3}
+                          onChange={(event) =>
+                            updateEntry(entry.id, {
+                              discoveryNotes: event.target.value,
+                            })
+                          }
                         />
                       </div>
 
                       <div className="space-y-1.5">
                         <Label>Content Preview</Label>
                         <Textarea value={entry.content} readOnly rows={6} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Auto-Drafted Claims</Label>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.claims.length} claim{entry.claims.length === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          {entry.claims.length === 0 ? (
+                            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                              No claim candidates detected in this section.
+                            </div>
+                          ) : (
+                            entry.claims.map((claim, claimIndex) => (
+                              <div key={`${entry.id}-claim-${claimIndex}`} className="rounded-md border p-3 space-y-2">
+                                <Textarea
+                                  value={claim.statement}
+                                  rows={2}
+                                  onChange={(event) =>
+                                    updateEntry(entry.id, {
+                                      claims: entry.claims.map((item, itemIndex) =>
+                                        itemIndex === claimIndex
+                                          ? { ...item, statement: event.target.value }
+                                          : item,
+                                      ) as typeof entry.claims,
+                                    })
+                                  }
+                                />
+                                <div className="grid gap-2 md:grid-cols-[1fr_160px_1fr]">
+                                  <Input
+                                    value={claim.sourceName}
+                                    placeholder="Source name"
+                                    onChange={(event) =>
+                                      updateEntry(entry.id, {
+                                        claims: entry.claims.map((item, itemIndex) =>
+                                          itemIndex === claimIndex
+                                            ? { ...item, sourceName: event.target.value }
+                                            : item,
+                                        ) as typeof entry.claims,
+                                      })
+                                    }
+                                  />
+                                  <Select
+                                    value={claim.confidence}
+                                    onValueChange={(value) =>
+                                      updateEntry(entry.id, {
+                                        claims: entry.claims.map((item, itemIndex) =>
+                                          itemIndex === claimIndex
+                                            ? {
+                                                ...item,
+                                                confidence: value as KBClaim["confidence"],
+                                              }
+                                            : item,
+                                        ) as typeof entry.claims,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="verified">Verified</SelectItem>
+                                      <SelectItem value="observed">Observed</SelectItem>
+                                      <SelectItem value="directional">Directional</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    value={claim.sourceUrl ?? ""}
+                                    placeholder="Source URL"
+                                    onChange={(event) =>
+                                      updateEntry(entry.id, {
+                                        claims: entry.claims.map((item, itemIndex) =>
+                                          itemIndex === claimIndex
+                                            ? { ...item, sourceUrl: event.target.value }
+                                            : item,
+                                        ) as typeof entry.claims,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

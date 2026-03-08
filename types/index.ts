@@ -20,6 +20,14 @@ export type {
 } from "./detection";
 export type { GateResult, QualityGatesResult } from "./quality";
 export type {
+  ContentTrack,
+  QualityScoreBreakdown,
+  FactCheckClaim,
+  FactCheckReport,
+  PublicationChecklist,
+  PublicationCheckResult,
+} from "./blog";
+export type {
   CrawlRequest,
   CrawlResponse,
   GenerateRequest,
@@ -36,6 +44,10 @@ export type {
   KBEntry,
   KBEntryType,
   KBEmbeddingStatus,
+  KBCapabilityStatus,
+  KBClaimConfidence,
+  KBClaim,
+  KBVersion,
   KBContextItem,
   KBContextResult,
 } from "./knowledge-base";
@@ -54,6 +66,15 @@ export type {
   CannibalizationResult,
   CalendarItem,
 } from "./strategy";
+export type {
+  ResearchSourceType,
+  ResearchSourceStatus,
+  ResearchBriefStatus,
+  ResearchBriefKind,
+  ResearchSource,
+  ResearchBrief,
+  CompetitorArticle,
+} from "./research";
 export type {
   ClusterBubble,
   GapType,

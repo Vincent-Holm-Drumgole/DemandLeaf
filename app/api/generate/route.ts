@@ -373,6 +373,7 @@ export async function POST(request: NextRequest): Promise<Response> {
               metaDescription: result.metaDescription,
               focusKeyword: result.focusKeyword,
               archetype: result.archetype,
+              contentTrack: result.contentTrack,
               wordCount: result.wordCount,
               status: "draft",
               seoScore: result.scores.seoScore,
@@ -402,6 +403,13 @@ export async function POST(request: NextRequest): Promise<Response> {
               });
             } catch (contextErr) {
               console.warn("[generate] generation context log failed:", contextErr);
+            }
+            try {
+              await authedConvex.mutation(api.blogs.recalculatePublicationChecks, {
+                blogId: workspaceBlogId,
+              });
+            } catch (publicationErr) {
+              console.warn("[generate] publication check generation failed:", publicationErr);
             }
             try {
               await authedConvex.mutation(api.contentBriefs.linkBlog, {

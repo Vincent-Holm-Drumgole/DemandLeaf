@@ -19,6 +19,7 @@ import {
   briefDataValidator,
   briefDataModificationsValidator,
   calendarStatusValidator,
+  contentTrackValidator,
   seoDataCacheDataValidator,
   // Phase 5
   wpAuthMethodValidator,
@@ -43,6 +44,12 @@ import {
   auditActorTypeValidator,
   // Phase 8
   publishingAgentStatusValidator,
+  kbCapabilityStatusValidator,
+  kbClaimConfidenceValidator,
+  researchSourceTypeValidator,
+  researchSourceStatusValidator,
+  researchBriefStatusValidator,
+  researchBriefKindValidator,
   // Billing
   planStatusValidator,
   workspaceRoleValidator,
@@ -60,6 +67,7 @@ export default defineSchema({
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
     masterContext: v.optional(v.string()),
+    minPublishQualityScore: v.optional(v.number()),
     // Billing
     stripeCustomerId: v.optional(v.string()),
     stripeSubscriptionId: v.optional(v.string()),
@@ -134,6 +142,7 @@ export default defineSchema({
     metaDescription: v.optional(v.string()),
     focusKeyword: v.optional(v.string()),
     archetype: v.string(),
+    contentTrack: v.optional(contentTrackValidator),
     wordCount: v.optional(v.number()),
     status: v.string(),
     // Scores
@@ -245,6 +254,88 @@ export default defineSchema({
     .index("by_blog", ["blogId"])
     .index("by_blog_created", ["blogId", "createdAt"]),
 
+  blogFactChecks: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    claims: v.array(
+      v.object({
+        id: v.string(),
+        text: v.string(),
+        sentence: v.string(),
+        sourceType: v.union(
+          v.literal("knowledge_base"),
+          v.literal("research_source"),
+          v.literal("inline_citation"),
+          v.literal("unverified"),
+        ),
+        confidence: v.optional(kbClaimConfidenceValidator),
+        sourceName: v.optional(v.string()),
+        sourceUrl: v.optional(v.string()),
+        knowledgeBaseEntryId: v.optional(v.string()),
+        knowledgeBaseClaimId: v.optional(v.string()),
+        languageMatch: v.boolean(),
+        verificationStatus: v.union(
+          v.literal("verified"),
+          v.literal("warning"),
+          v.literal("unverified"),
+        ),
+        notes: v.optional(v.string()),
+      }),
+    ),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.string()),
+    unverifiedCount: v.number(),
+    mismatchCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_workspace", ["workspaceId"]),
+
+  blogPublicationChecks: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    qualityBreakdown: v.object({
+      specificity: v.number(),
+      sourceIntegrity: v.number(),
+      originality: v.number(),
+      practitionerDepth: v.number(),
+      brandVoiceAlignment: v.number(),
+      fillerRatio: v.number(),
+      openerRepetitionCount: v.number(),
+      uniqueInsight: v.object({
+        passed: v.boolean(),
+        reason: v.string(),
+        category: v.optional(
+          v.union(
+            v.literal("data_point"),
+            v.literal("contrarian_take"),
+            v.literal("concrete_example"),
+            v.literal("framework"),
+          ),
+        ),
+      }),
+      weightedScore: v.number(),
+    }),
+    checklist: v.object({
+      minQualityScore: v.number(),
+      qualityScorePassed: v.boolean(),
+      zeroUnverifiedClaims: v.boolean(),
+      factCheckReviewed: v.boolean(),
+      bannedTermsPassed: v.boolean(),
+      specificExamplesPassed: v.boolean(),
+      uniqueInsightPassed: v.boolean(),
+      humanApproved: v.boolean(),
+    }),
+    blockers: v.array(v.string()),
+    killSwitchTriggered: v.boolean(),
+    canPublish: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_workspace", ["workspaceId"]),
+
   promptVersions: defineTable({
     promptName: v.string(),
     version: v.string(),
@@ -279,6 +370,11 @@ export default defineSchema({
     tags: v.array(v.string()),
     embedding: v.optional(v.array(v.float64())),
     embeddingStatus: embeddingStatusValidator,
+    embeddingError: v.optional(v.string()),
+    embeddingVersion: v.optional(v.number()),
+    lastVerifiedAt: v.optional(v.number()),
+    capabilityStatus: v.optional(kbCapabilityStatusValidator),
+    discoveryNotes: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -290,6 +386,36 @@ export default defineSchema({
       dimensions: 1536,
       filterFields: ["workspaceId"],
     }),
+
+  knowledgeBaseClaims: defineTable({
+    workspaceId: v.id("workspaces"),
+    entryId: v.id("knowledgeBase"),
+    statement: v.string(),
+    sourceName: v.string(),
+    sourceUrl: v.optional(v.string()),
+    confidence: kbClaimConfidenceValidator,
+    lastCheckedAt: v.number(),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_entry", ["entryId"])
+    .index("by_workspace", ["workspaceId"]),
+
+  knowledgeBaseVersions: defineTable({
+    workspaceId: v.id("workspaces"),
+    entryId: v.id("knowledgeBase"),
+    title: v.string(),
+    content: v.string(),
+    entryType: kbEntryTypeValidator,
+    tags: v.array(v.string()),
+    capabilityStatus: kbCapabilityStatusValidator,
+    discoveryNotes: v.optional(v.string()),
+    lastVerifiedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_entry", ["entryId"])
+    .index("by_workspace", ["workspaceId"]),
 
   knowledgeBaseChunks: defineTable({
     workspaceId: v.id("workspaces"),
@@ -414,6 +540,7 @@ export default defineSchema({
     keywordId: v.id("keywords"),
     scheduledDate: v.number(), // epoch ms
     archetype: v.string(),
+    contentTrack: v.optional(contentTrackValidator),
     priority: v.number(), // 1 = highest
     status: calendarStatusValidator,
     createdAt: v.number(),
@@ -583,7 +710,7 @@ export default defineSchema({
   notifications: defineTable({
     workspaceId: v.id("workspaces"),
     type: notificationTypeValidator,
-    agentType: agentTypeValidator,
+    agentType: v.optional(agentTypeValidator),
     agentActionId: v.optional(v.id("agentActions")),
     title: v.string(),
     body: v.string(),
@@ -619,6 +746,60 @@ export default defineSchema({
   })
     .index("by_workspace", ["workspaceId"])
     .index("by_strategy", ["strategyId"]),
+
+  competitorArticles: defineTable({
+    workspaceId: v.id("workspaces"),
+    trackingId: v.optional(v.id("competitorTracking")),
+    domain: v.string(),
+    url: v.string(),
+    title: v.string(),
+    summary: v.string(),
+    angle: v.string(),
+    keywords: v.array(v.string()),
+    publishedAt: v.optional(v.number()),
+    scrapedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_tracking", ["trackingId"]),
+
+  researchSources: defineTable({
+    workspaceId: v.id("workspaces"),
+    label: v.string(),
+    type: researchSourceTypeValidator,
+    url: v.string(),
+    keywords: v.array(v.string()),
+    status: researchSourceStatusValidator,
+    lastCheckedAt: v.optional(v.number()),
+    lastSuccessAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"]),
+
+  researchBriefs: defineTable({
+    workspaceId: v.id("workspaces"),
+    sourceId: v.optional(v.id("researchSources")),
+    kind: researchBriefKindValidator,
+    status: researchBriefStatusValidator,
+    title: v.string(),
+    summary: v.string(),
+    whyItMatters: v.string(),
+    suggestedAngle: v.string(),
+    sourceUrls: v.array(v.string()),
+    sourceNames: v.array(v.string()),
+    keywords: v.array(v.string()),
+    relevanceScore: v.number(),
+    contentTrack: contentTrackValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_status", ["workspaceId", "status"])
+    .index("by_workspace_kind", ["workspaceId", "kind"]),
 
   publishingAgentConfig: defineTable({
     workspaceId: v.id("workspaces"),

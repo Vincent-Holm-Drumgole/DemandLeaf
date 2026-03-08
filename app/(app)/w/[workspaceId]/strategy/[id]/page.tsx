@@ -40,6 +40,7 @@ interface CalendarEntry {
   strategyId: string;
   keyword: string;
   archetype: string;
+  contentTrack: "evergreen" | "research" | "thought_leadership";
   scheduledDate: number;
   priority: number;
   status: string;

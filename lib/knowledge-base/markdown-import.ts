@@ -1,8 +1,9 @@
-import type { KBEntryType } from "@/types";
+import type { KBEntryType, KBClaim } from "@/types";
 import {
   MAX_KB_TAGS,
 } from "./constants";
 import { splitKnowledgeBaseEntryContent } from "./chunking";
+import { draftKnowledgeBaseClaims } from "./claims";
 
 export interface KnowledgeBaseImportDraft {
   id: string;
@@ -10,6 +11,11 @@ export interface KnowledgeBaseImportDraft {
   content: string;
   entryType: KBEntryType;
   tags: string[];
+  claims: Array<
+    Pick<KBClaim, "statement" | "sourceName" | "sourceUrl" | "confidence" | "lastCheckedAt" | "notes">
+  >;
+  capabilityStatus: "current" | "planned";
+  discoveryNotes?: string;
   include: boolean;
   sourceHeading: string;
 }
@@ -142,6 +148,8 @@ export function parseKnowledgeBaseMarkdown(markdown: string): KnowledgeBaseImpor
         content: section,
         entryType,
         tags: generateKnowledgeBaseTags(title, section),
+        claims: draftKnowledgeBaseClaims(section),
+        capabilityStatus: "current",
         include: true,
         sourceHeading: heading,
       });

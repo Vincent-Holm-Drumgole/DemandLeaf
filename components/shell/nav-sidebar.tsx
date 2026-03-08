@@ -16,9 +16,9 @@ import {
   LineChart,
   Bot,
   ClipboardCheck,
+  Rss,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TrialBanner } from "@/components/billing/trial-banner";
 import { useWorkspace } from "@/components/providers/workspace-provider";
@@ -58,6 +58,7 @@ const NAV_GROUPS: { heading?: string; items: NavItem[] }[] = [
     items: [
       { label: "Performance", href: "/performance", icon: LineChart },
       { label: "AI Scorecard", href: "/scorecard", icon: ClipboardCheck },
+      { label: "Research", href: "/research", icon: Rss },
       { label: "Agents", href: "/agents", icon: Bot },
     ],
   },
@@ -113,9 +114,6 @@ export function NavSidebar() {
               ))}
             </SelectContent>
           </Select>
-          <Button asChild size="sm" variant="outline" className="w-full justify-start">
-            <Link href="/onboarding?mode=new-workspace">New Workspace</Link>
-          </Button>
         </div>
       </div>
 

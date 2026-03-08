@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { KBEntry, KBEntryType } from "@/types";
+import { KB_REVIEW_DANGER_DAYS, KB_REVIEW_WARNING_DAYS } from "@/lib/knowledge-base/constants";
 
 const TYPE_COLORS: Record<KBEntryType, string> = {
   company_info: "bg-blue-100 text-blue-800",
@@ -30,12 +32,22 @@ interface KBEntryCardProps {
   entry: KBEntry;
   onEdit: (entry: KBEntry) => void;
   onDelete: (id: string) => void;
+  onViewHistory: (entry: KBEntry) => void;
 }
 
-export function KBEntryCard({ entry, onEdit, onDelete }: KBEntryCardProps) {
+export function KBEntryCard({ entry, onEdit, onDelete, onViewHistory }: KBEntryCardProps) {
+  const [renderedAt] = useState(() => Date.now());
   const typeLabel = entry.entryType.replace(/_/g, " ");
   const typeColor = TYPE_COLORS[entry.entryType] ?? "bg-gray-100 text-gray-800";
   const embeddingStatus = EMBEDDING_STATUS_LABELS[entry.embeddingStatus] ?? EMBEDDING_STATUS_LABELS.pending;
+  const lastVerifiedAt = entry.lastVerifiedAt ?? entry.updatedAt;
+  const ageDays = Math.floor((renderedAt - lastVerifiedAt) / (24 * 60 * 60 * 1000));
+  const freshnessTone =
+    ageDays >= KB_REVIEW_DANGER_DAYS
+      ? "text-red-600"
+      : ageDays >= KB_REVIEW_WARNING_DAYS
+        ? "text-amber-600"
+        : "text-green-600";
 
   return (
     <Card className="group hover:shadow-md transition-shadow">
@@ -48,6 +60,14 @@ export function KBEntryCard({ entry, onEdit, onDelete }: KBEntryCardProps) {
             <h3 className="font-semibold text-sm leading-tight truncate">{entry.title}</h3>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => onViewHistory(entry)}
+            >
+              History
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -69,18 +89,39 @@ export function KBEntryCard({ entry, onEdit, onDelete }: KBEntryCardProps) {
       </CardHeader>
       <CardContent className="pt-0">
         <p className="text-sm text-muted-foreground line-clamp-2">{entry.content}</p>
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between mt-2 gap-2">
           <div className="flex flex-wrap gap-1">
+            <Badge variant="outline" className="text-xs py-0">
+              {entry.capabilityStatus === "planned" ? "Planned" : "Current"}
+            </Badge>
+            <Badge variant="outline" className="text-xs py-0">
+              {entry.claims.length} claim{entry.claims.length === 1 ? "" : "s"}
+            </Badge>
             {entry.tags.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="outline" className="text-xs py-0">
                 {tag}
               </Badge>
             ))}
           </div>
-          <span className={`text-xs ${embeddingStatus.color}`}>
-            {embeddingStatus.label}
-          </span>
+          <div className="text-right">
+            <span className={`block text-xs ${embeddingStatus.color}`}>
+              {embeddingStatus.label}
+            </span>
+            <span className={`block text-[11px] ${freshnessTone}`}>
+              Verified {ageDays}d ago
+            </span>
+          </div>
         </div>
+        {entry.discoveryNotes && (
+          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+            Notes: {entry.discoveryNotes}
+          </p>
+        )}
+        {entry.embeddingError && entry.embeddingStatus === "failed" && (
+          <p className="mt-2 text-xs text-destructive line-clamp-2">
+            {entry.embeddingError}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

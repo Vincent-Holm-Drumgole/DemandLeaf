@@ -76,6 +76,15 @@ export const voiceProfileValidator = v.object({
 
 /** Valid entry types for knowledge base entries */
 export const kbEntryTypeValidator = literalUnion(KB_ENTRY_TYPES);
+export const kbCapabilityStatusValidator = v.union(
+  v.literal("current"),
+  v.literal("planned"),
+);
+export const kbClaimConfidenceValidator = v.union(
+  v.literal("verified"),
+  v.literal("observed"),
+  v.literal("directional"),
+);
 
 // ── Edit Learning ─────────────────────────────────────────────────────────────
 
@@ -139,6 +148,11 @@ export const calendarStatusValidator = v.union(
   v.literal("in_progress"),
   v.literal("completed"),
   v.literal("skipped")
+);
+export const contentTrackValidator = v.union(
+  v.literal("evergreen"),
+  v.literal("research"),
+  v.literal("thought_leadership"),
 );
 
 export const strategyStatusValidator = v.union(
@@ -482,7 +496,10 @@ export const agentActionStatusValidator = v.union(
 export const notificationTypeValidator = v.union(
   v.literal("agent_action_ready"),
   v.literal("agent_action_done"),
-  v.literal("agent_action_failed")
+  v.literal("agent_action_failed"),
+  v.literal("kb_review_due"),
+  v.literal("research_brief_ready"),
+  v.literal("trend_report_ready"),
 );
 
 export const auditActorTypeValidator = v.union(
@@ -493,6 +510,28 @@ export const auditActorTypeValidator = v.union(
 export const publishingAgentStatusValidator = v.union(
   v.literal("active"),
   v.literal("paused")
+);
+
+export const researchSourceTypeValidator = v.union(
+  v.literal("rss"),
+  v.literal("url"),
+);
+
+export const researchSourceStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("paused"),
+  v.literal("error"),
+);
+
+export const researchBriefStatusValidator = v.union(
+  v.literal("pending_review"),
+  v.literal("approved"),
+  v.literal("archived"),
+);
+
+export const researchBriefKindValidator = v.union(
+  v.literal("daily_brief"),
+  v.literal("trend_report"),
 );
 
 // ── Billing ──────────────────────────────────────────────────────────────────

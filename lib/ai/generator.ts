@@ -15,6 +15,7 @@ import { checkVoiceAdherence } from "@/lib/voice/match";
 import { scoreSEO } from "@/lib/seo/scorer";
 import { detectAIContent } from "@/lib/detection/detector";
 import { evaluateQualityGates } from "@/lib/quality/gates";
+import { computeCredibleQualityScore } from "@/lib/quality/credible-score";
 import { scoreAEO } from "@/lib/aeo/scorer";
 import { optimizeForAEO, AEO_OPTIMIZER_THRESHOLD } from "@/lib/aeo/optimizer";
 import {
@@ -29,6 +30,7 @@ import { marked } from "marked";
 import { sanitizeGeneratedHtml } from "@/lib/html-sanitize";
 import { ARCHETYPES } from "@/lib/constants/archetypes";
 import { BANNED_META_OPENERS } from "@/lib/constants/banned-words";
+import { buildFactCheckReport } from "@/lib/fact-check/report";
 
 export type ProgressCallback = (step: PipelineStep) => void;
 
@@ -299,6 +301,15 @@ export async function generateBlog(
     headingStructureValid,
     bannedWordsFound,
   });
+  const factCheckReport = buildFactCheckReport({
+    content: blogContent,
+    knowledgeBaseClaims: [],
+  });
+  const qualityBreakdown = computeCredibleQualityScore({
+    content: blogContent,
+    detectionResult: finalDetection,
+    factCheck: factCheckReport,
+  });
 
   // Convert markdown to HTML
   const rawHtml = await marked(blogContent);
@@ -353,15 +364,18 @@ export async function generateBlog(
     metaDescription,
     focusKeyword: input.keyword,
     archetype: input.archetype,
+    contentTrack: input.contentTrack ?? "evergreen",
     wordCount,
     scores: {
       seoScore: finalSeoScore.score,
-      qualityScore: qualityGates.overallScore,
+      qualityScore: Math.max(qualityBreakdown.weightedScore, qualityGates.overallScore),
       detectionRisk: finalDetection.riskLevel,
       detectionRiskScore: finalDetection.riskScore,
       burstinessScore: finalDetection.burstinessStats.standardDeviation,
       readabilityScore,
     },
+    qualityBreakdown,
+    factCheckReport,
     voiceMatchScore,
     aeoScore,
     generationTimeMs,

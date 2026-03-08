@@ -1,12 +1,16 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
-import { schemaTypeValidator, wpStatusValidator } from "./validators";
+import { contentTrackValidator, schemaTypeValidator, wpStatusValidator } from "./validators";
+import { buildFactCheckReport } from "../lib/fact-check/report";
+import { computeCredibleQualityScore } from "../lib/quality/credible-score";
+import { detectAIContent } from "../lib/detection/detector";
 
 const PAGE_SIZE = 20;
 const MAX_DASHBOARD_SCAN = 5_000;
 const MAX_CANNIBALIZATION_BLOGS = 300;
 const MAX_BLOG_FEEDBACK = 500;
+const DEFAULT_MIN_PUBLISH_QUALITY_SCORE = 70;
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +98,12 @@ export const getById = query({
       .order("desc")
       .take(MAX_BLOG_FEEDBACK);
 
-    return { ...blog, feedback };
+    const [factCheck, publicationCheck] = await Promise.all([
+      ctx.db.query("blogFactChecks").withIndex("by_blog", (q) => q.eq("blogId", args.blogId)).unique(),
+      ctx.db.query("blogPublicationChecks").withIndex("by_blog", (q) => q.eq("blogId", args.blogId)).unique(),
+    ]);
+
+    return { ...blog, feedback, factCheck, publicationCheck };
   },
 });
 
@@ -138,6 +147,7 @@ export const create = mutation({
     metaDescription: v.optional(v.string()),
     focusKeyword: v.optional(v.string()),
     archetype: v.string(),
+    contentTrack: v.optional(contentTrackValidator),
     wordCount: v.optional(v.number()),
     status: v.string(),
     seoScore: v.optional(v.number()),
@@ -174,6 +184,7 @@ export const createForCron = mutation({
     metaDescription: v.optional(v.string()),
     focusKeyword: v.optional(v.string()),
     archetype: v.string(),
+    contentTrack: v.optional(contentTrackValidator),
     wordCount: v.optional(v.number()),
     status: v.string(),
     seoScore: v.optional(v.number()),
@@ -216,6 +227,8 @@ export const update = mutation({
     focusKeyword: v.optional(v.string()),
     slug: v.optional(v.string()),
     status: v.optional(v.string()),
+    contentTrack: v.optional(contentTrackValidator),
+    qualityScore: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { blogId, ...fields } = args;
@@ -261,5 +274,200 @@ export const updatePublishingData = mutation({
     );
     if (Object.keys(updates).length === 0) return;
     await ctx.db.patch(blogId, { ...updates, updatedAt: Date.now() });
+  },
+});
+
+export const recalculatePublicationChecks = mutation({
+  args: { blogId: v.id("blogs") },
+  handler: async (ctx, args) => {
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog) throw new Error("Blog not found");
+
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
+
+    const workspace = await ctx.db.get(blog.workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+
+    const [kbClaims, researchBriefs, competitorArticles, existingFactCheck, existingPublicationCheck] = await Promise.all([
+      ctx.db.query("knowledgeBaseClaims").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).collect(),
+      ctx.db.query("researchBriefs").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).take(100),
+      ctx.db.query("competitorArticles").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).take(100),
+      ctx.db.query("blogFactChecks").withIndex("by_blog", (q) => q.eq("blogId", blog._id)).unique(),
+      ctx.db.query("blogPublicationChecks").withIndex("by_blog", (q) => q.eq("blogId", blog._id)).unique(),
+    ]);
+
+    const factCheck = buildFactCheckReport({
+      content: blog.content,
+      knowledgeBaseClaims: kbClaims.map((claim) => ({
+        id: claim._id,
+        entryId: claim.entryId,
+        statement: claim.statement,
+        sourceName: claim.sourceName,
+        sourceUrl: claim.sourceUrl,
+        confidence: claim.confidence,
+        lastCheckedAt: claim.lastCheckedAt,
+        notes: claim.notes,
+        createdAt: claim.createdAt,
+        updatedAt: claim.updatedAt,
+      })),
+      researchBriefs: researchBriefs.map((brief) => ({
+        id: brief._id,
+        workspaceId: brief.workspaceId,
+        sourceId: brief.sourceId,
+        kind: brief.kind,
+        status: brief.status,
+        title: brief.title,
+        summary: brief.summary,
+        whyItMatters: brief.whyItMatters,
+        suggestedAngle: brief.suggestedAngle,
+        sourceUrls: brief.sourceUrls,
+        sourceNames: brief.sourceNames,
+        keywords: brief.keywords,
+        relevanceScore: brief.relevanceScore,
+        contentTrack: brief.contentTrack,
+        createdAt: brief.createdAt,
+        updatedAt: brief.updatedAt,
+      })),
+      reviewedAt: existingFactCheck?.reviewedAt,
+      reviewedBy: existingFactCheck?.reviewedBy,
+    });
+
+    const detectionResult = detectAIContent(blog.content);
+    const qualityBreakdown = computeCredibleQualityScore({
+      content: blog.content,
+      detectionResult,
+      factCheck,
+      competitorAngles: competitorArticles.map((article) => article.angle),
+    });
+    const minQualityScore = workspace.minPublishQualityScore ?? DEFAULT_MIN_PUBLISH_QUALITY_SCORE;
+    const numbersCount = (blog.content.match(/\b\d+(?:\.\d+)?%?\b/g) ?? []).length;
+    const bannedTermsPassed = detectionResult.flags.every(
+      (flag: (typeof detectionResult.flags)[number]) => flag.algorithm !== "banned_words",
+    );
+    const specificExamplesPassed = numbersCount >= 3 || qualityBreakdown.specificity >= 60;
+    const factCheckReviewed = Boolean(existingFactCheck?.reviewedAt);
+    const humanApproved = existingPublicationCheck?.checklist.humanApproved ?? false;
+
+    const checklist = {
+      minQualityScore,
+      qualityScorePassed: qualityBreakdown.weightedScore >= minQualityScore,
+      zeroUnverifiedClaims: factCheck.unverifiedCount === 0,
+      factCheckReviewed,
+      bannedTermsPassed,
+      specificExamplesPassed,
+      uniqueInsightPassed: qualityBreakdown.uniqueInsight.passed,
+      humanApproved,
+    };
+
+    const blockers = [
+      ...(checklist.qualityScorePassed ? [] : [`Quality score below ${minQualityScore}`]),
+      ...(checklist.zeroUnverifiedClaims ? [] : ["Contains unverified factual claims"]),
+      ...(checklist.factCheckReviewed ? [] : ["Fact-check report has not been reviewed"]),
+      ...(checklist.bannedTermsPassed ? [] : ["Contains banned terms or phrases"]),
+      ...(checklist.specificExamplesPassed ? [] : ["Needs at least 3 specific examples or data points"]),
+      ...(checklist.uniqueInsightPassed ? [] : ["Needs a differentiated insight or framework"]),
+      ...(checklist.humanApproved ? [] : ["Human approval is required before publishing"]),
+    ];
+
+    const now = Date.now();
+    if (existingFactCheck) {
+      await ctx.db.patch(existingFactCheck._id, {
+        claims: factCheck.claims,
+        unverifiedCount: factCheck.unverifiedCount,
+        mismatchCount: factCheck.mismatchCount,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("blogFactChecks", {
+        workspaceId: blog.workspaceId,
+        blogId: blog._id,
+        claims: factCheck.claims,
+        reviewedAt: factCheck.reviewedAt,
+        reviewedBy: factCheck.reviewedBy,
+        unverifiedCount: factCheck.unverifiedCount,
+        mismatchCount: factCheck.mismatchCount,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    if (existingPublicationCheck) {
+      await ctx.db.patch(existingPublicationCheck._id, {
+        qualityBreakdown,
+        checklist,
+        blockers,
+        killSwitchTriggered: qualityBreakdown.weightedScore < 50,
+        canPublish: blockers.length === 0,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("blogPublicationChecks", {
+        workspaceId: blog.workspaceId,
+        blogId: blog._id,
+        qualityBreakdown,
+        checklist,
+        blockers,
+        killSwitchTriggered: qualityBreakdown.weightedScore < 50,
+        canPublish: blockers.length === 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(blog._id, {
+      qualityScore: qualityBreakdown.weightedScore,
+      updatedAt: now,
+    });
+
+    return {
+      factCheck,
+      qualityBreakdown,
+      checklist,
+      blockers,
+      killSwitchTriggered: qualityBreakdown.weightedScore < 50,
+      canPublish: blockers.length === 0,
+      updatedAt: now,
+    };
+  },
+});
+
+export const reviewPublicationCheck = mutation({
+  args: {
+    blogId: v.id("blogs"),
+    factCheckReviewed: v.optional(v.boolean()),
+    humanApproved: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const blog = await ctx.db.get(args.blogId);
+    if (!blog) throw new Error("Blog not found");
+    const identity = await ctx.auth.getUserIdentity();
+    await requireWorkspaceAccess(ctx, blog.workspaceId);
+
+    const [factCheck, publicationCheck] = await Promise.all([
+      ctx.db.query("blogFactChecks").withIndex("by_blog", (q) => q.eq("blogId", blog._id)).unique(),
+      ctx.db.query("blogPublicationChecks").withIndex("by_blog", (q) => q.eq("blogId", blog._id)).unique(),
+    ]);
+    if (!factCheck || !publicationCheck) {
+      throw new Error("Publication checks not initialized");
+    }
+
+    const now = Date.now();
+    if (args.factCheckReviewed !== undefined) {
+      await ctx.db.patch(factCheck._id, {
+        reviewedAt: args.factCheckReviewed ? now : undefined,
+        reviewedBy: args.factCheckReviewed ? identity?.subject : undefined,
+        updatedAt: now,
+      });
+    }
+    await ctx.db.patch(publicationCheck._id, {
+      checklist: {
+        ...publicationCheck.checklist,
+        factCheckReviewed: args.factCheckReviewed ?? publicationCheck.checklist.factCheckReviewed,
+        humanApproved: args.humanApproved ?? publicationCheck.checklist.humanApproved,
+      },
+      updatedAt: now,
+    });
+
+    return { success: true };
   },
 });

@@ -17,6 +17,7 @@ export interface WorkspaceView {
   industry?: string;
   audienceDescription?: string;
   masterContext?: string;
+  minPublishQualityScore?: number;
 }
 
 interface WorkspaceContextValue {

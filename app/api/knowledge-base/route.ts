@@ -13,6 +13,40 @@ import { hasConvexErrorCode } from "@/lib/convex-error";
 import { MAX_KB_CONTENT_CHARS } from "@/lib/knowledge-base/constants";
 
 const VALID_ENTRY_TYPES = new Set<KBEntryType>(KB_ENTRY_TYPES);
+const VALID_CAPABILITY_STATUSES = new Set(["current", "planned"] as const);
+const VALID_CLAIM_CONFIDENCES = new Set(["verified", "observed", "directional"] as const);
+
+function normalizeClaims(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  return value
+    .filter((claim): claim is Record<string, unknown> => Boolean(claim) && typeof claim === "object")
+    .map((claim, index) => {
+      if (typeof claim.statement !== "string" || claim.statement.trim().length === 0) {
+        throw new Error(`Claim ${index + 1} is missing a statement`);
+      }
+      if (typeof claim.sourceName !== "string" || claim.sourceName.trim().length === 0) {
+        throw new Error(`Claim ${index + 1} is missing a sourceName`);
+      }
+      if (
+        typeof claim.confidence !== "string" ||
+        !VALID_CLAIM_CONFIDENCES.has(claim.confidence as "verified" | "observed" | "directional")
+      ) {
+        throw new Error(`Claim ${index + 1} has an invalid confidence`);
+      }
+      const lastCheckedAt =
+        typeof claim.lastCheckedAt === "number" && Number.isFinite(claim.lastCheckedAt)
+          ? claim.lastCheckedAt
+          : Date.now();
+      return {
+        statement: claim.statement.trim(),
+        sourceName: claim.sourceName.trim(),
+        sourceUrl: typeof claim.sourceUrl === "string" ? claim.sourceUrl.trim() || undefined : undefined,
+        confidence: claim.confidence as "verified" | "observed" | "directional",
+        lastCheckedAt,
+        notes: typeof claim.notes === "string" ? claim.notes.trim() || undefined : undefined,
+      };
+    });
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -66,6 +100,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       content: e.content,
       tags: e.tags,
       embeddingStatus: e.embeddingStatus,
+      embeddingError: e.embeddingError,
+      embeddingVersion: e.embeddingVersion ?? 0,
+      lastVerifiedAt: e.lastVerifiedAt ?? e.updatedAt,
+      capabilityStatus: e.capabilityStatus ?? "current",
+      discoveryNotes: e.discoveryNotes,
+      claims: e.claims.map((claim: (typeof e.claims)[number]) => ({
+        id: claim._id,
+        entryId: claim.entryId,
+        statement: claim.statement,
+        sourceName: claim.sourceName,
+        sourceUrl: claim.sourceUrl ?? undefined,
+        confidence: claim.confidence,
+        lastCheckedAt: claim.lastCheckedAt,
+        notes: claim.notes ?? undefined,
+        createdAt: claim.createdAt,
+        updatedAt: claim.updatedAt,
+      })),
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
     })),
@@ -85,7 +136,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  let body: { entryType?: string; title?: string; content?: string; tags?: string[] };
+  let body: {
+    entryType?: string;
+    title?: string;
+    content?: string;
+    tags?: string[];
+    capabilityStatus?: string;
+    discoveryNotes?: string;
+    lastVerifiedAt?: number;
+    claims?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -109,6 +169,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 },
     );
   }
+  if (
+    body.capabilityStatus !== undefined &&
+    (typeof body.capabilityStatus !== "string" || !VALID_CAPABILITY_STATUSES.has(body.capabilityStatus as "current" | "planned"))
+  ) {
+    return NextResponse.json({ error: "capabilityStatus must be current or planned" }, { status: 400 });
+  }
+
+  let claims;
+  try {
+    claims = normalizeClaims(body.claims);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Invalid claims" },
+      { status: 400 },
+    );
+  }
 
   const convex = await getAuthedConvexClient();
   const workspace = await requireRequestWorkspace(convex, request);
@@ -124,6 +200,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       title: title.trim(),
       content: content.trim(),
       tags: Array.isArray(tags) ? tags.filter((t): t is string => typeof t === "string") : [],
+      capabilityStatus:
+        body.capabilityStatus === "planned" ? "planned" : "current",
+      discoveryNotes:
+        typeof body.discoveryNotes === "string" ? body.discoveryNotes.trim() || undefined : undefined,
+      lastVerifiedAt:
+        typeof body.lastVerifiedAt === "number" && Number.isFinite(body.lastVerifiedAt)
+          ? body.lastVerifiedAt
+          : undefined,
+      claims,
     });
   } catch (err) {
     if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {

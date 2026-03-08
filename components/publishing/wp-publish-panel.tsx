@@ -55,6 +55,7 @@ export function WpPublishPanel({
     success: boolean;
     wpPostUrl?: string;
     error?: string;
+    blockers?: string[];
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -233,6 +234,13 @@ export function WpPublishPanel({
                 <p className="text-xs text-red-700">
                   {result.error ?? "Publishing failed"}
                 </p>
+                {result.blockers && result.blockers.length > 0 && (
+                  <ul className="list-disc pl-4 text-xs text-red-700">
+                    {result.blockers.map((blocker) => (
+                      <li key={blocker}>{blocker}</li>
+                    ))}
+                  </ul>
+                )}
                 <div className="flex gap-1">
                   <Button
                     size="sm"

@@ -1,8 +1,9 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireWorkspaceAccess } from "./helpers";
+import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ERR_NOTIFICATION_NOT_FOUND } from "./errors";
+import { notificationTypeValidator } from "./validators";
 
 const MAX_NOTIFICATIONS = 50;
 
@@ -72,5 +73,26 @@ export const markAllRead = mutation({
     await Promise.all(
       unread.map((n) => ctx.db.patch(n._id, { read: true }))
     );
+  },
+});
+
+export const createForCron = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    type: notificationTypeValidator,
+    title: v.string(),
+    body: v.string(),
+    cronKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    requireCronAccess(args.cronKey);
+    const { cronKey, ...fields } = args;
+    void cronKey;
+    return ctx.db.insert("notifications", {
+      ...fields,
+      agentType: undefined,
+      read: false,
+      createdAt: Date.now(),
+    });
   },
 });

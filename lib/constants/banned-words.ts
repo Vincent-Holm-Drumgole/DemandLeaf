@@ -51,6 +51,8 @@ export const BANNED_NOUNS = [
 
 export const BANNED_PHRASES = [
   "In today's",
+  "In today's rapidly evolving landscape",
+  "In today's digital age",
   "Whether you're a",
   "At its core",
   "It's worth noting",
@@ -59,7 +61,11 @@ export const BANNED_PHRASES = [
   "In summary",
   "In conclusion",
   "Let's dive in",
+  "Without further ado",
   "Let's delve into",
+  "It's no secret that",
+  "In the ever-changing world of",
+  "In this blog post, we'll explore",
   "Not only...but also",
   "In the realm of",
   "When it comes to",

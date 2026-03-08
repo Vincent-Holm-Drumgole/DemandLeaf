@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KBEntryCard } from "./kb-entry-card";
 import { KBEntryForm } from "./kb-entry-form";
 import { KBImportDialog } from "./kb-import-dialog";
+import { KBVersionDialog } from "./kb-version-dialog";
 import type { KBEntry, KBEntryType } from "@/types";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -27,8 +28,10 @@ export function KBList() {
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<KBEntry | null>(null);
+  const [historyEntry, setHistoryEntry] = useState<KBEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [isVerifyingVisible, setIsVerifyingVisible] = useState(false);
 
   const fetchEntries = useCallback(async () => {
     setIsLoading(true);
@@ -52,7 +55,23 @@ export function KBList() {
     void fetchEntries();
   }, [fetchEntries]);
 
-  async function handleSave(data: { entryType: KBEntryType; title: string; content: string; tags: string[] }) {
+  async function handleSave(data: {
+    entryType: KBEntryType;
+    title: string;
+    content: string;
+    tags: string[];
+    capabilityStatus: "current" | "planned";
+    discoveryNotes?: string;
+    lastVerifiedAt?: number;
+    claims: Array<{
+      statement: string;
+      sourceName: string;
+      sourceUrl?: string;
+      confidence: "verified" | "observed" | "directional";
+      lastCheckedAt: number;
+      notes?: string;
+    }>;
+  }) {
     try {
       if (editingEntry) {
         const res = await apiFetch(`/api/knowledge-base/${editingEntry.id}`, {
@@ -126,13 +145,50 @@ export function KBList() {
     }
   }
 
+  async function handleVerifyVisible() {
+    if (isVerifyingVisible || entries.length === 0) return;
+    setIsVerifyingVisible(true);
+    setError(null);
+    try {
+      const res = await apiFetch("/api/knowledge-base/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": currentWorkspace._id,
+        },
+        body: JSON.stringify({ entryIds: entries.map((entry) => entry.id) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Failed to verify entries");
+      }
+      void fetchEntries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to verify entries");
+    } finally {
+      setIsVerifyingVisible(false);
+    }
+  }
+
   const failedEntriesCount = entries.filter((entry) => entry.embeddingStatus === "failed").length;
+  const staleEntriesCount = entries.filter((entry) => {
+    const verifiedAt = entry.lastVerifiedAt ?? entry.updatedAt;
+    return Date.now() - verifiedAt > 90 * 24 * 60 * 60 * 1000;
+  }).length;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{entries.length} entries</p>
+        <p className="text-sm text-muted-foreground">
+          {entries.length} entries
+          {staleEntriesCount > 0 ? ` • ${staleEntriesCount} due for review` : ""}
+        </p>
         <div className="flex flex-wrap gap-2">
+          {entries.length > 0 && (
+            <Button variant="outline" onClick={handleVerifyVisible} disabled={isVerifyingVisible}>
+              {isVerifyingVisible ? "Marking…" : "Mark Visible as Verified"}
+            </Button>
+          )}
           {failedEntriesCount > 0 && (
             <Button variant="outline" onClick={handleRetryFailed} disabled={isRetryingFailed}>
               {isRetryingFailed
@@ -183,6 +239,7 @@ export function KBList() {
                     entry={entry}
                     onEdit={(e) => { setEditingEntry(e); setFormOpen(true); }}
                     onDelete={handleDelete}
+                    onViewHistory={(e) => setHistoryEntry(e)}
                   />
                 ))}
               </div>
@@ -205,6 +262,12 @@ export function KBList() {
           setError(null);
           void fetchEntries();
         }}
+      />
+
+      <KBVersionDialog
+        entry={historyEntry}
+        open={historyEntry !== null}
+        onClose={() => setHistoryEntry(null)}
       />
     </div>
   );

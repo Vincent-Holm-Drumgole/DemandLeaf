@@ -35,6 +35,7 @@ import type * as performanceMetrics from "../performanceMetrics.js";
 import type * as publishingAgentConfig from "../publishingAgentConfig.js";
 import type * as rankSnapshots from "../rankSnapshots.js";
 import type * as refreshHistory from "../refreshHistory.js";
+import type * as research from "../research.js";
 import type * as scoredOutputs from "../scoredOutputs.js";
 import type * as seoDataCache from "../seoDataCache.js";
 import type * as strategies from "../strategies.js";
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   publishingAgentConfig: typeof publishingAgentConfig;
   rankSnapshots: typeof rankSnapshots;
   refreshHistory: typeof refreshHistory;
+  research: typeof research;
   scoredOutputs: typeof scoredOutputs;
   seoDataCache: typeof seoDataCache;
   strategies: typeof strategies;

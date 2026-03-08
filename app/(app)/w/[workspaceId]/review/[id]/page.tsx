@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
+import { PublicationCheckPanel } from "@/components/review/publication-check-panel";
+import type { PublicationCheckResult } from "@/types";
 
 interface SavedBlogResponse {
   id: string;
@@ -28,22 +30,17 @@ interface SavedBlogResponse {
     burstinessScore: number | null;
     readabilityScore: number | null;
   };
+  contentTrack: "evergreen" | "research" | "thought_leadership";
+  factCheck: PublicationCheckResult["factCheck"] | null;
+  publicationCheck: PublicationCheckResult | null;
 }
 
 export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const { currentWorkspace } = useWorkspace();
-
-  if (!currentWorkspace) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-
   const blogId = typeof params.id === "string" ? params.id : "";
+  const workspaceId = currentWorkspace?._id ?? null;
   const { generationResult, sessionId } = useOnboardingStore();
   const [savedBlog, setSavedBlog] = useState<SavedBlogResponse | null>(null);
   const [savedBlogError, setSavedBlogError] = useState<string | null>(null);
@@ -58,7 +55,7 @@ export default function ReviewPage() {
 
   // Load persisted blogs by ID for authenticated flows.
   useEffect(() => {
-    if (blogId === "preview") return;
+    if (!workspaceId || blogId === "preview") return;
 
     let cancelled = false;
     setSavedBlog(null);
@@ -74,7 +71,7 @@ export default function ReviewPage() {
         if (res.status === 401) {
           router.push(
             `/sign-in?redirect_url=${encodeURIComponent(
-              buildWorkspacePath(currentWorkspace._id, `/review/${blogId}`),
+              buildWorkspacePath(workspaceId, `/review/${blogId}`),
             )}`,
           );
           return;
@@ -111,7 +108,15 @@ export default function ReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [blogId, currentWorkspace._id, router]);
+  }, [blogId, router, workspaceId]);
+
+  if (!currentWorkspace) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   // For the "preview" route (anonymous flow), use data from the store
   if (blogId === "preview" && generationResult) {
@@ -129,6 +134,9 @@ export default function ReviewPage() {
           burstinessScore: generationResult.scores.burstinessScore,
           readabilityScore: generationResult.scores.readabilityScore,
         }}
+        contentTrack="evergreen"
+        factCheck={null}
+        publicationCheck={null}
         wordCount={generationResult.wordCount}
         generationTimeMs={generationResult.generationTimeMs}
         totalCostCents={generationResult.totalCostCents}
@@ -168,6 +176,9 @@ export default function ReviewPage() {
         metaTitle={savedBlog.metaTitle}
         metaDescription={savedBlog.metaDescription}
         scores={savedBlog.scores}
+        contentTrack={savedBlog.contentTrack}
+        factCheck={savedBlog.factCheck}
+        publicationCheck={savedBlog.publicationCheck}
         wordCount={savedBlog.wordCount}
         generationTimeMs={savedBlog.generationTimeMs ?? undefined}
         totalCostCents={savedBlog.generationCostCents ?? undefined}
@@ -195,6 +206,9 @@ function ReviewLayout({
   totalCostCents,
   blogId,
   showSignupBanner,
+  contentTrack,
+  factCheck,
+  publicationCheck,
 }: {
   content: string;
   title: string;
@@ -213,8 +227,41 @@ function ReviewLayout({
   totalCostCents?: number;
   blogId: string;
   showSignupBanner: boolean;
+  contentTrack: "evergreen" | "research" | "thought_leadership";
+  factCheck: PublicationCheckResult["factCheck"] | null;
+  publicationCheck: PublicationCheckResult | null;
 }) {
   const router = useRouter();
+  const [publicationState, setPublicationState] = useState<PublicationCheckResult | null>(
+    publicationCheck
+      ? {
+          ...publicationCheck,
+          factCheck: factCheck ?? publicationCheck.factCheck,
+        }
+      : null,
+  );
+
+  useEffect(() => {
+    if (blogId === "preview") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/blog/${blogId}/publication-check`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setPublicationState(data);
+        }
+      } catch {
+        // Ignore and fall back to stored data.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [blogId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -247,6 +294,23 @@ function ReviewLayout({
               generationTimeMs={generationTimeMs}
               totalCostCents={totalCostCents}
             />
+            {blogId !== "preview" && (
+              <>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Content Track
+                  </p>
+                  <p className="mt-1 text-sm capitalize">
+                    {contentTrack.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <PublicationCheckPanel
+                  blogId={blogId}
+                  publicationCheck={publicationState}
+                  onUpdated={(nextValue) => setPublicationState(nextValue)}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

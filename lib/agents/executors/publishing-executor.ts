@@ -127,6 +127,7 @@ function buildCronKbContext(
     entryType: string;
     title: string;
     content: string;
+    capabilityStatus?: "current" | "planned";
   }>,
 ): KBContextResult | undefined {
   if (entries.length === 0) return undefined;
@@ -145,6 +146,8 @@ function buildCronKbContext(
       entryType: entry.entryType as KBContextResult["items"][number]["entryType"],
       title: entry.title,
       content: entry.content,
+      capabilityStatus: entry.capabilityStatus ?? "current",
+      claims: [],
       similarityScore: Math.max(0, 1 - index * 0.08),
     });
     totalChars += nextChars;

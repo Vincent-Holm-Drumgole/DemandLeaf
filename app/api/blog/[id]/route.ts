@@ -60,6 +60,7 @@ export async function GET(
     metaDescription: blog.metaDescription ?? null,
     focusKeyword: blog.focusKeyword ?? null,
     archetype: blog.archetype,
+    contentTrack: blog.contentTrack ?? "evergreen",
     wordCount: blog.wordCount ?? null,
     status: blog.status,
     scores: {
@@ -87,6 +88,38 @@ export async function GET(
     publishedAt: blog.publishedAt ? new Date(blog.publishedAt).toISOString() : null,
     createdAt: new Date(blog.createdAt).toISOString(),
     updatedAt: new Date(blog.updatedAt).toISOString(),
+    factCheck: blog.factCheck
+      ? {
+          claims: blog.factCheck.claims,
+          reviewedAt: blog.factCheck.reviewedAt ?? null,
+          reviewedBy: blog.factCheck.reviewedBy ?? null,
+          unverifiedCount: blog.factCheck.unverifiedCount,
+          mismatchCount: blog.factCheck.mismatchCount,
+        }
+      : null,
+    publicationCheck: blog.publicationCheck
+      ? {
+          qualityBreakdown: blog.publicationCheck.qualityBreakdown,
+          checklist: blog.publicationCheck.checklist,
+          blockers: blog.publicationCheck.blockers,
+          killSwitchTriggered: blog.publicationCheck.killSwitchTriggered,
+          canPublish: blog.publicationCheck.canPublish,
+          factCheck: blog.factCheck
+            ? {
+                claims: blog.factCheck.claims,
+                reviewedAt: blog.factCheck.reviewedAt ?? undefined,
+                reviewedBy: blog.factCheck.reviewedBy ?? undefined,
+                unverifiedCount: blog.factCheck.unverifiedCount,
+                mismatchCount: blog.factCheck.mismatchCount,
+              }
+            : {
+                claims: [],
+                unverifiedCount: 0,
+                mismatchCount: 0,
+              },
+          updatedAt: blog.publicationCheck.updatedAt,
+        }
+      : null,
     feedback: blog.feedback.map((f: (typeof blog.feedback)[number]) => ({
       id: f._id,
       paragraphIndex: f.paragraphIndex,
@@ -162,6 +195,7 @@ export async function PATCH(
 
   try {
     await convex.mutation(api.blogs.update, { blogId: blogIdTyped, ...fields });
+    await convex.mutation(api.blogs.recalculatePublicationChecks, { blogId: blogIdTyped });
   } catch (err) {
     console.error("[blog/PATCH] mutation error:", err);
     return NextResponse.json({ error: "Failed to update blog" }, { status: 500 });

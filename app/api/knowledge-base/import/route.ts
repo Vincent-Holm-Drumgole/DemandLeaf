@@ -21,7 +21,21 @@ interface ImportEntryPayload {
   title?: string;
   content?: string;
   tags?: string[];
+  capabilityStatus?: string;
+  discoveryNotes?: string;
+  lastVerifiedAt?: number;
+  claims?: Array<{
+    statement?: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    confidence?: string;
+    lastCheckedAt?: number;
+    notes?: string;
+  }>;
 }
+
+const VALID_CAPABILITY_STATUSES = new Set(["current", "planned"] as const);
+const VALID_CLAIM_CONFIDENCES = new Set(["verified", "observed", "directional"] as const);
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -63,6 +77,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     title: string;
     content: string;
     tags: string[];
+    capabilityStatus: "current" | "planned";
+    discoveryNotes?: string;
+    lastVerifiedAt?: number;
+    claims?: Array<{
+      statement: string;
+      sourceName: string;
+      sourceUrl?: string;
+      confidence: "verified" | "observed" | "directional";
+      lastCheckedAt: number;
+      notes?: string;
+    }>;
   }>;
   try {
     normalizedEntries = entries.map((entry, index) => {
@@ -78,6 +103,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (entry.content.trim().length > MAX_KB_CONTENT_CHARS) {
         throw new Error(`Entry ${index + 1} exceeds ${MAX_KB_CONTENT_CHARS} characters`);
       }
+      if (
+        entry.capabilityStatus !== undefined &&
+        (typeof entry.capabilityStatus !== "string" ||
+          !VALID_CAPABILITY_STATUSES.has(entry.capabilityStatus as "current" | "planned"))
+      ) {
+        throw new Error(`Entry ${index + 1} has an invalid capability status`);
+      }
 
       return {
         entryType: entry.entryType as KBEntryType,
@@ -89,6 +121,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               .map((tag) => tag.trim())
               .slice(0, MAX_KB_TAGS)
           : [],
+        capabilityStatus:
+          entry.capabilityStatus === "planned" ? "planned" : "current",
+        discoveryNotes:
+          typeof entry.discoveryNotes === "string" ? entry.discoveryNotes.trim() || undefined : undefined,
+        lastVerifiedAt:
+          typeof entry.lastVerifiedAt === "number" && Number.isFinite(entry.lastVerifiedAt)
+            ? entry.lastVerifiedAt
+            : undefined,
+        claims: Array.isArray(entry.claims)
+          ? entry.claims.map((claim, claimIndex) => {
+              if (!claim.statement || typeof claim.statement !== "string") {
+                throw new Error(`Entry ${index + 1} claim ${claimIndex + 1} is missing a statement`);
+              }
+              if (!claim.sourceName || typeof claim.sourceName !== "string") {
+                throw new Error(`Entry ${index + 1} claim ${claimIndex + 1} is missing a sourceName`);
+              }
+              if (
+                !claim.confidence ||
+                typeof claim.confidence !== "string" ||
+                !VALID_CLAIM_CONFIDENCES.has(claim.confidence as "verified" | "observed" | "directional")
+              ) {
+                throw new Error(`Entry ${index + 1} claim ${claimIndex + 1} has an invalid confidence`);
+              }
+              return {
+                statement: claim.statement.trim(),
+                sourceName: claim.sourceName.trim(),
+                sourceUrl:
+                  typeof claim.sourceUrl === "string" ? claim.sourceUrl.trim() || undefined : undefined,
+                confidence: claim.confidence as "verified" | "observed" | "directional",
+                lastCheckedAt:
+                  typeof claim.lastCheckedAt === "number" && Number.isFinite(claim.lastCheckedAt)
+                    ? claim.lastCheckedAt
+                    : Date.now(),
+                notes: typeof claim.notes === "string" ? claim.notes.trim() || undefined : undefined,
+              };
+            })
+          : undefined,
       };
     });
   } catch (err) {

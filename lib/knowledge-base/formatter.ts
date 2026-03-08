@@ -12,8 +12,18 @@ export function formatKBContextForPrompt(context: KBContextResult): string {
 
   const sections = context.items
     .map(
-      (item) =>
-        `[${item.entryType.toUpperCase().replace(/_/g, " ")}] ${sanitizePromptText(item.title)}\n${sanitizePromptText(item.content)}`
+      (item) => {
+        const header = `[${item.entryType.toUpperCase().replace(/_/g, " ")}${item.capabilityStatus === "planned" ? " • PLANNED" : ""}] ${sanitizePromptText(item.title)}`;
+        const claims = item.claims.length > 0
+          ? `\nClaims and sourcing:\n${item.claims.map((claim) =>
+              `- (${claim.confidence.toUpperCase()}) ${sanitizePromptText(claim.statement)}${claim.sourceName ? ` [Source: ${sanitizePromptText(claim.sourceName)}]` : ""}`
+            ).join("\n")}`
+          : "";
+        const discoveryNotes = item.discoveryNotes
+          ? `\nDiscovery notes:\n${sanitizePromptText(item.discoveryNotes)}`
+          : "";
+        return `${header}\n${sanitizePromptText(item.content)}${discoveryNotes}${claims}`;
+      }
     )
     .join("\n\n---\n\n");
 

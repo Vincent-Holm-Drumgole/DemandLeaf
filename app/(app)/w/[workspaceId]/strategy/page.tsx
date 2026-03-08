@@ -38,8 +38,6 @@ export default function StrategyPage() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     const controller = new AbortController();
-    setIsLoading(true);
-    setLoadError(null);
     fetch("/api/strategy", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
@@ -94,7 +92,14 @@ export default function StrategyPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
               <p className="text-destructive">{loadError}</p>
-              <Button variant="outline" onClick={() => setFetchKey((k) => k + 1)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsLoading(true);
+                  setLoadError(null);
+                  setFetchKey((k) => k + 1);
+                }}
+              >
                 Retry
               </Button>
             </CardContent>

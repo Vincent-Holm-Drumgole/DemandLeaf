@@ -4,6 +4,8 @@ import { scanBannedWords } from "./banned-words";
 import { checkStructuralPatterns } from "./structural";
 import { checkParagraphVariation } from "./paragraph-variation";
 import { checkHeadingVariation } from "./heading-variation";
+import { checkSentenceOpenerRepetition } from "./opener-repetition";
+import { analyzeFillerParagraphs } from "./filler-paragraphs";
 import { DETECTION_LOW_MAX, DETECTION_MEDIUM_MAX } from "@/lib/constants/detection";
 
 /**
@@ -27,6 +29,8 @@ export function detectAIContent(content: string): DetectionResult {
 
   // Algorithm 5: Heading variation
   const headingFlags = checkHeadingVariation(content);
+  const openerFlags = checkSentenceOpenerRepetition(content);
+  const filler = analyzeFillerParagraphs(content);
 
   // Combine all flags
   const allFlags = [
@@ -35,6 +39,8 @@ export function detectAIContent(content: string): DetectionResult {
     ...structuralFlags,
     ...paragraphFlags,
     ...headingFlags,
+    ...openerFlags,
+    ...filler.flags,
   ];
 
   // Calculate total risk score

@@ -31,7 +31,7 @@ export async function GET() {
       (n: {
         _id: string;
         type: string;
-        agentType: string;
+        agentType?: string;
         agentActionId?: string;
         title: string;
         body: string;

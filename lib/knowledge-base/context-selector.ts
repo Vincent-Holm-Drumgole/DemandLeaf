@@ -8,7 +8,10 @@ interface KBEntryWithScore {
     title: string;
     content: string;
     updatedAt: number;
+    capabilityStatus?: "current" | "planned";
+    discoveryNotes?: string;
   };
+  claims?: KBContextItem["claims"];
   score: number;
 }
 
@@ -52,7 +55,7 @@ export function selectKBContext(
 
   // Apply boosts and re-rank
   const reranked = top10
-    .map(({ entry, score }) => {
+    .map(({ entry, score, claims }) => {
       let adjusted = score;
       if (affinityTypes.includes(entry.entryType)) {
         adjusted += AFFINITY_BOOST;
@@ -62,7 +65,7 @@ export function selectKBContext(
         const freshness = 1 - ageMs / recencyWindowMs;
         adjusted += RECENCY_BOOST * freshness;
       }
-      return { entry, score: adjusted };
+      return { entry, claims, score: adjusted };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -71,7 +74,7 @@ export function selectKBContext(
   let totalChars = 0;
   const charBudget = maxTokenBudget * CHARS_PER_TOKEN_ESTIMATE;
 
-  for (const { entry, score } of reranked) {
+  for (const { entry, score, claims } of reranked) {
     const entryChars = entry.title.length + entry.content.length + 50; // 50 for formatting
     if (totalChars + entryChars > charBudget) continue;
     selected.push({
@@ -79,6 +82,9 @@ export function selectKBContext(
       entryType: entry.entryType as KBContextItem["entryType"],
       title: entry.title,
       content: entry.content,
+      capabilityStatus: entry.capabilityStatus ?? "current",
+      discoveryNotes: entry.discoveryNotes,
+      claims: claims ?? [],
       similarityScore: score,
     });
     totalChars += entryChars;

@@ -88,6 +88,7 @@ export function generateCalendar(
       keywordId: entry.keywordId,
       keyword: entry.keyword,
       archetype: archetype.id,
+      contentTrack: archetype.id === "thought_leadership" ? "thought_leadership" : "evergreen",
       scheduledDate,
       priority: i + 1,
     });

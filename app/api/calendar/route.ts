@@ -172,6 +172,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       briefId?: (typeof briefs)[number]["_id"];
       scheduledDate: number;
       archetype: string;
+      contentTrack: "evergreen" | "research" | "thought_leadership";
       priority: number;
     }> = [];
     for (const item of calendarItems) {
@@ -183,6 +184,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         briefId,
         scheduledDate: item.scheduledDate,
         archetype: item.archetype,
+        contentTrack: item.contentTrack,
         priority: item.priority,
       });
     }

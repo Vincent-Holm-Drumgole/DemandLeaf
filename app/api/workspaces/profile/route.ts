@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     industry?: string;
     audienceDescription?: string;
     masterContext?: string;
+    minPublishQualityScore?: number;
   };
   try {
     body = await request.json();
@@ -47,6 +48,18 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   ) {
     return NextResponse.json(
       { error: `masterContext must be ${MAX_MASTER_CONTEXT_CHARS} characters or less` },
+      { status: 400 },
+    );
+  }
+  if (
+    body.minPublishQualityScore !== undefined &&
+    (typeof body.minPublishQualityScore !== "number" ||
+      !Number.isFinite(body.minPublishQualityScore) ||
+      body.minPublishQualityScore < 0 ||
+      body.minPublishQualityScore > 100)
+  ) {
+    return NextResponse.json(
+      { error: "minPublishQualityScore must be a number between 0 and 100" },
       { status: 400 },
     );
   }
@@ -70,6 +83,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       masterContext:
         typeof body.masterContext === "string"
           ? body.masterContext.trim() || undefined
+          : undefined,
+      minPublishQualityScore:
+        typeof body.minPublishQualityScore === "number"
+          ? Math.round(body.minPublishQualityScore)
           : undefined,
     });
     return NextResponse.json({ success: true });

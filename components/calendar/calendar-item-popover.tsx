@@ -13,6 +13,7 @@ interface CalendarItemPopoverProps {
     _id: string;
     keyword: string;
     archetype: string;
+    contentTrack?: string;
     scheduledDate: number;
     priority: number;
     status: string;
@@ -57,6 +58,11 @@ export function CalendarItemPopover({ item, children, onStatusChange }: Calendar
             <p className="font-semibold text-sm">{item.keyword}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="secondary" className="text-xs">{item.archetype}</Badge>
+              {item.contentTrack && (
+                <Badge variant="outline" className="text-xs">
+                  {item.contentTrack.replace(/_/g, " ")}
+                </Badge>
+              )}
               <span className="text-xs text-muted-foreground">#{item.priority}</span>
             </div>
           </div>

@@ -159,7 +159,12 @@ AEO (Answer Engine Optimization) REQUIREMENTS:
 - Include a direct-answer paragraph (50-60 words) near the top of each major section that concisely answers the section's question.
 - For how-to and definitive-guide archetypes, end with a FAQ section containing 3-5 Q&A pairs.
 - Use at least 2 question-format headings (ending with "?") throughout the article.
-- Include at least 2 specific statistics or data points where available from the knowledge base.`;
+- Include at least 2 specific statistics or data points where available from the knowledge base.
+- If a knowledge-base item is marked PLANNED, do not present it as an existing capability.
+- Match claim language to source confidence:
+  - VERIFIED: attribute naturally ("According to...", "X benchmark found...")
+  - OBSERVED: use experience language ("In our experience...", "We've seen...")
+  - DIRECTIONAL: hedge appropriately ("typically", "often", "can").`;
 
   // Layer 4: Dynamic context + Layer 5: Generation instruction
   const userMessage = buildUserMessage({

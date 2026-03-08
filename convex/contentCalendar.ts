@@ -3,12 +3,17 @@ import { v } from "convex/values";
 import { requireCronAccess, requireWorkspaceAccess } from "./helpers";
 import { ConvexError } from "convex/values";
 import { ERR_UNAUTHORIZED, ERR_CALENDAR_NOT_FOUND } from "./errors";
-import { calendarStatusValidator } from "./validators";
+import { calendarStatusValidator, contentTrackValidator } from "./validators";
 import type { Id } from "./_generated/dataModel";
 
 const MAX_CALENDAR_QUERY_RESULTS = 1_000;
 const MAX_EXISTING_ITEMS_PER_STRATEGY = 2_000;
 const MAX_ITEMS_PER_BATCH = 500;
+const CONTENT_TRACK_TARGETS = {
+  evergreen: 0.6,
+  research: 0.2,
+  thought_leadership: 0.2,
+} as const;
 
 async function queryByStrategy(
   ctx: QueryCtx,
@@ -143,6 +148,7 @@ export const bulkCreate = mutation({
         keywordId: v.id("keywords"),
         scheduledDate: v.number(),
         archetype: v.string(),
+        contentTrack: v.optional(contentTrackValidator),
         priority: v.number(),
       })
     ),
@@ -219,6 +225,7 @@ export const bulkCreate = mutation({
           briefId: resolvedBriefId,
           scheduledDate: item.scheduledDate,
           archetype: item.archetype,
+          contentTrack: item.contentTrack ?? existing.contentTrack ?? "evergreen",
           priority: item.priority,
           updatedAt: now,
         });
@@ -231,6 +238,7 @@ export const bulkCreate = mutation({
           keywordId: item.keywordId,
           scheduledDate: item.scheduledDate,
           archetype: item.archetype,
+          contentTrack: item.contentTrack ?? "evergreen",
           priority: item.priority,
           status: "scheduled",
           createdAt: now,
@@ -249,6 +257,7 @@ export const reschedule = mutation({
     calendarId: v.id("contentCalendar"),
     scheduledDate: v.optional(v.number()),
     priority: v.optional(v.number()),
+    contentTrack: v.optional(contentTrackValidator),
   },
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.calendarId);
@@ -262,6 +271,9 @@ export const reschedule = mutation({
     }
     if (args.priority !== undefined && Number.isFinite(args.priority) && args.priority >= 1) {
       patch.priority = args.priority;
+    }
+    if (args.contentTrack !== undefined) {
+      patch.contentTrack = args.contentTrack;
     }
     if (Object.keys(patch).length > 0) {
       patch.updatedAt = Date.now();
@@ -311,6 +323,7 @@ export const update = mutation({
     scheduledDate: v.optional(v.number()),
     priority: v.optional(v.number()),
     status: v.optional(calendarStatusValidator),
+    contentTrack: v.optional(contentTrackValidator),
   },
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.calendarId);
@@ -327,8 +340,127 @@ export const update = mutation({
     if (args.status !== undefined) {
       patch.status = args.status;
     }
+    if (args.contentTrack !== undefined) {
+      patch.contentTrack = args.contentTrack;
+    }
     if (Object.keys(patch).length > 1) {
       await ctx.db.patch(args.calendarId, patch);
     }
   },
 });
+
+export const getPlanningOverview = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.optional(v.id("strategies")),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    let strategyId = args.strategyId;
+    if (strategyId) {
+      const strategy = await ctx.db.get(strategyId);
+      if (!strategy || strategy.workspaceId !== args.workspaceId) {
+        throw new ConvexError(ERR_UNAUTHORIZED);
+      }
+    } else {
+      const strategies = await ctx.db
+        .query("strategies")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+        .take(20);
+      strategyId = strategies.find((strategy) => strategy.status === "active")?._id;
+    }
+
+    const calendarItems = strategyId
+      ? await ctx.db
+          .query("contentCalendar")
+          .withIndex("by_strategy", (q) => q.eq("strategyId", strategyId!))
+          .take(MAX_EXISTING_ITEMS_PER_STRATEGY)
+      : await ctx.db
+          .query("contentCalendar")
+          .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+          .take(MAX_EXISTING_ITEMS_PER_STRATEGY);
+
+    const mixCounts = {
+      evergreen: 0,
+      research: 0,
+      thought_leadership: 0,
+    };
+    for (const item of calendarItems) {
+      mixCounts[item.contentTrack ?? "evergreen"] += 1;
+    }
+    const totalItems = Math.max(calendarItems.length, 1);
+    const mix = Object.entries(mixCounts).map(([track, count]) => ({
+      track,
+      count,
+      percent: count / totalItems,
+      target: CONTENT_TRACK_TARGETS[track as keyof typeof CONTENT_TRACK_TARGETS],
+    }));
+
+    if (!strategyId) {
+      return {
+        mix,
+        clusterCoverage: [],
+        buyerStageGaps: [],
+        recommendedTracks: mix
+          .filter((item) => item.percent < item.target)
+          .map((item) => item.track),
+        seasonalSuggestions: seasonalSuggestionsForDate(new Date()),
+      };
+    }
+
+    const [keywords, clusters] = await Promise.all([
+      ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", strategyId!)).take(500),
+      ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", strategyId!)).take(200),
+    ]);
+
+    const scheduledKeywordIds = new Set(calendarItems.map((item) => item.keywordId));
+    const clusterCoverage = clusters.map((cluster) => {
+      const clusterKeywords = keywords.filter((keyword) => keyword.clusterId === cluster._id);
+      const scheduledCount = clusterKeywords.filter((keyword) => scheduledKeywordIds.has(keyword._id)).length;
+      const publishedCount = clusterKeywords.filter((keyword) => keyword.status === "published").length;
+      return {
+        clusterId: cluster._id,
+        name: cluster.name,
+        pillarKeyword: cluster.pillarKeyword,
+        totalKeywords: clusterKeywords.length,
+        scheduledCount,
+        publishedCount,
+      };
+    });
+
+    const buyerStageGaps = ["awareness", "consideration", "decision"].map((stage) => {
+      const stageKeywords = keywords.filter((keyword) => keyword.buyerStage === stage);
+      const uncovered = stageKeywords.filter((keyword) => !scheduledKeywordIds.has(keyword._id));
+      return {
+        buyerStage: stage,
+        total: stageKeywords.length,
+        uncovered: uncovered.length,
+      };
+    });
+
+    return {
+      mix,
+      clusterCoverage,
+      buyerStageGaps,
+      recommendedTracks: mix
+        .filter((item) => item.percent < item.target)
+        .map((item) => item.track),
+      seasonalSuggestions: seasonalSuggestionsForDate(new Date()),
+    };
+  },
+});
+
+function seasonalSuggestionsForDate(date: Date): string[] {
+  const month = date.getUTCMonth();
+  if (month === 1 || month === 2) {
+    return ["Plan content around spring Salesforce releases and Q2 reporting resets."];
+  }
+  if (month === 7 || month === 8) {
+    return ["Prepare research and thought-leadership angles for INBOUND and fall martech announcements."];
+  }
+  if (month === 10) {
+    return ["Publish operational analysis tied to Q4 planning, budget defense, and annual reporting cycles."];
+  }
+  return ["Maintain a balanced mix of evergreen, research, and thought-leadership content this month."];
+}

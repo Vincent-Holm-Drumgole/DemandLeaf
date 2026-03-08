@@ -141,6 +141,22 @@ export async function POST(
     return NextResponse.json({ error: "Blog not found" }, { status: 404 });
   }
 
+  const publicationCheck = await convex.mutation(api.blogs.recalculatePublicationChecks, {
+    blogId,
+  });
+
+  if (body.status !== "draft" && !publicationCheck.canPublish) {
+    return NextResponse.json(
+      {
+        error: "Blog is blocked by the pre-publish checklist",
+        blockers: publicationCheck.blockers,
+        checklist: publicationCheck.checklist,
+        killSwitchTriggered: publicationCheck.killSwitchTriggered,
+      },
+      { status: 422 },
+    );
+  }
+
   // Prevent duplicate publishes — if already pushed to WP, require explicit re-publish
   if (blog.wpPostId && !body.republish) {
     return NextResponse.json(

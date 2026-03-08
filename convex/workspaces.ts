@@ -139,6 +139,7 @@ export const provision = mutation({
       name: args.name,
       plan: "trial",
       trialEndsAt,
+      minPublishQualityScore: 70,
       createdAt: now,
       updatedAt: now,
     });
@@ -410,6 +411,7 @@ export const updateProfile = mutation({
     industry: v.optional(v.string()),
     audienceDescription: v.optional(v.string()),
     masterContext: v.optional(v.string()),
+    minPublishQualityScore: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAdminAccess(ctx, args.workspaceId);
@@ -418,6 +420,9 @@ export const updateProfile = mutation({
     if (args.industry !== undefined) patch.industry = args.industry;
     if (args.audienceDescription !== undefined) patch.audienceDescription = args.audienceDescription;
     if (args.masterContext !== undefined) patch.masterContext = args.masterContext;
+    if (args.minPublishQualityScore !== undefined) {
+      patch.minPublishQualityScore = args.minPublishQualityScore;
+    }
     await ctx.db.patch(args.workspaceId, patch);
   },
 });
