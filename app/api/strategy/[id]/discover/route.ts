@@ -71,13 +71,23 @@ export async function POST(
       return NextResponse.json({ keywords: [], count: 0 });
     }
 
-    // 2. Cap and fetch keyword metrics
+    // 2. Cap and fetch keyword metrics (graceful if DataForSEO unavailable)
     const keywordStrings = discovered.slice(0, 200);
-    const metrics = await getKeywordData(convex, keywordStrings);
-    const metricsMap = new Map(metrics.map((m) => [m.keyword.toLowerCase(), m]));
+    let metricsMap = new Map<string, { searchVolume: number; keywordDifficulty: number; cpc: number }>();
+    try {
+      const metrics = await getKeywordData(convex, keywordStrings);
+      metricsMap = new Map(metrics.map((m) => [m.keyword.toLowerCase(), m]));
+    } catch (metricsErr) {
+      console.warn("[strategy/[id]/discover/POST] keyword metrics unavailable:", metricsErr);
+    }
 
-    // 3. Classify intents
-    const intents = await classifyIntents(keywordStrings);
+    // 3. Classify intents (graceful if AI unavailable)
+    let intents = new Map<string, string>();
+    try {
+      intents = await classifyIntents(keywordStrings);
+    } catch (intentErr) {
+      console.warn("[strategy/[id]/discover/POST] intent classification unavailable:", intentErr);
+    }
 
     // 4. Bulk create keywords in Convex (cap at 200)
     const ids: FunctionReturnType<typeof api.keywords.bulkCreate> = await convex.mutation(
