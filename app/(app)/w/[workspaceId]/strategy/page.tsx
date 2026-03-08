@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Loader2, TrendingUp, Copy, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, Loader2, TrendingUp, Copy, RefreshCw, Trash2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { StrategyWizard } from "@/components/strategy/strategy-wizard";
 import { useStrategyStore } from "@/store/strategy-store";
 import { PaywallGate } from "@/components/billing/paywall-gate";
@@ -19,6 +22,7 @@ interface Strategy {
   _id: string;
   name: string;
   businessOutcomes: string;
+  targetAudience?: string;
   status: string;
   seedKeywords: string[];
   createdAt: number;
@@ -34,6 +38,7 @@ export default function StrategyPage() {
   const [fetchKey, setFetchKey] = useState(0);
   const [showWizard, setShowWizard] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editStrategy, setEditStrategy] = useState<Strategy | null>(null);
   const { reset } = useStrategyStore();
 
   useEffect(() => {
@@ -133,6 +138,12 @@ export default function StrategyPage() {
     }
   };
 
+  const handleEdit = (e: React.MouseEvent, strategy: Strategy) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditStrategy({ ...strategy });
+  };
+
   if (!isLoaded || !isSignedIn) return null;
 
   return (
@@ -197,6 +208,16 @@ export default function StrategyPage() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{strategy.name}</CardTitle>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Edit strategy"
+                          disabled={busyId === strategy._id}
+                          onClick={(e) => handleEdit(e, strategy)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -266,7 +287,161 @@ export default function StrategyPage() {
             <StrategyWizard onComplete={handleWizardComplete} />
           </DialogContent>
         </Dialog>
+
+        {editStrategy && (
+          <EditStrategyDialog
+            strategy={editStrategy}
+            onClose={() => setEditStrategy(null)}
+            onSaved={(updated) => {
+              setStrategies((prev) =>
+                prev.map((s) => (s._id === updated._id ? updated : s))
+              );
+              setEditStrategy(null);
+            }}
+          />
+        )}
       </main>
     </PaywallGate>
+  );
+}
+
+function EditStrategyDialog({
+  strategy,
+  onClose,
+  onSaved,
+}: {
+  strategy: Strategy;
+  onClose: () => void;
+  onSaved: (updated: Strategy) => void;
+}) {
+  const [name, setName] = useState(strategy.name);
+  const [outcomes, setOutcomes] = useState(strategy.businessOutcomes);
+  const [audience, setAudience] = useState(strategy.targetAudience ?? "");
+  const [seeds, setSeeds] = useState<string[]>(strategy.seedKeywords);
+  const [seedInput, setSeedInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const addSeed = () => {
+    const trimmed = seedInput.trim();
+    if (trimmed && !seeds.includes(trimmed) && seeds.length < 20) {
+      setSeeds([...seeds, trimmed]);
+      setSeedInput("");
+    }
+  };
+
+  const handleSeedKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.preventDefault(); addSeed(); }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/strategy/${strategy._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          businessOutcomes: outcomes.trim() || undefined,
+          targetAudience: audience.trim() || undefined,
+          seedKeywords: seeds,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to update");
+      }
+      onSaved({
+        ...strategy,
+        name: name.trim(),
+        businessOutcomes: outcomes.trim(),
+        targetAudience: audience.trim() || undefined,
+        seedKeywords: seeds,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update strategy");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit Strategy</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-name">Strategy Name</Label>
+            <Input
+              id="edit-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-outcomes">Business Outcomes</Label>
+            <Textarea
+              id="edit-outcomes"
+              value={outcomes}
+              onChange={(e) => setOutcomes(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-audience">Target Audience</Label>
+            <Input
+              id="edit-audience"
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Seed Keywords</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add keyword"
+                value={seedInput}
+                onChange={(e) => setSeedInput(e.target.value)}
+                onKeyDown={handleSeedKeyDown}
+                disabled={seeds.length >= 20}
+              />
+              <Button variant="outline" onClick={addSeed} disabled={!seedInput.trim() || seeds.length >= 20}>
+                Add
+              </Button>
+            </div>
+            {seeds.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {seeds.map((seed) => (
+                  <Badge key={seed} variant="secondary" className="gap-1">
+                    {seed}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${seed}`}
+                      onClick={() => setSeeds(seeds.filter((s) => s !== seed))}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!name.trim() || isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
