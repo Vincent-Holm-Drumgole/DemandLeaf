@@ -117,21 +117,21 @@ export const deleteWithCascade = mutation({
     if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
 
-    const [keywords, clusters, briefs, calendar, competitors] = await Promise.all([
-      ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
-      ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(100),
-      ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(200),
-      ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
-      ctx.db.query("competitorTracking").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(50),
-    ]);
+    const deleteAll = async (
+      query: { take: (n: number) => Promise<Array<{ _id: any }>> },
+    ) => {
+      let batch;
+      do {
+        batch = await query.take(100);
+        await Promise.all(batch.map((d) => ctx.db.delete(d._id)));
+      } while (batch.length === 100);
+    };
 
-    await Promise.all([
-      ...keywords.map((d) => ctx.db.delete(d._id)),
-      ...clusters.map((d) => ctx.db.delete(d._id)),
-      ...briefs.map((d) => ctx.db.delete(d._id)),
-      ...calendar.map((d) => ctx.db.delete(d._id)),
-      ...competitors.map((d) => ctx.db.delete(d._id)),
-    ]);
+    await deleteAll(ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("competitorTracking").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
 
     await ctx.db.delete(args.strategyId);
   },
@@ -144,19 +144,20 @@ export const clearDiscoveryData = mutation({
     if (!strategy) throw new ConvexError(ERR_STRATEGY_NOT_FOUND);
     await requireWorkspaceAccess(ctx, strategy.workspaceId);
 
-    const [keywords, clusters, briefs, calendar] = await Promise.all([
-      ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
-      ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(100),
-      ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(200),
-      ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)).take(500),
-    ]);
+    const deleteAll = async (
+      query: { take: (n: number) => Promise<Array<{ _id: any }>> },
+    ) => {
+      let batch;
+      do {
+        batch = await query.take(100);
+        await Promise.all(batch.map((d) => ctx.db.delete(d._id)));
+      } while (batch.length === 100);
+    };
 
-    await Promise.all([
-      ...keywords.map((d) => ctx.db.delete(d._id)),
-      ...clusters.map((d) => ctx.db.delete(d._id)),
-      ...briefs.map((d) => ctx.db.delete(d._id)),
-      ...calendar.map((d) => ctx.db.delete(d._id)),
-    ]);
+    await deleteAll(ctx.db.query("keywords").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("topicClusters").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("contentBriefs").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
+    await deleteAll(ctx.db.query("contentCalendar").withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId)));
 
     await ctx.db.patch(args.strategyId, { updatedAt: Date.now() });
   },
