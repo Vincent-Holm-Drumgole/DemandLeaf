@@ -19,6 +19,7 @@ export function PublicationCheckPanel({
   onUpdated,
 }: PublicationCheckPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function updateReviewState(patch: {
     factCheckReviewed?: boolean;
@@ -26,6 +27,7 @@ export function PublicationCheckPanel({
   }) {
     if (!publicationCheck || isSaving) return;
     setIsSaving(true);
+    setError(null);
     try {
       const res = await fetch(`/api/blog/${blogId}/publication-check`, {
         method: "POST",
@@ -36,6 +38,8 @@ export function PublicationCheckPanel({
         throw new Error("Failed to update review state");
       }
       onUpdated(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update");
     } finally {
       setIsSaving(false);
     }
@@ -127,6 +131,10 @@ export function PublicationCheckPanel({
                 : "Approve for Publish"}
             </Button>
           </div>
+
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
 
           {publicationCheck.killSwitchTriggered && (
             <p className="text-xs text-destructive">

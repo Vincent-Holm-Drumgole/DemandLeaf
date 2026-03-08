@@ -9,7 +9,7 @@ import { analyzeFillerParagraphs } from "./filler-paragraphs";
 import { DETECTION_LOW_MAX, DETECTION_MEDIUM_MAX } from "@/lib/constants/detection";
 
 /**
- * Run all 5 anti-detection algorithms on blog content.
+ * Run all 7 anti-detection algorithms on blog content.
  * Returns a risk score (0-100), risk level, and individual flags.
  *
  * All algorithms are pure code — no AI calls.

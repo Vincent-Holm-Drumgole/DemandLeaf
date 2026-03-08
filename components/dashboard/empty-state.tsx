@@ -17,7 +17,7 @@ export function EmptyState() {
         Create your first blog post by analyzing your website and choosing a
         topic.
       </p>
-      <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/keywords"))} className="mt-4">
+      <Button onClick={() => router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))} className="mt-4">
         Write Your First Blog
       </Button>
     </div>

@@ -14,9 +14,9 @@ export const listDashboard = query({
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
     const [sources, briefs, competitorArticles] = await Promise.all([
-      ctx.db.query("researchSources").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).collect(),
-      ctx.db.query("researchBriefs").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).collect(),
-      ctx.db.query("competitorArticles").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).collect(),
+      ctx.db.query("researchSources").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).take(100),
+      ctx.db.query("researchBriefs").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).order("desc").take(200),
+      ctx.db.query("competitorArticles").withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId)).order("desc").take(200),
     ]);
     return { sources, briefs, competitorArticles };
   },
@@ -331,7 +331,7 @@ export const updateSourceCheckForCron = mutation({
       status: args.status,
       errorMessage: args.errorMessage,
       lastCheckedAt: Date.now(),
-      lastSuccessAt: args.status === "error" ? undefined : Date.now(),
+      ...(args.status !== "error" && { lastSuccessAt: Date.now() }),
       updatedAt: Date.now(),
     });
   },

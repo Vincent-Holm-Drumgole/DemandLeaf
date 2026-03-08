@@ -147,36 +147,44 @@ export async function POST(request: NextRequest, context: RouteParams): Promise<
     },
   };
 
-  const generated = await generateBlog(generationInput);
+  try {
+    const generated = await generateBlog(generationInput);
 
-  const blogId = await convex.mutation(api.blogs.create, {
-    workspaceId: workspace._id,
-    title: generated.title,
-    slug: generated.slug,
-    content: generated.content,
-    contentHtml: generated.contentHtml,
-    metaTitle: generated.metaTitle,
-    metaDescription: generated.metaDescription,
-    focusKeyword: generated.focusKeyword,
-    archetype: generated.archetype,
-    contentTrack: "research",
-    wordCount: generated.wordCount,
-    status: "draft",
-    seoScore: generated.scores.seoScore,
-    qualityScore: generated.scores.qualityScore,
-    detectionRisk: generated.scores.detectionRisk,
-    detectionRiskScore: generated.scores.detectionRiskScore,
-    burstinessScore: generated.scores.burstinessScore,
-    readabilityScore: generated.scores.readabilityScore,
-    modelUsed: generated.modelUsed,
-    inputTokens: generated.totalInputTokens,
-    outputTokens: generated.totalOutputTokens,
-    generationCostCents: generated.totalCostCents,
-    generationTimeMs: generated.generationTimeMs,
-    promptVersion: generated.promptVersion,
-  });
+    const blogId = await convex.mutation(api.blogs.create, {
+      workspaceId: workspace._id,
+      title: generated.title,
+      slug: generated.slug,
+      content: generated.content,
+      contentHtml: generated.contentHtml,
+      metaTitle: generated.metaTitle,
+      metaDescription: generated.metaDescription,
+      focusKeyword: generated.focusKeyword,
+      archetype: generated.archetype,
+      contentTrack: "research",
+      wordCount: generated.wordCount,
+      status: "draft",
+      seoScore: generated.scores.seoScore,
+      qualityScore: generated.scores.qualityScore,
+      detectionRisk: generated.scores.detectionRisk,
+      detectionRiskScore: generated.scores.detectionRiskScore,
+      burstinessScore: generated.scores.burstinessScore,
+      readabilityScore: generated.scores.readabilityScore,
+      modelUsed: generated.modelUsed,
+      inputTokens: generated.totalInputTokens,
+      outputTokens: generated.totalOutputTokens,
+      generationCostCents: generated.totalCostCents,
+      generationTimeMs: generated.generationTimeMs,
+      promptVersion: generated.promptVersion,
+    });
 
-  await convex.mutation(api.blogs.recalculatePublicationChecks, { blogId });
+    await convex.mutation(api.blogs.recalculatePublicationChecks, { blogId });
 
-  return NextResponse.json({ blogId }, { status: 201 });
+    return NextResponse.json({ blogId }, { status: 201 });
+  } catch (err) {
+    console.error("[research/briefs/draft] Generation failed:", err);
+    return NextResponse.json(
+      { error: "Blog generation failed" },
+      { status: 500 },
+    );
+  }
 }

@@ -104,6 +104,7 @@ export const dailyResearchMonitor = inngest.createFunction(
           const topMatches = items
             .map((item) => ({ item, score: scoreResearchItem(item, signals) }))
             .filter((item) => item.score >= RELEVANCE_THRESHOLD)
+            .sort((a, b) => b.score - a.score)
             .slice(0, 3);
 
           for (const match of topMatches) {

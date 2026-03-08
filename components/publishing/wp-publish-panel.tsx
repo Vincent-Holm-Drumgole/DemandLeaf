@@ -236,8 +236,8 @@ export function WpPublishPanel({
                 </p>
                 {result.blockers && result.blockers.length > 0 && (
                   <ul className="list-disc pl-4 text-xs text-red-700">
-                    {result.blockers.map((blocker) => (
-                      <li key={blocker}>{blocker}</li>
+                    {result.blockers.map((blocker, idx) => (
+                      <li key={idx}>{blocker}</li>
                     ))}
                   </ul>
                 )}

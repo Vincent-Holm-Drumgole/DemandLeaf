@@ -137,6 +137,24 @@ export default function ResearchPage() {
     router.push(buildWorkspacePath(currentWorkspace._id, `/review/${payload.blogId}`));
   }
 
+  async function toggleSourceStatus(sourceId: string, currentStatus: string) {
+    const res = await apiFetch(`/api/research/sources/${sourceId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-workspace-id": currentWorkspace._id,
+      },
+      body: JSON.stringify({
+        status: currentStatus === "active" ? "paused" : "active",
+      }),
+    });
+    if (!res.ok) {
+      setError("Failed to update source status");
+      return;
+    }
+    void loadDashboard();
+  }
+
   const dailyBriefs = data.briefs.filter((brief) => brief.kind === "daily_brief");
   const trendReports = data.briefs.filter((brief) => brief.kind === "trend_report");
 
@@ -228,19 +246,7 @@ export default function ResearchPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={async () => {
-                            await apiFetch(`/api/research/sources/${source.id}`, {
-                              method: "PATCH",
-                              headers: {
-                                "Content-Type": "application/json",
-                                "x-workspace-id": currentWorkspace._id,
-                              },
-                              body: JSON.stringify({
-                                status: source.status === "active" ? "paused" : "active",
-                              }),
-                            });
-                            void loadDashboard();
-                          }}
+                          onClick={() => toggleSourceStatus(source.id, source.status)}
                         >
                           {source.status === "active" ? "Pause" : "Resume"}
                         </Button>

@@ -409,7 +409,7 @@ export default defineSchema({
     content: v.string(),
     entryType: kbEntryTypeValidator,
     tags: v.array(v.string()),
-    capabilityStatus: kbCapabilityStatusValidator,
+    capabilityStatus: v.optional(kbCapabilityStatusValidator),
     discoveryNotes: v.optional(v.string()),
     lastVerifiedAt: v.optional(v.number()),
     createdAt: v.number(),

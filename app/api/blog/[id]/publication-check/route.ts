@@ -9,7 +9,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(request: NextRequest, context: RouteParams): Promise<NextResponse> {
+export async function PUT(request: NextRequest, context: RouteParams): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

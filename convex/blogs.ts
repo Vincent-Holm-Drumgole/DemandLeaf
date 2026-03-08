@@ -289,7 +289,7 @@ export const recalculatePublicationChecks = mutation({
     if (!workspace) throw new Error("Workspace not found");
 
     const [kbClaims, researchBriefs, competitorArticles, existingFactCheck, existingPublicationCheck] = await Promise.all([
-      ctx.db.query("knowledgeBaseClaims").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).collect(),
+      ctx.db.query("knowledgeBaseClaims").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).take(500),
       ctx.db.query("researchBriefs").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).take(100),
       ctx.db.query("competitorArticles").withIndex("by_workspace", (q) => q.eq("workspaceId", blog.workspaceId)).take(100),
       ctx.db.query("blogFactChecks").withIndex("by_blog", (q) => q.eq("blogId", blog._id)).unique(),

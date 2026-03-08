@@ -247,6 +247,7 @@ function ReviewLayout({
     void (async () => {
       try {
         const res = await fetch(`/api/blog/${blogId}/publication-check`, {
+          method: "PUT",
           cache: "no-store",
         });
         if (!res.ok) return;

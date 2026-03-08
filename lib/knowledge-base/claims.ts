@@ -7,15 +7,6 @@ const OBSERVED_PATTERNS = [
   /\bacross (?:multiple )?(?:implementations|engagements|teams|accounts)\b/i,
 ];
 
-const DIRECTIONAL_PATTERNS = [
-  /\btypically\b/i,
-  /\boften\b/i,
-  /\busually\b/i,
-  /\bcan\b/i,
-  /\bmay\b/i,
-  /\btends to\b/i,
-];
-
 const VERIFIED_PATTERNS = [
   /\baccording to\b/i,
   /\breport\b/i,
@@ -48,9 +39,7 @@ export function inferClaimConfidence(statement: string): KBClaimConfidence {
   if (OBSERVED_PATTERNS.some((pattern) => pattern.test(statement))) {
     return "observed";
   }
-  return DIRECTIONAL_PATTERNS.some((pattern) => pattern.test(statement))
-    ? "directional"
-    : "directional";
+  return "directional";
 }
 
 export function draftKnowledgeBaseClaims(
