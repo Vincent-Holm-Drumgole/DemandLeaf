@@ -47,6 +47,12 @@ export async function POST(
     // Clear old discovery data
     await convex.mutation(api.strategies.clearDiscoveryData, { strategyId });
 
+    // Invalidate seed keyword suggestion cache so we get fresh suggestions
+    const suggestionCacheKeys = strategy.seedKeywords.map(
+      (s: string) => `suggestions:${s.toLowerCase()}`
+    );
+    await convex.mutation(api.seoDataCache.invalidateKeys, { cacheKeys: suggestionCacheKeys });
+
     // Re-run discovery pipeline
     const discovered = await discoverKeywords(convex, strategy.seedKeywords, []);
 
@@ -55,6 +61,11 @@ export async function POST(
     }
 
     const keywordStrings = discovered.slice(0, 200);
+
+    // Invalidate keyword metric cache so KD/volume are re-fetched from DataForSEO
+    const metricCacheKeys = keywordStrings.map((kw) => `keyword:${kw.toLowerCase()}`);
+    await convex.mutation(api.seoDataCache.invalidateKeys, { cacheKeys: metricCacheKeys });
+
     let metricsMap = new Map<string, { searchVolume: number; keywordDifficulty: number; cpc: number }>();
     try {
       const metrics = await getKeywordData(convex, keywordStrings);

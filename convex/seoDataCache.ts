@@ -53,6 +53,32 @@ export const getMany = query({
   },
 });
 
+/** Invalidate cache entries by exact keys. Sets expiresAt to 0 so they're treated as misses. */
+export const invalidateKeys = mutation({
+  args: { cacheKeys: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError(ERR_UNAUTHENTICATED);
+
+    const BATCH = 50;
+    for (let i = 0; i < args.cacheKeys.length; i += BATCH) {
+      const batch = args.cacheKeys.slice(i, i + BATCH);
+      await Promise.all(
+        batch.map(async (cacheKey) => {
+          const entry = await ctx.db
+            .query("seoDataCache")
+            .withIndex("by_cache_key", (q) => q.eq("cacheKey", cacheKey))
+            .order("desc")
+            .first();
+          if (entry) {
+            await ctx.db.patch(entry._id, { expiresAt: 0 });
+          }
+        })
+      );
+    }
+  },
+});
+
 /** Upserts a cache entry. Overwrites any existing entry for the same cacheKey. */
 export const set = mutation({
   args: {
