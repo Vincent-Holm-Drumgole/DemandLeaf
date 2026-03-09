@@ -11,6 +11,8 @@ import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
 import { hasConvexErrorCode } from "@/lib/convex-error";
 
+export const maxDuration = 120;
+
 // POST /api/strategy/[id]/clusters — run topic clustering; store clusters + preview calendar
 export async function POST(
   request: NextRequest,

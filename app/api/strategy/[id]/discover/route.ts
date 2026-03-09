@@ -14,6 +14,8 @@ import type { FunctionReturnType } from "convex/server";
 import { hasConvexErrorCode } from "@/lib/convex-error";
 import type { SearchIntent } from "@/types";
 
+export const maxDuration = 120;
+
 // POST /api/strategy/[id]/discover — full keyword discovery pipeline
 export async function POST(
   request: NextRequest,

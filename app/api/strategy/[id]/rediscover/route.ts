@@ -14,6 +14,8 @@ import type { FunctionReturnType } from "convex/server";
 import { hasConvexErrorCode } from "@/lib/convex-error";
 import type { SearchIntent } from "@/types";
 
+export const maxDuration = 120; // seconds — discovery pipeline is multi-step
+
 // POST /api/strategy/[id]/rediscover — clear old data + re-run discovery
 export async function POST(
   _request: NextRequest,
@@ -47,11 +49,15 @@ export async function POST(
     // Clear old discovery data
     await convex.mutation(api.strategies.clearDiscoveryData, { strategyId });
 
-    // Invalidate seed keyword suggestion cache so we get fresh suggestions
-    const suggestionCacheKeys = strategy.seedKeywords.map(
-      (s: string) => `suggestions:${s.toLowerCase()}`
-    );
-    await convex.mutation(api.seoDataCache.invalidateKeys, { cacheKeys: suggestionCacheKeys });
+    // Invalidate seed keyword suggestion cache (non-blocking, best-effort)
+    try {
+      const suggestionCacheKeys = strategy.seedKeywords.map(
+        (s: string) => `suggestions:${s.toLowerCase()}`
+      );
+      await convex.mutation(api.seoDataCache.invalidateKeys, { cacheKeys: suggestionCacheKeys });
+    } catch (cacheErr) {
+      console.warn("[rediscover] suggestion cache invalidation failed:", cacheErr);
+    }
 
     // Re-run discovery pipeline
     const discovered = await discoverKeywords(convex, strategy.seedKeywords, []);
@@ -62,9 +68,17 @@ export async function POST(
 
     const keywordStrings = discovered.slice(0, 200);
 
-    // Invalidate keyword metric cache so KD/volume are re-fetched from DataForSEO
-    const metricCacheKeys = keywordStrings.map((kw) => `keyword:${kw.toLowerCase()}`);
-    await convex.mutation(api.seoDataCache.invalidateKeys, { cacheKeys: metricCacheKeys });
+    // Invalidate keyword metric cache in batches of 50 (non-blocking, best-effort)
+    try {
+      const metricCacheKeys = keywordStrings.map((kw) => `keyword:${kw.toLowerCase()}`);
+      for (let i = 0; i < metricCacheKeys.length; i += 50) {
+        await convex.mutation(api.seoDataCache.invalidateKeys, {
+          cacheKeys: metricCacheKeys.slice(i, i + 50),
+        });
+      }
+    } catch (cacheErr) {
+      console.warn("[rediscover] metric cache invalidation failed:", cacheErr);
+    }
 
     let metricsMap = new Map<string, { searchVolume: number; keywordDifficulty: number; cpc: number }>();
     try {
