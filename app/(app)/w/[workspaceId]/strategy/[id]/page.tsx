@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KeywordExplorer } from "@/components/keywords/keyword-explorer";
 import { ClusterTreeView } from "@/components/clusters/cluster-tree-view";
 import { ContentCalendar } from "@/components/calendar/content-calendar";
-import type { ClusterResult } from "@/types";
 import { PaywallGate } from "@/components/billing/paywall-gate";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
@@ -32,7 +31,7 @@ interface StrategyPageData {
     status: string;
     clusterId?: string;
   }[];
-  clusters: (ClusterResult & { _id: string; name: string })[];
+  clusters: { _id: string; name: string; pillarKeyword: string }[];
 }
 
 interface CalendarEntry {
@@ -173,6 +172,14 @@ export default function StrategyDetailPage() {
 
   const clusterOptions = data.clusters.map((c) => ({ id: c._id, name: c.name }));
 
+  // Build ClusterResult objects by cross-referencing keywords with their clusterId
+  const enrichedClusters = data.clusters.map((c) => ({
+    ...c,
+    keywords: data.keywords
+      .filter((kw) => kw.clusterId === c._id)
+      .map((kw) => kw.keyword),
+  }));
+
   return (
     <PaywallGate>
       <main className="container max-w-5xl py-8">
@@ -249,14 +256,14 @@ export default function StrategyDetailPage() {
           </TabsContent>
 
           <TabsContent value="clusters" className="mt-4">
-            {data.clusters.length === 0 ? (
+            {enrichedClusters.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <GitBranch className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="font-medium">No clusters yet</p>
                 <p className="text-sm">Click &ldquo;Run Clustering&rdquo; above to group your keywords into topic clusters.</p>
               </div>
             ) : (
-              <ClusterTreeView clusters={data.clusters} />
+              <ClusterTreeView clusters={enrichedClusters} />
             )}
           </TabsContent>
 
