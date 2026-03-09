@@ -100,26 +100,46 @@ export async function getKeywordData(convex: ConvexClient, keywords: string[]): 
 
   if (toFetch.length === 0) return results;
 
-  // Batch fetch from DataForSEO Keywords Data API (Google Ads).
-  // NOTE: this endpoint returns search_volume and cpc but NOT keyword_difficulty.
-  // Keyword difficulty requires a separate call to
-  // /dataforseo_labs/google/bulk_keyword_difficulty/live.
-  // keywordDifficulty is set to 0 until that endpoint is integrated.
-  const response = await dfsFetch("/keywords_data/google_ads/search_volume/live", [
+  // 1. Fetch search volume + CPC from Google Ads endpoint
+  const volumeResponse = await dfsFetch("/keywords_data/google_ads/search_volume/live", [
     { keywords: toFetch, location_code: 2840, language_code: "en" },
   ]) as { tasks?: { result?: { keyword: string; search_volume: number; cpc: number }[] }[] };
 
-  const taskResult = response.tasks?.[0]?.result ?? [];
-  const cacheWrites: Array<Promise<void>> = [];
-  for (const item of taskResult) {
-    const metric: KeywordMetric = {
-      keyword: item.keyword,
-      searchVolume: item.search_volume ?? 0,
-      keywordDifficulty: 0,
+  const volumeResult = volumeResponse.tasks?.[0]?.result ?? [];
+  const volumeMap = new Map<string, { search_volume: number; cpc: number }>();
+  for (const item of volumeResult) {
+    volumeMap.set(item.keyword.toLowerCase(), {
+      search_volume: item.search_volume ?? 0,
       cpc: item.cpc ?? 0,
+    });
+  }
+
+  // 2. Fetch keyword difficulty from DataForSEO Labs bulk endpoint
+  let kdMap = new Map<string, number>();
+  try {
+    const kdResponse = await dfsFetch("/dataforseo_labs/google/bulk_keyword_difficulty/live", [
+      { keywords: toFetch, location_code: 2840, language_code: "en" },
+    ]) as { tasks?: { result?: { items?: { keyword: string; keyword_difficulty: number }[] }[] }[] };
+
+    const kdItems = kdResponse.tasks?.[0]?.result?.[0]?.items ?? [];
+    kdMap = new Map(kdItems.map((item) => [item.keyword.toLowerCase(), item.keyword_difficulty ?? 0]));
+  } catch (kdErr) {
+    console.warn("[seo-data] Keyword difficulty fetch failed, using 0:", kdErr);
+  }
+
+  // 3. Merge volume + KD into results
+  const cacheWrites: Array<Promise<void>> = [];
+  for (const kw of toFetch) {
+    const kwLower = kw.toLowerCase();
+    const vol = volumeMap.get(kwLower);
+    const metric: KeywordMetric = {
+      keyword: kw,
+      searchVolume: vol?.search_volume ?? 0,
+      keywordDifficulty: kdMap.get(kwLower) ?? 0,
+      cpc: vol?.cpc ?? 0,
     };
     results.push(metric);
-    const cacheKey = `keyword:${item.keyword.toLowerCase()}`;
+    const cacheKey = `keyword:${kwLower}`;
     cacheWrites.push(setCache(convex, cacheKey, metric, TTL_MS.keyword));
   }
   await Promise.allSettled(cacheWrites);
@@ -155,21 +175,23 @@ export async function getSerpResults(convex: ConvexClient, keyword: string): Pro
 }
 
 /**
- * Discover related keywords from a seed keyword. Cached for 30 days.
+ * Discover related keywords from a seed keyword using keyword suggestions.
+ * This returns topically relevant suggestions rather than loosely related keywords.
+ * Cached for 30 days.
  */
 export async function getRelatedKeywords(convex: ConvexClient, seed: string): Promise<string[]> {
-  const cacheKey = `related:${seed.toLowerCase()}`;
+  const cacheKey = `suggestions:${seed.toLowerCase()}`;
   const cached = await getCached(convex, cacheKey);
   if (cached) return cached as string[];
 
-  const response = await dfsFetch("/dataforseo_labs/google/related_keywords/live", [
-    { keyword: seed, location_code: 2840, language_code: "en", depth: 2, limit: 100 },
-  ]) as { tasks?: { result?: { items?: { keyword_data: { keyword: string } }[] }[] }[] };
+  const response = await dfsFetch("/dataforseo_labs/google/keyword_suggestions/live", [
+    { keyword: seed, location_code: 2840, language_code: "en", limit: 100, include_seed_keyword: false },
+  ]) as { tasks?: { result?: { items?: { keyword_data: { keyword: string; search_volume: number } }[] }[] }[] };
 
   const items = response.tasks?.[0]?.result?.[0]?.items ?? [];
   const keywords = items
     .map((item) => item.keyword_data?.keyword)
-    .filter((k): k is string => Boolean(k) && k !== seed);
+    .filter((k): k is string => Boolean(k) && k.toLowerCase() !== seed.toLowerCase());
 
   await setCache(convex, cacheKey, keywords, TTL_MS.related);
   return keywords;
