@@ -101,7 +101,7 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
         {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
           const dayItems = itemsByDay.get(day) ?? [];
           return (
-            <div key={day} className="border-r border-b min-h-[80px] p-1">
+            <div key={day} className="border-r border-b min-h-[100px] p-1.5">
               <div className="text-xs text-muted-foreground mb-1">{day}</div>
               <div className="space-y-0.5">
                 {dayItems.map((item) => (
@@ -111,11 +111,11 @@ export function ContentCalendar({ items }: ContentCalendarProps) {
                     onStatusChange={handleStatusChange}
                   >
                     <button
-                      className={`w-full text-left px-1.5 py-0.5 rounded text-xs border truncate transition-colors hover:opacity-80 ${
+                      className={`w-full text-left px-1.5 py-1 rounded text-[11px] leading-tight border transition-colors hover:opacity-80 ${
                         STATUS_COLORS[item.status] ?? "bg-blue-50 border-blue-200"
                       }`}
                     >
-                      {item.keyword}
+                      <span className="line-clamp-2">{item.keyword}</span>
                     </button>
                   </CalendarItemPopover>
                 ))}
