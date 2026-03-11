@@ -74,13 +74,19 @@ export const replaceByStrategy = mutation({
       throw new ConvexError(`Maximum ${MAX_DOMAINS_PER_STRATEGY} competitor domains per strategy`);
     }
 
-    const existing = await ctx.db
-      .query("competitorTracking")
-      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
-      .take(MAX_TRACKING_PER_WORKSPACE);
+    let removed = 0;
+    while (true) {
+      const batch = await ctx.db
+        .query("competitorTracking")
+        .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+        .take(MAX_TRACKING_PER_WORKSPACE);
 
-    for (const record of existing) {
-      await ctx.db.delete(record._id);
+      if (batch.length === 0) {
+        break;
+      }
+
+      await Promise.all(batch.map((record) => ctx.db.delete(record._id)));
+      removed += batch.length;
     }
 
     const now = Date.now();
@@ -97,7 +103,7 @@ export const replaceByStrategy = mutation({
       ids.push(id);
     }
 
-    return { removed: existing.length, created: ids.length, ids };
+    return { removed, created: ids.length, ids };
   },
 });
 
