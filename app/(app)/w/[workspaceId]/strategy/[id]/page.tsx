@@ -60,6 +60,7 @@ export default function StrategyDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [attemptedKeywordRefresh, setAttemptedKeywordRefresh] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !strategyId) return;
@@ -93,6 +94,10 @@ export default function StrategyDetailPage() {
 
     return () => controller.abort();
   }, [isLoaded, isSignedIn, strategyId]);
+
+  useEffect(() => {
+    setAttemptedKeywordRefresh(false);
+  }, [strategyId]);
 
   const reloadData = useCallback(async () => {
     const [strategyRes, calendarRes] = await Promise.all([
@@ -144,6 +149,49 @@ export default function StrategyDetailPage() {
       setActionBusy(null);
     }
   };
+
+  const handleRefreshKeywordData = useCallback(async (silent = false) => {
+    setActionBusy("metrics");
+    if (!silent) {
+      setActionError(null);
+    }
+    try {
+      const res = await fetch(`/api/strategy/${strategyId}/keyword-data`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to refresh keyword data");
+      }
+      await reloadData();
+    } catch (err) {
+      if (!silent) {
+        setActionError(err instanceof Error ? err.message : "Failed to refresh keyword data");
+      } else {
+        console.warn("[strategy/[id]/page] keyword refresh failed:", err);
+      }
+    } finally {
+      setActionBusy(null);
+    }
+  }, [reloadData, strategyId]);
+
+  useEffect(() => {
+    if (!data || data.keywords.length === 0 || attemptedKeywordRefresh || actionBusy !== null) {
+      return;
+    }
+
+    const needsKeywordRefresh = data.keywords.every((keyword) =>
+      (keyword.searchVolume ?? 0) === 0
+      && (keyword.keywordDifficulty ?? 0) === 0
+      && (keyword.cpc ?? 0) === 0
+      && (keyword.opportunityScore ?? 0) === 0,
+    );
+
+    if (!needsKeywordRefresh) {
+      return;
+    }
+
+    setAttemptedKeywordRefresh(true);
+    void handleRefreshKeywordData(true);
+  }, [actionBusy, attemptedKeywordRefresh, data, handleRefreshKeywordData]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -201,6 +249,19 @@ export default function StrategyDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={actionBusy !== null || data.keywords.length === 0}
+              onClick={() => void handleRefreshKeywordData()}
+            >
+              {actionBusy === "metrics" ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Refresh Metrics
+            </Button>
             <Button
               variant="outline"
               size="sm"

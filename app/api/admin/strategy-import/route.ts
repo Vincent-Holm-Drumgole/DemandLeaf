@@ -3,7 +3,9 @@ import { auth } from "@clerk/nextjs/server";
 import { getAuthedConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { enrichKeywordRecords } from "@/lib/strategy/keyword-enrichment";
 import type { KBEntryType } from "@/types/knowledge-base";
+import type { SearchIntent } from "@/types";
 
 export const maxDuration = 300;
 
@@ -38,6 +40,11 @@ interface ImportPayload {
       keyword: string;
       archetype: string;
       contentTrack: "evergreen" | "research" | "thought_leadership";
+      searchVolume?: number;
+      keywordDifficulty?: number;
+      cpc?: number;
+      searchIntent?: SearchIntent;
+      opportunityScore?: number;
     }[];
   }[];
   publishSchedule: {
@@ -177,6 +184,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 7. Create keywords from pillars
     if (body.pillars?.length) {
       const allKeywords = body.pillars.flatMap((p) => p.keywords.map((k) => k.keyword));
+      const keywordSeeds = new Map<
+        string,
+        {
+          keyword: string;
+          searchVolume?: number;
+          keywordDifficulty?: number;
+          cpc?: number;
+          searchIntent?: SearchIntent;
+          opportunityScore?: number;
+        }
+      >();
+      for (const pillar of body.pillars) {
+        for (const keyword of pillar.keywords) {
+          const normalizedKeyword = keyword.keyword.toLowerCase().trim();
+          if (!normalizedKeyword) continue;
+          keywordSeeds.set(normalizedKeyword, {
+            keyword: keyword.keyword,
+            searchVolume: keyword.searchVolume,
+            keywordDifficulty: keyword.keywordDifficulty,
+            cpc: keyword.cpc,
+            searchIntent: keyword.searchIntent,
+            opportunityScore: keyword.opportunityScore,
+          });
+        }
+      }
       const keywordIds = await convex.mutation(api.keywords.bulkCreate, {
         workspaceId,
         strategyId,
@@ -189,6 +221,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const keywordId = keywordIds[i];
         if (!keywordId) continue;
         keywordMap.set(allKeywords[i].toLowerCase().trim(), keywordId);
+      }
+
+      const keywordEnrichment = await enrichKeywordRecords(
+        convex,
+        Array.from(keywordMap.entries()).map(([normalizedKeyword, keywordId]) => ({
+          keywordId,
+          ...(keywordSeeds.get(normalizedKeyword) ?? { keyword: normalizedKeyword }),
+        })),
+      );
+      results.keywordData = `updated ${keywordEnrichment.updated} keywords`;
+      if (keywordEnrichment.failures > 0) {
+        results.keywordDataFailures = keywordEnrichment.failures;
       }
 
       // 8. Create topic clusters (pillars)
