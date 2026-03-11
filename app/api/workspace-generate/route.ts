@@ -20,7 +20,7 @@ import type { Archetype, BriefHint, BriefData, GenerateSSEEvent } from "@/types"
 import type { Id } from "@/convex/_generated/dataModel";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function jsonError(message: string, status: number) {
   return new Response(JSON.stringify({ error: message }), {
