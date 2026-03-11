@@ -59,11 +59,6 @@ export async function POST(
       keywords.map((keyword) => ({
         keywordId: keyword._id,
         keyword: keyword.keyword,
-        searchVolume: keyword.searchVolume,
-        keywordDifficulty: keyword.keywordDifficulty,
-        cpc: keyword.cpc,
-        searchIntent: keyword.searchIntent,
-        opportunityScore: keyword.opportunityScore,
       })),
     );
 
