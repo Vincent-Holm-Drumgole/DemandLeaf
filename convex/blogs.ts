@@ -242,6 +242,21 @@ export const update = mutation({
     );
     if (Object.keys(updates).length === 0) return;
     await ctx.db.patch(blogId, { ...updates, updatedAt: Date.now() });
+
+    // Reset approved reviews when content changes while in_review
+    const contentChanged = fields.content !== undefined || fields.contentHtml !== undefined;
+    if (contentChanged && blog.status === "in_review") {
+      const requests = await ctx.db
+        .query("reviewRequests")
+        .withIndex("by_blog", (q: any) => q.eq("blogId", blogId))
+        .take(50);
+      const now = Date.now();
+      for (const req of requests) {
+        if (req.status === "approved") {
+          await ctx.db.patch(req._id, { status: "pending", updatedAt: now });
+        }
+      }
+    }
   },
 });
 

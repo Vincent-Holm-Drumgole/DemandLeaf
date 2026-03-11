@@ -12,6 +12,8 @@ import { AeoPanel } from "@/components/publishing/aeo-panel";
 import { SchemaPanel } from "@/components/publishing/schema-panel";
 import { InternalLinksPanel } from "@/components/publishing/internal-links-panel";
 import { WpPublishPanel } from "@/components/publishing/wp-publish-panel";
+import { ReviewPanel } from "@/components/review/review-panel";
+import { CommentLayer } from "@/components/review/comment-layer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -193,6 +195,7 @@ export default function BlogPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
               </SelectContent>
@@ -243,6 +246,12 @@ export default function BlogPage() {
               scores={blog.scores}
               wordCount={blog.wordCount}
             />
+            <ReviewPanel
+              blogId={blogId}
+              workspaceId={currentWorkspace._id}
+              onDecisionSubmitted={() => fetchBlog(blogId)}
+            />
+            <CommentLayer blogId={blogId} />
             <MetaPanel fields={meta} onChange={handleMetaChange} />
             <AeoPanel
               blogId={blogId}

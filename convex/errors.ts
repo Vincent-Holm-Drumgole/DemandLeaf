@@ -65,6 +65,10 @@ export const ERR_PUBLISHING_AGENT_NOT_ACTIVE = "Publishing agent is paused or no
 export const ERR_TRUST_GATE_NOT_MET = "Trust gate requirements not met";
 export const ERR_PUBLISHING_CONFIG_NOT_FOUND = "Publishing agent config not found";
 
+// Content Review
+export const ERR_REVIEW_REQUEST_NOT_FOUND = "Review request not found";
+export const ERR_REVIEW_COMMENT_NOT_FOUND = "Review comment not found";
+
 // Billing
 export const ERR_SUBSCRIPTION_REQUIRED = "Subscription required";
 export const ERR_WORKSPACE_NOT_FOUND = "Workspace not found";

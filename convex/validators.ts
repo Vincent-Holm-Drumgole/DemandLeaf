@@ -500,6 +500,10 @@ export const notificationTypeValidator = v.union(
   v.literal("kb_review_due"),
   v.literal("research_brief_ready"),
   v.literal("trend_report_ready"),
+  v.literal("review_requested"),
+  v.literal("review_approved"),
+  v.literal("review_changes_requested"),
+  v.literal("review_comment_added"),
 );
 
 export const auditActorTypeValidator = v.union(
@@ -532,6 +536,32 @@ export const researchBriefStatusValidator = v.union(
 export const researchBriefKindValidator = v.union(
   v.literal("daily_brief"),
   v.literal("trend_report"),
+);
+
+// ── Content Review ───────────────────────────────────────────────────────────
+
+export const reviewStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("changes_requested")
+);
+
+export const reviewActivityActionValidator = v.union(
+  v.literal("comment_added"),
+  v.literal("suggestion_added"),
+  v.literal("suggestion_accepted"),
+  v.literal("suggestion_rejected"),
+  v.literal("review_requested"),
+  v.literal("approved"),
+  v.literal("changes_requested"),
+  v.literal("comment_resolved"),
+  v.literal("status_changed")
+);
+
+export const suggestionStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("accepted"),
+  v.literal("rejected")
 );
 
 // ── Billing ──────────────────────────────────────────────────────────────────

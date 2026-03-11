@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 import { PublicationCheckPanel } from "@/components/review/publication-check-panel";
+import { ReviewPanel } from "@/components/review/review-panel";
+import { CommentLayer } from "@/components/review/comment-layer";
 import type { PublicationCheckResult } from "@/types";
 
 interface SavedBlogResponse {
@@ -184,6 +186,7 @@ export default function ReviewPage() {
         totalCostCents={savedBlog.generationCostCents ?? undefined}
         blogId={savedBlog.id}
         showSignupBanner={false}
+        workspaceId={workspaceId ?? undefined}
       />
     );
   }
@@ -209,6 +212,7 @@ function ReviewLayout({
   contentTrack,
   factCheck,
   publicationCheck,
+  workspaceId,
 }: {
   content: string;
   title: string;
@@ -230,6 +234,7 @@ function ReviewLayout({
   contentTrack: "evergreen" | "research" | "thought_leadership";
   factCheck: PublicationCheckResult["factCheck"] | null;
   publicationCheck: PublicationCheckResult | null;
+  workspaceId?: string;
 }) {
   const router = useRouter();
   const [publicationState, setPublicationState] = useState<PublicationCheckResult | null>(
@@ -305,6 +310,12 @@ function ReviewLayout({
                     {contentTrack.replace(/_/g, " ")}
                   </p>
                 </div>
+                {workspaceId && (
+                  <>
+                    <ReviewPanel blogId={blogId} workspaceId={workspaceId} />
+                    <CommentLayer blogId={blogId} />
+                  </>
+                )}
                 <PublicationCheckPanel
                   blogId={blogId}
                   publicationCheck={publicationState}

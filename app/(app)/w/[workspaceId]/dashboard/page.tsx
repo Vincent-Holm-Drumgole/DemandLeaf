@@ -6,6 +6,8 @@ import { BlogCard } from "@/components/dashboard/blog-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { Button } from "@/components/ui/button";
+import { WriteBlogDialog } from "@/components/write-blog/write-blog-dialog";
+import { useWriteBlogStore } from "@/store/write-blog-store";
 import { buildWorkspacePath } from "@/lib/workspace-paths";
 import type { DashboardResponse } from "@/types";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
@@ -94,9 +96,9 @@ export default function DashboardPage() {
           </div>
           <Button
             disabled={!currentWorkspace?._id}
-            onClick={() => currentWorkspace?._id && router.push(buildWorkspacePath(currentWorkspace._id, "/strategy"))}
+            onClick={() => useWriteBlogStore.getState().open()}
           >
-            Write New Blog
+            Write a Blog
           </Button>
         </div>
       </div>
@@ -128,6 +130,7 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+      <WriteBlogDialog />
     </div>
   );
 }

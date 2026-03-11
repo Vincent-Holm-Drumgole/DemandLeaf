@@ -57,6 +57,10 @@ import {
   scorecardDimensionValidator,
   scorecardReasonTagValidator,
   scorecardSuppressedTagValidator,
+  // Content Review
+  reviewStatusValidator,
+  reviewActivityActionValidator,
+  suggestionStatusValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -808,4 +812,55 @@ export default defineSchema({
     pausedAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
+
+  // ── Content Review ──────────────────────────────────────────────────────
+
+  reviewRequests: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    reviewerClerkUserId: v.string(),
+    requestedByClerkUserId: v.string(),
+    status: reviewStatusValidator,
+    note: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_blog_reviewer", ["blogId", "reviewerClerkUserId"])
+    .index("by_reviewer_status", ["reviewerClerkUserId", "status"]),
+
+  reviewComments: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    parentId: v.optional(v.id("reviewComments")),
+    authorClerkUserId: v.string(),
+    anchorParagraphIndex: v.number(),
+    anchorText: v.optional(v.string()),
+    body: v.string(),
+    resolved: v.boolean(),
+    resolvedByClerkUserId: v.optional(v.string()),
+    resolvedAt: v.optional(v.number()),
+    suggestionOriginal: v.optional(v.string()),
+    suggestionReplacement: v.optional(v.string()),
+    suggestionStatus: v.optional(suggestionStatusValidator),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_blog_paragraph", ["blogId", "anchorParagraphIndex"])
+    .index("by_parent", ["parentId"]),
+
+  reviewActivity: defineTable({
+    workspaceId: v.id("workspaces"),
+    blogId: v.id("blogs"),
+    actorClerkUserId: v.string(),
+    action: reviewActivityActionValidator,
+    detail: v.optional(v.string()),
+    relatedCommentId: v.optional(v.id("reviewComments")),
+    relatedReviewRequestId: v.optional(v.id("reviewRequests")),
+    createdAt: v.number(),
+  })
+    .index("by_blog", ["blogId"])
+    .index("by_blog_created", ["blogId", "createdAt"]),
 });
