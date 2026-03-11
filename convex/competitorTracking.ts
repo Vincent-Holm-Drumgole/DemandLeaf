@@ -3,10 +3,22 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireWorkspaceAccess, requireCronAccess } from "./helpers";
 import { ERR_COMPETITOR_TRACKING_NOT_FOUND } from "./errors";
+import type { Id } from "./_generated/dataModel";
 
 const MAX_DOMAINS_PER_STRATEGY = 10;
 const MAX_KEYWORDS_PER_DOMAIN = 5;
 const MAX_TRACKING_PER_WORKSPACE = 50;
+
+function normalizeDomain(domain: string): string {
+  return domain.toLowerCase().replace(/^www\./, "");
+}
+
+function normalizeTrackedKeywords(keywords: string[]): string[] {
+  return keywords
+    .map((keyword) => keyword.trim())
+    .filter(Boolean)
+    .slice(0, MAX_KEYWORDS_PER_DOMAIN);
+}
 
 export const create = mutation({
   args: {
@@ -28,16 +40,64 @@ export const create = mutation({
       throw new ConvexError(`Maximum ${MAX_DOMAINS_PER_STRATEGY} competitor domains per strategy`);
     }
 
-    const keywords = args.trackedKeywords.slice(0, MAX_KEYWORDS_PER_DOMAIN);
+    const keywords = normalizeTrackedKeywords(args.trackedKeywords);
     const now = Date.now();
     return ctx.db.insert("competitorTracking", {
       workspaceId: args.workspaceId,
       strategyId: args.strategyId,
-      domain: args.domain.toLowerCase().replace(/^www\./, ""),
+      domain: normalizeDomain(args.domain),
       trackedKeywords: keywords,
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+export const replaceByStrategy = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    strategyId: v.id("strategies"),
+    competitors: v.array(v.object({
+      domain: v.string(),
+      trackedKeywords: v.array(v.string()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    await requireWorkspaceAccess(ctx, args.workspaceId);
+
+    const strategy = await ctx.db.get(args.strategyId);
+    if (!strategy || strategy.workspaceId !== args.workspaceId) {
+      throw new ConvexError("Strategy not found for workspace");
+    }
+
+    if (args.competitors.length > MAX_DOMAINS_PER_STRATEGY) {
+      throw new ConvexError(`Maximum ${MAX_DOMAINS_PER_STRATEGY} competitor domains per strategy`);
+    }
+
+    const existing = await ctx.db
+      .query("competitorTracking")
+      .withIndex("by_strategy", (q) => q.eq("strategyId", args.strategyId))
+      .take(MAX_TRACKING_PER_WORKSPACE);
+
+    for (const record of existing) {
+      await ctx.db.delete(record._id);
+    }
+
+    const now = Date.now();
+    const ids: Array<Id<"competitorTracking">> = [];
+    for (const competitor of args.competitors) {
+      const id = await ctx.db.insert("competitorTracking", {
+        workspaceId: args.workspaceId,
+        strategyId: args.strategyId,
+        domain: normalizeDomain(competitor.domain),
+        trackedKeywords: normalizeTrackedKeywords(competitor.trackedKeywords),
+        createdAt: now,
+        updatedAt: now,
+      });
+      ids.push(id);
+    }
+
+    return { removed: existing.length, created: ids.length, ids };
   },
 });
 

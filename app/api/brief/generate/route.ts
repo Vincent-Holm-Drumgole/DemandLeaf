@@ -15,6 +15,31 @@ import { hasConvexErrorCode } from "@/lib/convex-error";
 
 export const maxDuration = 120;
 
+function getBriefGenerationErrorResponse(err: unknown): NextResponse {
+  if (err instanceof Error) {
+    if (hasConvexErrorCode(err, ERR_KEYWORD_NOT_FOUND)) {
+      return NextResponse.json({ error: "Keyword not found" }, { status: 404 });
+    }
+    if (err.message.includes(ERR_KEYWORD_ALREADY_BRIEFED)) {
+      return NextResponse.json({ error: "A brief already exists for this keyword" }, { status: 409 });
+    }
+    if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      err.message === "Brief generation returned invalid JSON"
+      || err.message === "Brief generation returned invalid brief shape"
+    ) {
+      return NextResponse.json(
+        { error: "Brief generation is temporarily unavailable" },
+        { status: 502 },
+      );
+    }
+  }
+
+  return NextResponse.json({ error: "Failed to generate brief" }, { status: 500 });
+}
+
 // POST /api/brief/generate — generate a content brief for a keyword
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
@@ -55,19 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ briefId, briefData }, { status: 201 });
   } catch (err) {
-    if (err instanceof Error) {
-      if (hasConvexErrorCode(err, ERR_KEYWORD_NOT_FOUND)) {
-        return NextResponse.json({ error: "Keyword not found" }, { status: 404 });
-      }
-      if (err.message.includes(ERR_KEYWORD_ALREADY_BRIEFED)) {
-        return NextResponse.json({ error: "A brief already exists for this keyword" }, { status: 409 });
-      }
-      if (hasConvexErrorCode(err, ERR_UNAUTHORIZED)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
     console.error("[brief/generate/POST] error:", err);
-    const message = err instanceof Error ? err.message : "Failed to generate brief";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return getBriefGenerationErrorResponse(err);
   }
 }

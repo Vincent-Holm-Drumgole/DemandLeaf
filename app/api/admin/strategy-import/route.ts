@@ -7,6 +7,16 @@ import type { KBEntryType } from "@/types/knowledge-base";
 
 export const maxDuration = 300;
 
+function getSessionRole(sessionClaims: unknown): string | undefined {
+  if (!sessionClaims || typeof sessionClaims !== "object") return undefined;
+  const metadata = "metadata" in sessionClaims
+    ? (sessionClaims as { metadata?: unknown }).metadata
+    : undefined;
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const role = "role" in metadata ? (metadata as { role?: unknown }).role : undefined;
+  return typeof role === "string" ? role : undefined;
+}
+
 interface ImportPayload {
   strategyName: string;
   businessOutcomes: string;
@@ -37,8 +47,11 @@ interface ImportPayload {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (getSessionRole(sessionClaims) !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   let body: ImportPayload;
   try {
@@ -100,21 +113,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // 3. Replace competitor tracking
     if (body.competitors?.length) {
-      // Delete existing competitors for this strategy
-      const existingCompetitors = await convex.query(api.competitorTracking.listByStrategy, { strategyId });
-      for (const comp of existingCompetitors) {
-        await convex.mutation(api.competitorTracking.remove, { trackingId: comp._id });
-      }
-      // Create new ones
-      for (const comp of body.competitors) {
-        await convex.mutation(api.competitorTracking.create, {
-          workspaceId,
-          strategyId,
-          domain: comp.domain,
-          trackedKeywords: comp.trackedKeywords,
-        });
-      }
-      results.competitors = `replaced ${existingCompetitors.length} with ${body.competitors.length}`;
+      const competitorSwap = await convex.mutation(api.competitorTracking.replaceByStrategy, {
+        workspaceId,
+        strategyId,
+        competitors: body.competitors,
+      });
+      results.competitors = `replaced ${competitorSwap.removed} with ${competitorSwap.created}`;
     }
 
     // 4. Update voice profile (thought leadership + never-say)
@@ -180,10 +184,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       // Build keyword → id map
-      const createdKeywords = await convex.query(api.keywords.listByStrategy, { strategyId });
       const keywordMap = new Map<string, Id<"keywords">>();
-      for (const kw of createdKeywords) {
-        keywordMap.set(kw.keyword.toLowerCase().trim(), kw._id);
+      for (let i = 0; i < allKeywords.length; i++) {
+        const keywordId = keywordIds[i];
+        if (!keywordId) continue;
+        keywordMap.set(allKeywords[i].toLowerCase().trim(), keywordId);
       }
 
       // 8. Create topic clusters (pillars)
