@@ -46,11 +46,11 @@ export function KeywordExplorer({ keywords, clusterOptions = [] }: KeywordExplor
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keywordId }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         router.push(buildWorkspacePath(currentWorkspace._id, `/brief/${data.briefId}`));
       } else {
-        setBriefError("Failed to generate brief. Please try again.");
+        setBriefError(data.error || "Failed to generate brief. Please try again.");
       }
     } catch {
       setBriefError("Network error. Please try again.");

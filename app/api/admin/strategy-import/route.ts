@@ -1,0 +1,267 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { getAuthedConvexClient } from "@/lib/convex";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import type { KBEntryType } from "@/types/knowledge-base";
+
+export const maxDuration = 300;
+
+interface ImportPayload {
+  strategyName: string;
+  businessOutcomes: string;
+  targetAudience: string;
+  seedKeywords: string[];
+  masterContext: string;
+  competitors: { domain: string; trackedKeywords: string[] }[];
+  thoughtLeadershipPositions: string[];
+  neverSayTerms: string[];
+  knowledgeBaseEntries: {
+    title: string;
+    content: string;
+    entryType: KBEntryType;
+    tags: string[];
+  }[];
+  pillars: {
+    name: string;
+    keywords: {
+      keyword: string;
+      archetype: string;
+      contentTrack: "evergreen" | "research" | "thought_leadership";
+    }[];
+  }[];
+  publishSchedule: {
+    postsPerWeek: number;
+    startDate: string;
+  };
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let body: ImportPayload;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (!body.strategyName || !body.seedKeywords?.length) {
+    return NextResponse.json({ error: "strategyName and seedKeywords are required" }, { status: 400 });
+  }
+
+  const convex = await getAuthedConvexClient();
+  const workspace = await convex.query(api.workspaces.getByClerkUser, {});
+  if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
+  const workspaceId = workspace._id;
+  const results: Record<string, unknown> = {};
+
+  try {
+    // 1. Find or create strategy
+    const strategies = await convex.query(api.strategies.listByWorkspace, { workspaceId });
+    const activeStrategy = strategies.find((s) => s.status === "active");
+
+    let strategyId: Id<"strategies">;
+    if (activeStrategy) {
+      strategyId = activeStrategy._id;
+      // Clear old discovery data first
+      await convex.mutation(api.strategies.clearDiscoveryData, { strategyId });
+      // Update strategy
+      await convex.mutation(api.strategies.update, {
+        strategyId,
+        name: body.strategyName,
+        businessOutcomes: body.businessOutcomes,
+        targetAudience: body.targetAudience,
+        seedKeywords: body.seedKeywords,
+      });
+      results.strategy = "updated";
+    } else {
+      strategyId = await convex.mutation(api.strategies.create, {
+        workspaceId,
+        name: body.strategyName,
+        businessOutcomes: body.businessOutcomes,
+        targetAudience: body.targetAudience,
+        seedKeywords: body.seedKeywords,
+      });
+      results.strategy = "created";
+    }
+    results.strategyId = strategyId;
+
+    // 2. Update master context
+    if (body.masterContext) {
+      await convex.mutation(api.workspaces.updateProfile, {
+        workspaceId,
+        masterContext: body.masterContext,
+      });
+      results.masterContext = "updated";
+    }
+
+    // 3. Replace competitor tracking
+    if (body.competitors?.length) {
+      // Delete existing competitors for this strategy
+      const existingCompetitors = await convex.query(api.competitorTracking.listByStrategy, { strategyId });
+      for (const comp of existingCompetitors) {
+        await convex.mutation(api.competitorTracking.remove, { trackingId: comp._id });
+      }
+      // Create new ones
+      for (const comp of body.competitors) {
+        await convex.mutation(api.competitorTracking.create, {
+          workspaceId,
+          strategyId,
+          domain: comp.domain,
+          trackedKeywords: comp.trackedKeywords,
+        });
+      }
+      results.competitors = `replaced ${existingCompetitors.length} with ${body.competitors.length}`;
+    }
+
+    // 4. Update voice profile (thought leadership + never-say)
+    if (body.thoughtLeadershipPositions?.length) {
+      const existingVoice = await convex.query(api.voiceProfiles.getByWorkspace, { workspaceId });
+      await convex.mutation(api.voiceProfiles.updateFromWizard, {
+        workspaceId,
+        patch: {
+          voiceDescription: existingVoice?.voiceDescription ?? "Direct, technical, conversational. Practitioner authority.",
+          formality: existingVoice?.voiceAttributes?.formality ?? 6,
+          humor: existingVoice?.voiceAttributes?.humor ?? 3,
+          jargonLevel: existingVoice?.voiceAttributes?.jargonLevel ?? 7,
+          sentenceComplexity: existingVoice?.voiceAttributes?.sentenceComplexity ?? 5,
+          toneAttributes: existingVoice?.voiceAttributes?.toneAttributes ?? ["direct", "technical", "conversational"],
+          preferredVocabulary: existingVoice?.vocabularyPreferences?.preferred ?? [],
+          avoidedVocabulary: existingVoice?.vocabularyPreferences?.avoid ?? [],
+          writingExamples: existingVoice?.writingExamples ?? [],
+          sourceQuality: existingVoice?.sourceQuality ?? "practitioner",
+          thoughtLeadershipPositions: body.thoughtLeadershipPositions,
+          brandPhilosophy: existingVoice?.brandPhilosophy ?? "Every piece of content should teach the reader something specific they can act on today.",
+        },
+      });
+      results.thoughtLeadership = `set ${body.thoughtLeadershipPositions.length} positions`;
+    }
+
+    // 5. Sync never-say list
+    if (body.neverSayTerms?.length) {
+      const existingTerms = await convex.query(api.neverSayList.listByWorkspace, { workspaceId });
+      for (const entry of existingTerms) {
+        await convex.mutation(api.neverSayList.remove, { entryId: entry._id, workspaceId });
+      }
+      for (const term of body.neverSayTerms) {
+        await convex.mutation(api.neverSayList.add, {
+          workspaceId,
+          term,
+          termType: "word",
+        });
+      }
+      results.neverSay = `replaced ${existingTerms.length} with ${body.neverSayTerms.length}`;
+    }
+
+    // 6. Add KB entries
+    if (body.knowledgeBaseEntries?.length) {
+      await convex.mutation(api.knowledgeBase.createMany, {
+        workspaceId,
+        entries: body.knowledgeBaseEntries.map((entry) => ({
+          entryType: entry.entryType,
+          title: entry.title,
+          content: entry.content,
+          tags: entry.tags,
+        })),
+      });
+      results.knowledgeBase = `added ${body.knowledgeBaseEntries.length} entries`;
+    }
+
+    // 7. Create keywords from pillars
+    if (body.pillars?.length) {
+      const allKeywords = body.pillars.flatMap((p) => p.keywords.map((k) => k.keyword));
+      const keywordIds = await convex.mutation(api.keywords.bulkCreate, {
+        workspaceId,
+        strategyId,
+        keywords: allKeywords,
+      });
+
+      // Build keyword → id map
+      const createdKeywords = await convex.query(api.keywords.listByStrategy, { strategyId });
+      const keywordMap = new Map<string, Id<"keywords">>();
+      for (const kw of createdKeywords) {
+        keywordMap.set(kw.keyword.toLowerCase().trim(), kw._id);
+      }
+
+      // 8. Create topic clusters (pillars)
+      const clusterIds = await convex.mutation(api.topicClusters.bulkCreate, {
+        workspaceId,
+        strategyId,
+        clusters: body.pillars.map((p) => ({
+          name: p.name,
+          pillarKeyword: p.keywords[0]?.keyword ?? p.name,
+        })),
+      });
+
+      // Assign keywords to clusters
+      for (let ci = 0; ci < body.pillars.length; ci++) {
+        const pillar = body.pillars[ci];
+        const clusterId = clusterIds[ci];
+        for (const kw of pillar.keywords) {
+          const kwId = keywordMap.get(kw.keyword.toLowerCase().trim());
+          if (kwId && clusterId) {
+            await convex.mutation(api.keywords.updateCluster, {
+              keywordId: kwId,
+              clusterId,
+            });
+          }
+        }
+      }
+
+      // 9. Create content calendar
+      const startDate = new Date(body.publishSchedule?.startDate ?? new Date().toISOString());
+      const postsPerWeek = body.publishSchedule?.postsPerWeek ?? 2;
+
+      const calendarItems: Array<{
+        keywordId: Id<"keywords">;
+        scheduledDate: number;
+        archetype: string;
+        contentTrack: "evergreen" | "research" | "thought_leadership";
+        priority: number;
+      }> = [];
+
+      let articleIndex = 0;
+      for (const pillar of body.pillars) {
+        for (const kw of pillar.keywords) {
+          const kwId = keywordMap.get(kw.keyword.toLowerCase().trim());
+          if (!kwId) continue;
+
+          const weekOffset = Math.floor(articleIndex / postsPerWeek);
+          const dayInWeek = (articleIndex % postsPerWeek) * Math.floor(7 / postsPerWeek);
+          const scheduledDate = new Date(startDate);
+          scheduledDate.setDate(scheduledDate.getDate() + weekOffset * 7 + dayInWeek);
+
+          calendarItems.push({
+            keywordId: kwId,
+            scheduledDate: scheduledDate.getTime(),
+            archetype: kw.archetype || "how_to",
+            contentTrack: kw.contentTrack || "evergreen",
+            priority: articleIndex + 1,
+          });
+          articleIndex++;
+        }
+      }
+
+      if (calendarItems.length > 0) {
+        await convex.mutation(api.contentCalendar.bulkCreate, {
+          workspaceId,
+          strategyId,
+          items: calendarItems,
+        });
+      }
+
+      results.pillars = `created ${body.pillars.length} pillars`;
+      results.keywords = `created ${allKeywords.length} keywords`;
+      results.calendar = `scheduled ${calendarItems.length} articles`;
+    }
+
+    return NextResponse.json({ success: true, results }, { status: 200 });
+  } catch (err) {
+    console.error("[admin/strategy-import] error:", err);
+    const message = err instanceof Error ? err.message : "Import failed";
+    return NextResponse.json({ error: message, results }, { status: 500 });
+  }
+}

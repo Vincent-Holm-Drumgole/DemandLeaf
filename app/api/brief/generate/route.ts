@@ -67,6 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
     console.error("[brief/generate/POST] error:", err);
-    return NextResponse.json({ error: "Failed to generate brief" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to generate brief";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

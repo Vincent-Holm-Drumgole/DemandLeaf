@@ -8,6 +8,7 @@ import { parseConvexId } from "@/lib/convex-id";
 import { discoverKeywords } from "@/lib/strategy/keyword-discovery";
 import { getKeywordData } from "@/lib/seo-data";
 import { classifyIntents } from "@/lib/strategy/intent-classifier";
+import { filterByRelevance } from "@/lib/strategy/relevance-filter";
 import { scoreOpportunity } from "@/lib/strategy/opportunity-scorer";
 import { ERR_STRATEGY_NOT_FOUND, ERR_UNAUTHORIZED } from "@/convex/errors";
 import type { FunctionReturnType } from "convex/server";
@@ -66,7 +67,23 @@ export async function POST(
       return NextResponse.json({ keywords: [], count: 0 });
     }
 
-    const keywordStrings = discovered.slice(0, 200);
+    // Filter by relevance to business outcomes (graceful if AI unavailable)
+    let relevant = discovered;
+    try {
+      relevant = await filterByRelevance(
+        discovered.slice(0, 300),
+        strategy.businessOutcomes,
+        strategy.targetAudience
+      );
+    } catch (relevanceErr) {
+      console.warn("[strategy/[id]/rediscover/POST] relevance filtering unavailable:", relevanceErr);
+    }
+
+    if (relevant.length === 0) {
+      return NextResponse.json({ keywords: [], count: 0 });
+    }
+
+    const keywordStrings = relevant.slice(0, 200);
 
     // Invalidate keyword metric cache in batches of 50 (non-blocking, best-effort)
     try {

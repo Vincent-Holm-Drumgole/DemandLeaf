@@ -4,7 +4,7 @@ import { ConvexError } from "convex/values";
 import { requireWorkspaceAccess, requireCronAccess } from "./helpers";
 import { ERR_COMPETITOR_TRACKING_NOT_FOUND } from "./errors";
 
-const MAX_DOMAINS_PER_STRATEGY = 5;
+const MAX_DOMAINS_PER_STRATEGY = 10;
 const MAX_KEYWORDS_PER_DOMAIN = 5;
 const MAX_TRACKING_PER_WORKSPACE = 50;
 
