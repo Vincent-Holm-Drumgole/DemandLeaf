@@ -3,7 +3,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Loader2, TrendingUp, Copy, RefreshCw, Trash2, Pencil, X } from "lucide-react";
+import { Plus, Loader2, TrendingUp, Copy, RefreshCw, Trash2, Pencil, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StrategyWizard } from "@/components/strategy/strategy-wizard";
+import { ConversationalStrategy } from "@/components/strategy/conversational-strategy";
 import { useStrategyStore } from "@/store/strategy-store";
 import { PaywallGate } from "@/components/billing/paywall-gate";
 import { useWorkspace } from "@/components/providers/workspace-provider";
@@ -37,6 +38,7 @@ export default function StrategyPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
   const [showWizard, setShowWizard] = useState(false);
+  const [showConversational, setShowConversational] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editStrategy, setEditStrategy] = useState<Strategy | null>(null);
   const { reset } = useStrategyStore();
@@ -69,6 +71,12 @@ export default function StrategyPage() {
 
   const handleWizardComplete = (strategyId: string) => {
     setShowWizard(false);
+    if (!currentWorkspace?._id) return;
+    router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${strategyId}`));
+  };
+
+  const handleConversationalComplete = (strategyId: string) => {
+    setShowConversational(false);
     if (!currentWorkspace?._id) return;
     router.push(buildWorkspacePath(currentWorkspace._id, `/strategy/${strategyId}`));
   };
@@ -156,9 +164,14 @@ export default function StrategyPage() {
             </h1>
             <p className="text-muted-foreground">Keyword-driven content plans for your workspace.</p>
           </div>
-          <Button onClick={handleOpenWizard}>
-            <Plus className="h-4 w-4 mr-1" /> New Strategy
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowConversational(true)}>
+              <MessageSquare className="h-4 w-4 mr-1" /> Describe Strategy
+            </Button>
+            <Button onClick={handleOpenWizard}>
+              <Plus className="h-4 w-4 mr-1" /> New Strategy
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -191,9 +204,14 @@ export default function StrategyPage() {
                   Create your first strategy to discover keywords and plan your content.
                 </p>
               </div>
-              <Button onClick={handleOpenWizard}>
-                <Plus className="h-4 w-4 mr-1" /> Create Strategy
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowConversational(true)}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> Describe Strategy
+                </Button>
+                <Button onClick={handleOpenWizard}>
+                  <Plus className="h-4 w-4 mr-1" /> Create Strategy
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -285,6 +303,15 @@ export default function StrategyPage() {
               <DialogTitle>Create New Strategy</DialogTitle>
             </DialogHeader>
             <StrategyWizard onComplete={handleWizardComplete} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showConversational} onOpenChange={setShowConversational}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Describe Your Strategy</DialogTitle>
+            </DialogHeader>
+            <ConversationalStrategy onComplete={handleConversationalComplete} />
           </DialogContent>
         </Dialog>
 
